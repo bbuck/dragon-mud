@@ -35,8 +35,27 @@ func NewConsole(w io.Writer) *Console {
 }
 
 // Println prints the text followed by a trailing newline processing color codes.
-func (c *Console) Println(text fmt.Stringer) {
-	fmt.Fprintf(c.writer, "%s\n", color.Colorize(text.String()))
+func (c *Console) Println(text interface{}) {
+	var str string
+	switch value := text.(type) {
+	case string:
+		str = value
+	case fmt.Stringer:
+		str = value.String()
+	default:
+		str = fmt.Sprintf("%s", text)
+	}
+
+	fmt.Fprintf(c.writer, "%s\n", color.Colorize(str))
+}
+
+// Write makes Console conform to io.Writer and can therefore be used as a
+// logger target.
+func (c *Console) Write(p []byte) (n int, err error) {
+	str := color.Colorize(string(p))
+	_, err = c.writer.Write([]byte(str))
+
+	return len(p), err
 }
 
 // Printf will print the string with a format to the console processing
@@ -47,8 +66,8 @@ func (c *Console) Printf(format string, params ...interface{}) {
 }
 
 // PlainPrintln will print the string ignoring color codes in the text.
-func (c *Console) PlainPrintln(text fmt.Stringer) {
-	fmt.Fprintf(c.writer, "%s\n", text.String())
+func (c *Console) PlainPrintln(text interface{}) {
+	fmt.Fprintf(c.writer, "%s\n", text)
 }
 
 // PlainPrintf will print the string ignoring color codes.

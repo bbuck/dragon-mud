@@ -7,6 +7,17 @@ import (
 	"github.com/mgutz/ansi"
 )
 
+const (
+	// ColorCodeOpen is the rune that denotes the beginning of the color code.
+	ColorCodeOpen = '{'
+
+	// ColorCodeClose is the rune that denotes the end of the color code.
+	ColorCodeClose = '}'
+
+	// ColorCodeEscape is the rune that denotes an escaped ColorCodeOpen
+	ColorCodeEscape = '\\'
+)
+
 // ColorizeFunc is a function that takes a string and returns a string with
 // ANSI color escape codes in it.
 type ColorizeFunc func(string) string
@@ -66,10 +77,10 @@ func Colorize(text string) string {
 	toColor := new(bytes.Buffer)
 	prevColorFunc := noopColorFunc
 	for len(text) > 0 {
-		startIndex := strings.Index(text, "[")
+		startIndex := strings.Index(text, string(ColorCodeOpen))
 		switch {
 		// if it's escaped, skip it.
-		case startIndex > 0 && rune(text[startIndex-1]) == '\\':
+		case startIndex > 0 && rune(text[startIndex-1]) == ColorCodeEscape:
 			toColor.WriteString(text[:startIndex+1])
 			text = text[startIndex+1:]
 			continue
@@ -82,7 +93,7 @@ func Colorize(text string) string {
 			final.WriteString(prevColorFunc(toColor.String()))
 			toColor = new(bytes.Buffer)
 			text = text[startIndex+1:]
-			endIndex := strings.Index(text, "]")
+			endIndex := strings.Index(text, string(ColorCodeClose))
 			prevColorFunc = getColorFunction(text[:endIndex])
 			text = text[endIndex+1:]
 		}
@@ -94,4 +105,10 @@ func Colorize(text string) string {
 // Purge will remove color codes from the given string.
 func Purge(text string) string {
 	return text
+}
+
+// Escape will replace all ANSI escape codes with text equivalents so strings
+// can be printed with color codes.
+func Escape(text string) string {
+	return strings.Replace(text, "\033", "\\033", -1)
 }

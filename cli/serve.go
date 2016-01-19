@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"github.com/bbuck/dragon-mud/color"
 	"github.com/bbuck/dragon-mud/log"
 	"github.com/bbuck/dragon-mud/random"
 	"github.com/spf13/cobra"
@@ -15,19 +14,18 @@ var (
 All lifecycle scripts will be notified during boot and the configuration
 information will be processed.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			dragonColor := getDragonColor()
-			log.Logger().Infof("A %s dragon arrives to serve you today.\n", dragonColor)
+			log.Logger().Infof("A %s dragon arrives to serve you today.\n", getDragonColor())
 		},
 	}
 
 	dragonColors = []string{
-		color.ColorizeWithCode("black+h:white+h", "black"),
-		color.ColorizeWithCode("red+h", "red"),
-		color.ColorizeWithCode("green+h", "green"),
-		color.ColorizeWithCode("yellow+h", "gold"),
-		color.ColorizeWithCode("blue+h", "blue"),
-		color.ColorizeWithCode("white+h", "white"),
-		color.ColorizeWithCode("white+u", "silver"),
+		"{black+h:white+h}black{reset}",
+		"{red+h}red{reset}",
+		"{green+h}green{reset}",
+		"{yellow+h}gold{reset}",
+		"{blue+h}blue{reset}",
+		"{white+h}white{reset}",
+		"{white+u}silver{reset}",
 	}
 )
 
