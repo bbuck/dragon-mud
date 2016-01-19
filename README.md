@@ -9,10 +9,10 @@ would be open to forks with custom game rules implemented.
 ## Why Go?
 
 I love C and C++ but they're older and slightly more complex languages to set
-up and maintain. Go strives to be a "modern" C and was therefore a good choice
-in my opinion. It also supports concurrency out of the box in a very easy to use
-and understand way. It's also relatively low level enough for the purpose of
-a game server running.
+up and maintain. [Go](https://golang.org/) strives to be a "modern" C and was
+therefore a good choice in my opinion. It also supports concurrency out of the
+box in a very easy to use and understand way. It's also relatively low level
+enough for the purpose of a game server running.
 
 ## Why Lua?
 
@@ -42,7 +42,7 @@ this project matures I will clean up and define these details more and more.
 # Contributing
 
 If you wish to work on this project with me, fork it, choose a task and do your
-work for that task before making a pull request. I will be using the GitFlow
+work for that task before making a pull request. I will be using the [GitFlow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow)
 methodology for maintaining this repository so keep your work out of `master`
 and `develop` but target `develop` for merging.
 
@@ -53,6 +53,34 @@ and I want the master branch to represent the latest stable codebase.
 Do all of your work to resolve an issue on the original repository, if an issue
 doesn't exist for what you want to do then create one for it. If I'm unsure of
 the necessity for you're work we'll discuss it on the issue and go from there.
+
+## Building From Source
+
+To manage this project and ensure reproducible builds I chose to use the [glide](https://github.com/Masterminds/glide)
+dependency manage for Go. What this means is that you'll need Glide to ensure
+you get the same build that I do. *Please do not update any dependency without
+explicit reasoning to defend the upgrade.* If required to install new
+dependencies you can simply do `glide get`. This will add the dependency to `vendor/`
+which should not be committed.
+
+So the process to set up for contributions is to fork it, and then `go get` your
+project:
+
+```sh
+go get github.com/myusername/dragon-mud
+cd $GOPATH/src/github.com/myusername/dragon-mud
+glide install
+```
+
+At this point, you can either rename `/myusername/` to `/bbuck/` or you can
+symlink `$GOPATH/src/github.com/myusername/dragon-mud` to `$GOPATH/src/github.com/bbuck/dragon-mud`
+to avoid having to rewrite import paths.
+
+To build your project:
+
+```sh
+go install github.com/bbuck/dragon-mud/cmd/...
+```
 
 # License
 
