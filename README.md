@@ -29,15 +29,15 @@ became a prime choice to replace a custom built engine.
 I have grandiose plans. At the moment, they're not divided into versions but as
 this project matures I will clean up and define these details more and more.
 
- [ ] MUD Server
- [ ] Database backed server, can choose which database (default SQLite)
- [ ] Admin web interface with game building capabilities
- [ ] Scriptable server hooks using Lua files
- [ ] In game scripts written in Lua
- [ ] Test suites with extensive coverage (protected with Coveralls)
- [ ] Code climate monitoring GPA of code, maintaining a A - B grade for overall
-     project
- [ ] TravisCI integration to easily demonstrate stable builds
+ - [ ] MUD Server
+ - [ ] Database backed server, can choose which database (default SQLite)
+ - [ ] Admin web interface with game building capabilities
+ - [ ] Scriptable server hooks using Lua files
+ - [ ] In game scripts written in Lua
+ - [ ] Test suites with extensive coverage (protected with Coveralls)
+ - [ ] Code climate monitoring GPA of code, maintaining a A - B grade for overall
+   project
+ - [ ] TravisCI integration to easily demonstrate stable builds
  
 # Contributing
 
