@@ -77,11 +77,12 @@ func Colorize(text string) string {
 	toColor := new(bytes.Buffer)
 	prevColorFunc := noopColorFunc
 	for len(text) > 0 {
-		startIndex := strings.Index(text, string(ColorCodeOpen))
+		startIndex := strings.IndexRune(text, ColorCodeOpen)
 		switch {
 		// if it's escaped, skip it.
 		case startIndex > 0 && rune(text[startIndex-1]) == ColorCodeEscape:
-			toColor.WriteString(text[:startIndex+1])
+			toColor.WriteString(text[:startIndex-1])
+			toColor.WriteRune(ColorCodeOpen)
 			text = text[startIndex+1:]
 			continue
 		case startIndex < 0:
@@ -93,7 +94,7 @@ func Colorize(text string) string {
 			final.WriteString(prevColorFunc(toColor.String()))
 			toColor = new(bytes.Buffer)
 			text = text[startIndex+1:]
-			endIndex := strings.Index(text, string(ColorCodeClose))
+			endIndex := strings.IndexRune(text, ColorCodeClose)
 			prevColorFunc = getColorFunction(text[:endIndex])
 			text = text[endIndex+1:]
 		}
@@ -104,7 +105,29 @@ func Colorize(text string) string {
 
 // Purge will remove color codes from the given string.
 func Purge(text string) string {
-	return text
+	final := new(bytes.Buffer)
+	for len(text) > 0 {
+		startIndex := strings.IndexRune(text, ColorCodeOpen)
+		switch {
+		case startIndex >= 0:
+			if startIndex > 0 && text[startIndex-1] == ColorCodeEscape {
+				final.WriteString(text[:startIndex-1])
+				final.WriteRune(ColorCodeOpen)
+				text = text[startIndex+1:]
+				continue
+			} else if startIndex > 0 {
+				final.WriteString(text[:startIndex])
+			}
+
+			endIndex := strings.IndexRune(text, ColorCodeClose)
+			text = text[endIndex+1:]
+		default:
+			final.WriteString(text)
+			text = ""
+		}
+	}
+
+	return final.String()
 }
 
 // Escape will replace all ANSI escape codes with text equivalents so strings

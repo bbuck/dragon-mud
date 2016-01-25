@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"github.com/bbuck/dragon-mud/log"
+	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/random"
 	"github.com/spf13/cobra"
 )
@@ -14,7 +14,7 @@ var (
 All lifecycle scripts will be notified during boot and the configuration
 information will be processed.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			log.Logger().Infof("A %s dragon arrives to serve you today.\n", getDragonColor())
+			logger.Log().Infof("A %s dragon arrives to serve you today.", getDragonColor())
 		},
 	}
 

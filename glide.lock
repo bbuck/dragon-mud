@@ -1,5 +1,5 @@
-hash: ec8a628361a38395075d6109009ac2196758dfcda7698932043d131fecd86d8e
-updated: 2016-01-19T10:40:47.301751894-06:00
+hash: 9c24034d935ac7f8b2f6841feb40dfe28b679d8924c16bc95b1530d554bbcfab
+updated: 2016-01-19T22:35:45.238088637-06:00
 imports:
 - name: github.com/armon/consul-api
   version: dcfedd50ed5334f96adee43fc88518a4f095e15c
@@ -12,13 +12,21 @@ imports:
 - name: github.com/golang/protobuf
   version: 2402d76f3d41f928c7902a765dfc872356dd3aad
 - name: github.com/hashicorp/hcl
-  version: 197e8d3cf42199cfd53cd775deb37f3637234635
+  version: 578dd9746824a54637686b51a41bad457a56bcef
+- name: github.com/jinzhu/gorm
+  version: 9739cb853cbfb312fb0e20c7643588004cb50e4d
+- name: github.com/jinzhu/inflection
+  version: 3272df6c21d04180007eb3349844c89a3856bc25
 - name: github.com/kr/pretty
   version: e6ac2fc51e89a3249e82157fa0bb7a18ef9dd5bb
 - name: github.com/kr/pty
   version: f7ee69f31298ecbe5d2b349c711e2547a617d398
 - name: github.com/kr/text
   version: bb797dc4fb8320488f47bf11de07a733d7233e1f
+- name: github.com/layeh/gopher-luar
+  version: 0cfa37e7d7a39213dd0522d49293689742ba4478
+- name: github.com/lib/pq
+  version: 8ad2b298cadd691a77015666a5372eae5dbfac8f
 - name: github.com/magiconair/properties
   version: c81f9d71af8f8cba1466501d30326b99a4e56c19
 - name: github.com/mattn/go-colorable
@@ -55,6 +63,8 @@ imports:
   version: 19bfe61502ba35a3235b4970c10b9366a0aa9b61
 - name: github.com/xordataexchange/crypt
   version: 749e360c8f236773f28fc6d3ddfce4a470795227
+- name: github.com/yuin/gopher-lua
+  version: 0dd1a863ede8c4543814ca0658cc5c22061d48bc
 - name: golang.org/x/crypto
   version: 3760e016850398b85094c4c99e955b8c3dea5711
 - name: gopkg.in/airbrake/gobrake.v2

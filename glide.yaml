@@ -8,3 +8,9 @@ import:
   subpackages:
   - /ginkgo
 - package: github.com/onsi/gomega
+- package: github.com/BurntSushi/toml
+- package: github.com/yuin/gopher-lua
+- package: github.com/jinzhu/gorm
+- package: github.com/layeh/gopher-luar
+- package: github.com/spf13/viper
+- package: github.com/mitchellh/mapstructure

@@ -42,8 +42,12 @@ func (c *Console) Println(text interface{}) {
 		str = value
 	case fmt.Stringer:
 		str = value.String()
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		str = fmt.Sprintf("%d", text)
+	case float32, float64:
+		str = fmt.Sprintf("%f", text)
 	default:
-		str = fmt.Sprintf("%s", text)
+		str = fmt.Sprintf("%v", text)
 	}
 
 	fmt.Fprintf(c.writer, "%s\n", color.Colorize(str))
