@@ -13,7 +13,7 @@ get-deps:
 	glide install
   
 get-coveralls-reqs:
-  go get golang.org/x/tools/cmd/cover
-  go get github.com/mattn/goveralls
+	go get golang.org/x/tools/cmd/cover
+	go get github.com/mattn/goveralls
   
 .PHONY: test install bootstrap get-glid get-deps
