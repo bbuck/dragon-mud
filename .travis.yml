@@ -1,11 +1,15 @@
 language: go
+
 go:
 - 1.5
 - tip
+
 install: make bootstrap
+
 script:
-- $GOPATH/bin/ginkgo -skipPackage=vendor -r
-- go test -v -covermode=count -coverprofile=coverage.out $GOPATH/bin/goveralls -coverprofile=coverage.out -service=travis-ci -repotoken $COVERALLS_TOKEN
+- make test
+- make coveralls
+
 env:
   global:
     - secure: ZT21iLmtev2M5ZbzLK0OZRw5aO+TYoi6DbtVrIwKsybEhcwx8OarYP09atmSAdSvMHlwdNGClfalQxvN/ndlsLlpHlTJZz3lUi/lLbVMc9eZ7LmYPvVufxevOVkAVIMlk+yNsW9evruBMCRiI58fWwPPmnyua3FjTGGJjSTvcCY6W9rodZowDejSKpmeaIDfl6qrnuLcRTT8WcDV/CKADH/6eYO+yBosNwrgxTP2mbUwgkbYHd79EP1y2J1jQkqhI+Hw+SMGOxViNl0L0QrGEDtCi5Uk/HSC5VROt/5oudnAaLGkvm8kLbu5ACNRg9Q2St3VR2lDS0GTxwQfGb8MS3s2d3YmYQfgMmhb+Nssk4Skrbva5AmjCRXDWLG6xkLytuXCR4Vy2d+MGh927/srhUPoRGR3c3jhBMdJI57Rg2/qupjpPmw/SRe1UCTgppOo27uZajIN0pTMerYx9mWw7OEBnYMaReesu0IHd7cCv9c3/i76AL239N5TVP191+rAqrPj9SqNzlATatfpgv2r9GlPp3RadOWSs4hK19BgtWvj8rci74D9gMHrL5lRyn3/HKea86DU29J4vxzVnf30CZQ6hPgYQHzYllLO8K6n3DHdwhwvoDeOEeQsYxObU06vVAc7XRJYXliV1CuRmZr49LLW30Kv2HYXEEVcFnmbIJw=
