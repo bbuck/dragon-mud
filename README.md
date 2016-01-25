@@ -1,5 +1,10 @@
 # DragonMUD
 
+[![Build Status](https://travis-ci.org/bbuck/dragon-mud.svg?branch=master)](https://travis-ci.org/bbuck/dragon-mud)
+[![Code Climate](https://codeclimate.com/github/bbuck/dragon-mud/badges/gpa.svg)](https://codeclimate.com/github/bbuck/dragon-mud)
+[![Issue Count](https://codeclimate.com/github/bbuck/dragon-mud/badges/issue_count.svg)](https://codeclimate.com/github/bbuck/dragon-mud)
+
+
 DragonMUD is a dream of mine, building a new MUD engine for experience and fun
 before building my own game on top of it. The engine will have a very opinionated
 idea of game rules (such as how skills works, etc.) but outside of game rules
