@@ -1,0 +1,10 @@
+language: go
+
+go:
+  - 1.5
+  - tip
+  
+install: make bootstrap
+
+script:
+  - GO15VENDOREXPERIMENT=1 make test
