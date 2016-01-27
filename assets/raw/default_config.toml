@@ -26,17 +26,29 @@ target = "stdout"
 [database.development]
 
 adapter = "sqlite3"
-file = "data/{{GameName}}.sqlite3"
-
-# adapter = "postgres"
-# user = ""
-# password = ""
-# dbname = "dragon_mud"
-# sslmode = "disable"
-# dsn = "postgres://localhost/{{GameName}}?sslmode=disable"
+dbname = "{{GameName}}_dev.db3"
 
 # adapter = "mysql"
-# dsn = "localhost:3306/{{GameName}}"
+# adapter = "postgres"
 
-# You should define [database.production] as well to provide production details
-# on which database to use.
+# user = ""
+# password = ""
+# dbname = "{{GameName}}_dev"
+
+# sslmode is only for postgres databases
+# sslmode = "disable"
+
+[database.production]
+
+adapter = "sqlite3"
+dbname = "{{GameName}}.db3"
+
+# adapter = "mysql"
+# adapter = "postgres"
+
+# user = ""
+# password = ""
+# dbname = "{{GameName}}"
+
+# sslmode is only for postgres databases
+# sslmode = "disable"

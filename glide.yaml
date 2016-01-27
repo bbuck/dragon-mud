@@ -14,3 +14,6 @@ import:
 - package: github.com/layeh/gopher-luar
 - package: github.com/spf13/viper
 - package: github.com/mitchellh/mapstructure
+- package: github.com/lib/pq
+- package: github.com/go-sql-driver/mysql
+- package: github.com/mattn/go-sqlite3

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/bbuck/dragon-mud/data"
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/random"
 	"github.com/spf13/cobra"
@@ -17,6 +18,12 @@ information will be processed.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			logger.Log().Infof("A %s dragon arrives to serve you today.", getDragonColor())
 			logger.Log().WithField("env", viper.GetString("env")).Info("Configuration loaded")
+
+			_, err := data.DefaultFactory.Open()
+			if err != nil {
+				logger.Log().WithField("error", err.Error()).Fatal("Failed to establish connection with the database.")
+			}
+			logger.Log().Info("Successfully established connection with database")
 		},
 	}
 
