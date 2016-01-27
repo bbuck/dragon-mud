@@ -90,6 +90,10 @@ To build your project:
 go install github.com/bbuck/dragon-mud/cmd/...
 ```
 
+# Contributors
+
+Brandon Buck [@bbuck](https://github.com/bbuck) <lordizuriel@gmail.com>
+
 # License
 
 Copyright 2016 Brandon Buck
