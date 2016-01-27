@@ -101,9 +101,10 @@ always be done inside a feature branch_. I make no exceptions here. I will rejec
 pull requests that are not originating from a feature branch and targeting
 **develop**. All feature branches must always be up to date with **develop**. Feature
 branches will be named like **feature-issue#**. For example, if you're addressing
-issue #1 then your branch should be **feature-1**. I would prefer no fancy names
-along side it but as long as the branch name starts with this pattern that is
-sufficient. Once merged, if applicable, the feature branch will be deleted.
+issue #1 then your branch should be **feature-#1** (the # should be present).
+I would prefer no fancy names along side it but as long as the branch name
+starts with this pattern that is sufficient. Once merged, if applicable, the
+feature branch will be deleted.
 
 To move code between **develop** and **master** (and to simulate a "feature freeze")
 a release branch will be created. The naming convention for these branches will
