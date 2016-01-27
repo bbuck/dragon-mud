@@ -1,4 +1,4 @@
-SOURCE_FILES := $(shell go list ./... | grep -v /vendor/)
+SOURCE_FILES := $(shell go list ./... | grep -v /vendor/ | grep -v /assets)
 
 test:
 	ginkgo -skipPackage=vendor -r

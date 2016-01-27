@@ -1,7 +1,7 @@
 # DragonMUD
 
 [![Issues In Progress](https://badge.waffle.io/bbuck/dragon-mud.svg?label=in%20progress&title=In%20Progress)](http://waffle.io/bbuck/dragon-mud)
-[![Build Status](https://travis-ci.org/bbuck/dragon-mud.svg?branch=master)](https://travis-ci.org/bbuck/dragon-mud)
+[![Build Status](https://travis-ci.org/bbuck/dragon-mud.svg?branch=develop)](https://travis-ci.org/bbuck/dragon-mud)
 [![Code Climate](https://codeclimate.com/github/bbuck/dragon-mud/badges/gpa.svg)](https://codeclimate.com/github/bbuck/dragon-mud)
 [![Issue Count](https://codeclimate.com/github/bbuck/dragon-mud/badges/issue_count.svg)](https://codeclimate.com/github/bbuck/dragon-mud)
 [![Coverage Status](https://coveralls.io/repos/github/bbuck/dragon-mud/badge.svg?branch=master)](https://coveralls.io/github/bbuck/dragon-mud?branch=master)
