@@ -37,30 +37,26 @@ became a prime choice to replace a custom built engine.
 I have grandiose plans. At the moment, they're not divided into versions but as
 this project matures I will clean up and define these details more and more.
 
- - [ ] MUD Server
- - [ ] Database backed server, can choose which database (default SQLite)
- - [ ] Admin web interface with game building capabilities
- - [ ] Scriptable server hooks using Lua files
- - [ ] In game scripts written in Lua
- - [ ] Test suites with extensive coverage (protected with Coveralls)
- - [ ] Code climate monitoring GPA of code, maintaining a A - B grade for overall
+ - [x] TravisCI integration to easily demonstrate stable builds
+ - [x] Code climate monitoring GPA of code, maintaining an A - B grade for overall
    project
- - [ ] TravisCI integration to easily demonstrate stable builds
+ - [x] Test suites with extensive coverage (protected with Coveralls) -- (not
+   'completed' per se, but started)
+ - [ ] Database backed server, can choose which database (default SQLite)
+   - [ ] SQLite3
+   - [ ] PostgreSQL
+   - [ ] MySQL
+ - [ ] Script engine for loading and executing Lua files.
+ - [ ] MUD Server
+ 
+## Future
+
+ - [ ] Admin web interface with game building capabilities
  
 # Contributing
 
-If you wish to work on this project with me, fork it, choose a task and do your
-work for that task before making a pull request. I will be using the [GitFlow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow)
-methodology for maintaining this repository so keep your work out of `master`
-and `develop` but target `develop` for merging.
-
-I will reject any pull request (no matter how awesome) that aren't done in a
-'feature branch.' Sorry to be that guy, but I want to keep this project clean
-and I want the master branch to represent the latest stable codebase.
-
-Do all of your work to resolve an issue on the original repository, if an issue
-doesn't exist for what you want to do then create one for it. If I'm unsure of
-the necessity for you're work we'll discuss it on the issue and go from there.
+Please reference CONTRIBUTING.md for details on becoming a contributor and/or
+collaborator.
 
 ## Building From Source
 
@@ -87,8 +83,18 @@ to avoid having to rewrite import paths.
 To build your project:
 
 ```sh
+make install
+```
+
+And if `make` is not available**, then install with the following command:
+
+```sh
 go install github.com/bbuck/dragon-mud/cmd/...
 ```
+
+** But keep in mind, `make` is used to engineer standard multi-step processes for
+building/installing so it's highly advantageous to get a version for your OS
+up and running to use in place of trying to do everything manually.
 
 # Contributors
 
