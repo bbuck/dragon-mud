@@ -11,3 +11,7 @@ var RootCmd = &cobra.Command{
 dream MUD. Write scripts for several server events in Lua and once in game you can
 script all of your in game scripts are also written in Lua.`,
 }
+
+func init() {
+	RootCmd.PersistentFlags().StringP("env", "E", "development", "Specify the execution environment for the game server, default is 'development'")
+}

@@ -30,6 +30,7 @@ file = "data/{{GameName}}.sqlite3"
 
 # adapter = "postgres"
 # user = ""
+# password = ""
 # dbname = "dragon_mud"
 # sslmode = "disable"
 # dsn = "postgres://localhost/{{GameName}}?sslmode=disable"

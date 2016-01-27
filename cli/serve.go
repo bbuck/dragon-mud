@@ -4,6 +4,7 @@ import (
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/random"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -15,6 +16,7 @@ All lifecycle scripts will be notified during boot and the configuration
 information will be processed.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			logger.Log().Infof("A %s dragon arrives to serve you today.", getDragonColor())
+			logger.Log().WithField("env", viper.GetString("env")).Info("Configuration loaded")
 		},
 	}
 
@@ -34,7 +36,7 @@ func init() {
 }
 
 func getDragonColor() string {
-	index := random.Int(len(dragonColors))
+	index := random.Intn(len(dragonColors))
 
 	return dragonColors[index]
 }

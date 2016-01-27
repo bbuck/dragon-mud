@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/bbuck/dragon-mud/cli"
 	"github.com/spf13/viper"
 )
 
@@ -11,6 +12,7 @@ func init() {
 	registerDefaults()
 	viper.SetConfigType("toml")
 	viper.SetConfigName("DragonDetails")
+	viper.SetEnvPrefix("dragon_mud")
 	viper.AddConfigPath(".")
 	if err := viper.ReadInConfig(); err != nil {
 		if os.IsNotExist(err) {
@@ -20,10 +22,18 @@ func init() {
 			os.Exit(1)
 		}
 	}
+	bindFlags()
+	bindEnvVars()
 }
 
 func registerDefaults() {
-	// Net
-	viper.SetDefault("Net.GamePort", 8080)
-	viper.SetDefault("Net.PrivatePort", 8081)
+
+}
+
+func bindEnvVars() {
+	viper.BindEnv("env")
+}
+
+func bindFlags() {
+	viper.BindPFlag("env", cli.RootCmd.PersistentFlags().Lookup("env"))
 }
