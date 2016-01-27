@@ -96,7 +96,7 @@ To aid in working with these two branch there are 3 minor branche-types that
 are short lived and designed to provide a mechanism for moving work between
 the two working branches.
 
-First and foremost are feature branches. Any work done for new features _will
+First and foremost are feature branche. Any work done for new features _will
 always be done inside a feature branch_. I make no exceptions here. I will reject
 pull requests that are not originating from a feature branch and targeting
 **develop**. All feature branches must always be up to date with **develop**. Feature
