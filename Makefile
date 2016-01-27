@@ -3,7 +3,7 @@ SOURCE_FILES := $(shell go list ./... | grep -v /vendor/)
 test:
 	ginkgo -skipPackage=vendor -r
 
-install:
+install: pre-build
 	go install github.com/bbuck/dragon-mud/...
 
 coveralls: get-coveralls-reqs
@@ -11,16 +11,20 @@ coveralls: get-coveralls-reqs
 	
 bootstrap: get-glide get-deps
   
+pre-build:
+	bindata assets/
+	
 get-glide:
 	go get github.com/Masterminds/glide
   
 get-deps:
 	glide install
 	go get github.com/onsi/ginkgo/ginkgo
+	go get github.com/jteeuwen/go-bindata
   
 get-coveralls-reqs:
 	go get github.com/axw/gocov/gocov
 	go get golang.org/x/tools/cmd/cover
 	go get github.com/mattn/goveralls
   
-.PHONY: test install coveralls bootstrap get-glide get-deps get-coveralls-reqs
+.PHONY: test install coveralls bootstrap get-glide get-deps get-coveralls-reqs pre-build
