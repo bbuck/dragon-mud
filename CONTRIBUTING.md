@@ -81,16 +81,16 @@ specific methods for managing branches and naming conventions. I will entail
 some basics but if you're not familiar with it then I highly encourage looking
 it up for in depth explanations.
 
-There are two core "working" branches. The *master* branches becomes _the_ stable
-implementation branch. Every commit to master coincides with a version change
-whether it be major or minor. This allows the master branch to always be a go to
+There are two core "working" branches. The **master** branches becomes _the_ stable
+implementation branch. Every commit to **master** coincides with a version change
+whether it be major or minor. This allows the **master** branch to always be a go to
 resource for working code. Each commit to this branch will be tagged with the
 version.
 
-The second "working" branch is *develop*, this branch becomes the standard
+The second "working" branch is **develop**, this branch becomes the standard
 'current' for all merged changes. Develop becomes the 'tip' branch representing
 bleeding edge as far as features and work goes. All work for new features starts
-from the develop branch and is merged into the develop branch. Never master.
+from the **develop** branch and is merged into the **develop** branch. Never **master**.
 
 To aid in working with these two branch there are 3 minor branche-types that
 are short lived and designed to provide a mechanism for moving work between
@@ -99,28 +99,28 @@ the two working branches.
 First and foremost are feature branches. Any work done for new features _will
 always be done inside a feature branch_. I make no exceptions here. I will reject
 pull requests that are not originating from a feature branch and targeting
-develop. All feature branches must always be up to date with develop. Feature
-branches will be named like *feature-<issue #>*. For example, if you're addressing
-issue #1 then your branch should be *feature-1*. I would prefer no fancy names
+**develop**. All feature branches must always be up to date with **develop**. Feature
+branches will be named like **feature-<issue #>**. For example, if you're addressing
+issue #1 then your branch should be **feature-1**. I would prefer no fancy names
 along side it but as long as the branch name starts with this pattern that is
 sufficient. Once merged, if applicable, the feature branch will be deleted.
 
-To move code between develop and master (and to simulate a "feature freeze")
+To move code between **develop** and **master** (and to simulate a "feature freeze")
 a release branch will be created. The naming convention for these branches will
-be *release-<semver>*, so for example releasing version 1.2 would be *release-1.2*.
+be **release-semver**, so for example releasing version 1.2 would be **release-1.2**.
 Any additional work required for the release or to clean up features will be done
-on this branch before being merged into master and tagged. At this time it will
-also be merged back into develop. These branches are deleted when the merged.
+on this branch before being merged into **master** and tagged. At this time it will
+also be merged back into **develop**. These branches are deleted when the merged.
 
 For those instances were our quality control pipeline breaks down or fails us
-there are hotfix branches that address issues in master directly. These are
-the only branches that will originate from and merge into master and also the
+there are hotfix branches that address issues in **master** directly. These are
+the only branches that will originate from and merge into **master** and also the
 only branches that will increase the patch number in a version. The naming
-convention for these branches is *hotfix-<sever>*. The version here is slightly
+convention for these branches is **hotfix-semver**. The version here is slightly
 different than for releases as it represents a patch, so for example if we'd
-just released version 1.2 and it has an issue we'd immediately create *hotfix-1.2.1*
-to address this. Once completed we merge into master tagging 1.2.1 and merge
-into develop as well. These branches are deleted when merged.
+just released version 1.2 and it has an issue we'd immediately create **hotfix-1.2.1**
+to address this. Once completed we merge into **master** tagging 1.2.1 and merge
+into **develop** as well. These branches are deleted when merged.
 
 I know it sounds complex and annoying as I'm stating I will be a stickler about
 these things but I have faith it will enable a cleaner and more maintainable
