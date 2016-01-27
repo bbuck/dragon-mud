@@ -4,7 +4,7 @@ test:
 	ginkgo -skipPackage=vendor -r
 
 install: pre-build
-	go install github.com/bbuck/dragon-mud/...
+	go install github.com/bbuck/dragon-mud/cmd/...
 
 coveralls: get-coveralls-reqs
 	goveralls -service=travis-ci $(SOURCE_FILES)
@@ -12,7 +12,7 @@ coveralls: get-coveralls-reqs
 bootstrap: get-glide get-deps
   
 pre-build:
-	bindata assets/
+	go-bindata -pkg assets -o assets.go assets/...
 	
 get-glide:
 	go get github.com/Masterminds/glide
