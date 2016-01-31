@@ -11,7 +11,7 @@ import (
 func init() {
 	registerDefaults()
 	viper.SetConfigType("toml")
-	viper.SetConfigName("DragonDetails")
+	viper.SetConfigName("Dragonfile")
 	viper.SetEnvPrefix("dragon_mud")
 	viper.AddConfigPath(".")
 	if err := viper.ReadInConfig(); err != nil {

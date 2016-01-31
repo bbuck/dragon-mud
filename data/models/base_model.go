@@ -1,0 +1,74 @@
+package models
+
+import (
+	"time"
+
+	"github.com/bbuck/dragon-mud/data"
+	"github.com/jinzhu/gorm"
+)
+
+// Saver is an object that can be saved.
+type Saver interface {
+	Save()
+}
+
+// Deleter is an object that can be deleted.
+type Deleter interface {
+	Delete()
+}
+
+// BeforeSaver defines an object that has a BeforeSave function defined that
+// returns a boolean value whether or not to continue with the saving process.
+type BeforeSaver interface {
+	BeforeSave() error
+}
+
+// AfterSaver defines an object that has an AfterSave function defined that can
+// do additional work after a save happens.
+type AfterSaver interface {
+	AfterSave()
+}
+
+// BaseModel contains the components every model should have.
+type BaseModel struct {
+	ID        uint       `json:"id" gorm:"primary_key" sql:"AUTO_INCREMENT"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+}
+
+// DB is shorthand for fetching a reference to the database handle. All models
+// should embed BaseModel and therefore benefit from this method.
+func (b BaseModel) DB() *gorm.DB {
+	return data.DefaultFactory.MustOpen()
+}
+
+// ScriptableModel contains the concerns for a model that should have a script
+// applied and tracked on it.
+type ScriptableModel struct {
+	Script          string    `json:"script" sql:"type:text"`
+	ScriptUpdatedAt time.Time `json:"script_updated_at"`
+}
+
+// Save will persist a model in the database. If the model is a new record then
+// the record is created otherwose it's updated.
+func Save(model interface{}) error {
+	db := data.DefaultFactory.MustOpen()
+	if bs, ok := model.(BeforeSaver); ok {
+		if err := bs.BeforeSave(); err != nil {
+			return err
+		}
+	}
+
+	if db.NewRecord(model) {
+		db.Create(model)
+	} else {
+		db.Save(model)
+	}
+
+	if as, ok := model.(AfterSaver); ok {
+		as.AfterSave()
+	}
+
+	return nil
+}
