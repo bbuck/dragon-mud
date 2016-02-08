@@ -30,6 +30,24 @@ type Player struct {
 	Iterations  uint32 `json:"-" sql:"not null"`
 }
 
+// NewPlayer creates a player with the given DisplayName and Password, doing some
+// pregeneratio of BeforeSave operations.
+func NewPlayer(displayName, password string) *Player {
+	p := &Player{
+		Username:    strings.ToLower(displayName),
+		DisplayName: displayName,
+	}
+
+	hash, err := p.hashPassword(password)
+	if err != nil {
+		p.RawPassword = password
+	} else {
+		p.Password = hash
+	}
+
+	return p
+}
+
 // FindPlayerByUsername searches the player database for a player with the given
 // username
 func FindPlayerByUsername(query string) (*Player, bool) {
