@@ -43,6 +43,7 @@ func (d *databaseConfig) createDatabase() error {
 	var connStr = d.connectionString(false)
 	switch d.Adapter {
 	case "sqlite3":
+		os.Mkdir("data", os.ModePerm)
 		if _, err := os.Open(connStr); err != nil {
 			if os.IsNotExist(err) {
 				os.Create(connStr)
@@ -179,7 +180,7 @@ func (cf ConfigFactory) Open() (*gorm.DB, error) {
 func (cf ConfigFactory) MustOpen() *gorm.DB {
 	db, err := DefaultFactory.Open()
 	if err != nil {
-		logger.Log().WithField("error", err.Error()).Fatal("Failed to fetch cached DB connection")
+		logger.WithField("error", err.Error()).Fatal("Failed to fetch cached DB connection")
 	}
 
 	return db

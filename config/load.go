@@ -8,12 +8,15 @@ import (
 	"github.com/spf13/viper"
 )
 
-func init() {
+// Load will initiate the loading of the configuration file for use by the
+// application. Reading settings from the config file into the configuration
+// manager.
+func Load() {
 	registerDefaults()
 	viper.SetConfigType("toml")
-	viper.SetConfigName("Dragonfile")
-	viper.SetEnvPrefix("dragon_mud")
 	viper.AddConfigPath(".")
+	viper.SetConfigName("Gamefile")
+	viper.SetEnvPrefix("dragon_mud")
 	if err := viper.ReadInConfig(); err != nil {
 		if os.IsNotExist(err) {
 			fmt.Fprintf(os.Stderr, " WARN: Config file not found, using defaults. It's wise to run `dragon init`\n")
@@ -26,9 +29,7 @@ func init() {
 	bindEnvVars()
 }
 
-func registerDefaults() {
-
-}
+func registerDefaults() {}
 
 func bindEnvVars() {
 	viper.BindEnv("env")

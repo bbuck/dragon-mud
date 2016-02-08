@@ -7,8 +7,8 @@ import (
 	"math"
 	"math/big"
 	"runtime"
+	"strings"
 
-	"github.com/bbuck/dragon-mud/data"
 	"github.com/bbuck/dragon-mud/random"
 	"github.com/pzduniak/argon2"
 )
@@ -22,47 +22,42 @@ const (
 // signed into a player this will likley be populated.
 type Player struct {
 	BaseModel
-	Username    string  `json:"username" sql:"index:idx_username;unique;not null"`
-	RawPassword *string `json:"-" sql:"-"`
-	Password    string  `json:"-" sql:"not null"`
-	Salt        string  `json:"-" sql:"not null"`
-	Iterations  uint32  `json:"-" sql:"not null"`
+	Username    string `json:"username" sql:"index:idx_username;unique;not null"`
+	DisplayName string `json:"display_name" sql:"not_null"`
+	RawPassword string `json:"-" sql:"-"`
+	Password    string `json:"-" sql:"not null"`
+	Salt        string `json:"-" sql:"not null"`
+	Iterations  uint32 `json:"-" sql:"not null"`
 }
 
-// FindByUsername searches the player database for a player with the given
+// FindPlayerByUsername searches the player database for a player with the given
 // username
-func FindByUsername(query string) *Player {
+func FindPlayerByUsername(query string) *Player {
 	player := new(Player)
 	player.DB().Where(&Player{Username: query}).First(&player)
 
 	return player
 }
 
-// Save will persist the record in the database by either creating it (if it's
-// a new record) or updated it if the record has already been created.
-func (p *Player) Save() {
-	db := p.DB()
-	if db.NewRecord(p) {
-		db.Create(p)
-	} else {
-		db.Save(p)
-	}
-}
-
 // BeforeSave is provided to satisy the BeforeSaver interface.
 func (p *Player) BeforeSave() error {
-	if p.RawPassword != nil {
-		hash, err := p.hashPassword(*p.RawPassword)
+	if len(p.RawPassword) > 0 {
+		hash, err := p.hashPassword(p.RawPassword)
 		if err != nil {
 			return err
 		}
 		p.Password = hash
-		*p.RawPassword = ""
+		p.RawPassword = ""
 	}
 
 	if len(p.Password) == 0 {
 		return errors.New("Cannot save player without a password")
 	}
+
+	if len(p.DisplayName) == 0 {
+		p.DisplayName = strings.Title(p.Username)
+	}
+	p.Username = strings.ToLower(p.DisplayName)
 
 	return nil
 }
@@ -97,8 +92,4 @@ func (p *Player) hashPassword(password string) (string, error) {
 	}
 
 	return string(hash), nil
-}
-
-func init() {
-	data.DefaultFactory.MustOpen().AutoMigrate(&Player{})
 }

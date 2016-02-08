@@ -1,6 +1,6 @@
 SOURCE_FILES := $(shell go list ./... | grep -v /vendor/ | grep -v /assets)
 
-test:
+test: install
 	ginkgo -skipPackage=vendor -r
 
 install: pre-build

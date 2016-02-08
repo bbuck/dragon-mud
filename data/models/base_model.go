@@ -52,23 +52,18 @@ type ScriptableModel struct {
 
 // Save will persist a model in the database. If the model is a new record then
 // the record is created otherwose it's updated.
-func Save(model interface{}) error {
+func Save(model interface{}) {
 	db := data.DefaultFactory.MustOpen()
-	if bs, ok := model.(BeforeSaver); ok {
-		if err := bs.BeforeSave(); err != nil {
-			return err
-		}
-	}
-
 	if db.NewRecord(model) {
 		db.Create(model)
 	} else {
 		db.Save(model)
 	}
+}
 
-	if as, ok := model.(AfterSaver); ok {
-		as.AfterSave()
-	}
-
-	return nil
+// ByID returns a gorm DB primed for search for a record by it's ID. This is
+// shorthand for caching DB references and calling Where(id)
+func ByID(id uint) *gorm.DB {
+	db := data.DefaultFactory.MustOpen()
+	return db.Where(id)
 }

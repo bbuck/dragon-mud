@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"github.com/bbuck/dragon-mud/data"
+	"github.com/bbuck/dragon-mud/data/models"
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/random"
 	"github.com/spf13/cobra"
@@ -16,14 +16,22 @@ var (
 All lifecycle scripts will be notified during boot and the configuration
 information will be processed.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			logger.Log().Infof("A %s dragon arrives to serve you today.", getDragonColor())
-			logger.Log().WithField("env", viper.GetString("env")).Info("Configuration loaded")
+			logger.Infof("A %s dragon arrives to serve you today.", getDragonColor())
+			logger.WithField("env", viper.GetString("env")).Info("Configuration loaded")
 
-			_, err := data.DefaultFactory.Open()
+			err := models.MigrateDatabase()
 			if err != nil {
-				logger.Log().WithField("error", err.Error()).Fatal("Failed to establish connection with the database.")
+				logger.WithField("err", err.Error()).Fatal("Failed to configure and setup database")
 			}
-			logger.Log().Info("Successfully established connection with database")
+
+			player := models.FindPlayerByUsername("izuriel")
+			logger.WithField("match", player.IsValidPassword("password")).Info("Testing password validity")
+
+			if player != nil {
+				logger.WithField("player", player.DisplayName).Info("found player")
+			} else {
+				logger.WithField("username", "izuriel").Error("Failed to find the player with username")
+			}
 		},
 	}
 
