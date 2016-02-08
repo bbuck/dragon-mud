@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/bbuck/dragon-mud/output"
@@ -51,7 +52,7 @@ func Log() *logrus.Logger {
 		log.Formatter = &prefixed.TextFormatter{DisableTimestamp: false}
 		log.Out = ConfigureTargets(viper.Get("log.targets"))
 		// TODO: Set logging level
-		log.Level = logrus.DebugLevel
+		log.Level = GetLogLevel(viper.GetString("log.level"))
 	}
 
 	return log
@@ -59,6 +60,27 @@ func Log() *logrus.Logger {
 
 type logTarget struct {
 	Type, Target string
+}
+
+// GetLogLevel converts a string value to a logrus.Level value for use in
+// providing configuration for the logger from the Gamefile.
+func GetLogLevel(level string) logrus.Level {
+	switch strings.ToLower(level) {
+	case "info":
+		return logrus.InfoLevel
+	case "warn", "warning":
+		return logrus.WarnLevel
+	case "error":
+		return logrus.ErrorLevel
+	case "panic":
+		return logrus.PanicLevel
+	case "fatal":
+		return logrus.FatalLevel
+	case "debug":
+		fallthrough
+	default:
+		return logrus.DebugLevel
+	}
 }
 
 // ConfigureTargets takes a 'JSON' map that defines what log targets there

@@ -12,7 +12,7 @@ coveralls: get-coveralls-reqs
 bootstrap: get-glide get-deps
   
 pre-build:
-	go-bindata -pkg assets -o assets.go assets/...
+	go-bindata -pkg assets -o assets/assets.go assets/...
 	
 get-glide:
 	go get github.com/Masterminds/glide

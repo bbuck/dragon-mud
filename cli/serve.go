@@ -24,14 +24,7 @@ information will be processed.`,
 				logger.WithField("err", err.Error()).Fatal("Failed to configure and setup database")
 			}
 
-			player := models.FindPlayerByUsername("izuriel")
-			logger.WithField("match", player.IsValidPassword("password")).Info("Testing password validity")
-
-			if player != nil {
-				logger.WithField("player", player.DisplayName).Info("found player")
-			} else {
-				logger.WithField("username", "izuriel").Error("Failed to find the player with username")
-			}
+			// TODO: Implement serve command
 		},
 	}
 
