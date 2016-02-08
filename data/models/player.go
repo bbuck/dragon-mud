@@ -32,11 +32,11 @@ type Player struct {
 
 // FindPlayerByUsername searches the player database for a player with the given
 // username
-func FindPlayerByUsername(query string) *Player {
+func FindPlayerByUsername(query string) (*Player, bool) {
 	player := new(Player)
-	player.DB().Where(&Player{Username: query}).First(&player)
+	player.DB().Where(&Player{Username: strings.ToLower(query)}).First(&player)
 
-	return player
+	return player, player.ID != 0
 }
 
 // BeforeSave is provided to satisy the BeforeSaver interface.
