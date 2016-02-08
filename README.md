@@ -4,7 +4,7 @@
 [![Build Status](https://travis-ci.org/bbuck/dragon-mud.svg?branch=develop)](https://travis-ci.org/bbuck/dragon-mud)
 [![Code Climate](https://codeclimate.com/github/bbuck/dragon-mud/badges/gpa.svg)](https://codeclimate.com/github/bbuck/dragon-mud)
 [![Issue Count](https://codeclimate.com/github/bbuck/dragon-mud/badges/issue_count.svg)](https://codeclimate.com/github/bbuck/dragon-mud)
-[![Coverage Status](https://coveralls.io/repos/github/bbuck/dragon-mud/badge.svg?branch=master)](https://coveralls.io/github/bbuck/dragon-mud?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/bbuck/dragon-mud/badge.svg?branch=develop)](https://coveralls.io/github/bbuck/dragon-mud?branch=master)
 [![Discord Channel](https://img.shields.io/badge/discord-DragonMUD-blue.svg?style=flat)](https://discordapp.com/channels/141274099262423040/141274099262423040)
 
 
