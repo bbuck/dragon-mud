@@ -17,18 +17,6 @@ type Deleter interface {
 	Delete()
 }
 
-// BeforeSaver defines an object that has a BeforeSave function defined that
-// returns a boolean value whether or not to continue with the saving process.
-type BeforeSaver interface {
-	BeforeSave() error
-}
-
-// AfterSaver defines an object that has an AfterSave function defined that can
-// do additional work after a save happens.
-type AfterSaver interface {
-	AfterSave()
-}
-
 // BaseModel contains the components every model should have.
 type BaseModel struct {
 	ID        uint       `json:"id" gorm:"primary_key" sql:"AUTO_INCREMENT"`
