@@ -1,6 +1,6 @@
 SOURCE_FILES := $(shell go list ./... | grep -v /vendor/ | grep -v /assets)
 
-test:
+test: install
 	ginkgo -skipPackage=vendor -r
 
 install: pre-build
@@ -12,7 +12,7 @@ coveralls: get-coveralls-reqs
 bootstrap: get-glide get-deps
   
 pre-build:
-	go-bindata -pkg assets -o assets.go assets/...
+	go-bindata -pkg assets -o assets/assets.go -prefix assets/raw assets/raw/...
 	
 get-glide:
 	go get github.com/Masterminds/glide
@@ -20,7 +20,7 @@ get-glide:
 get-deps:
 	glide install
 	go get github.com/onsi/ginkgo/ginkgo
-	go get github.com/jteeuwen/go-bindata
+	go get github.com/jteeuwen/go-bindata/...
   
 get-coveralls-reqs:
 	go get github.com/axw/gocov/gocov

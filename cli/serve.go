@@ -1,9 +1,11 @@
 package cli
 
 import (
+	"github.com/bbuck/dragon-mud/data/models"
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/random"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -14,7 +16,15 @@ var (
 All lifecycle scripts will be notified during boot and the configuration
 information will be processed.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			logger.Log().Infof("A %s dragon arrives to serve you today.", getDragonColor())
+			logger.Infof("A %s dragon arrives to serve you today.", getDragonColor())
+			logger.WithField("env", viper.GetString("env")).Info("Configuration loaded")
+
+			err := models.MigrateDatabase()
+			if err != nil {
+				logger.WithField("err", err.Error()).Fatal("Failed to configure and setup database")
+			}
+
+			// TODO: Implement serve command
 		},
 	}
 
@@ -34,7 +44,7 @@ func init() {
 }
 
 func getDragonColor() string {
-	index := random.Int(len(dragonColors))
+	index := random.Intn(len(dragonColors))
 
 	return dragonColors[index]
 }

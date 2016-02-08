@@ -10,8 +10,8 @@ var (
 	generator = rand.New(source)
 )
 
-// Int wraps rand.Intn
-func Int(max int) int {
+// Intn wraps rand.Intn
+func Intn(max int) int {
 	return generator.Intn(max)
 }
 
@@ -20,4 +20,11 @@ func Range(min, max int) int {
 	value := generator.Intn(max - min)
 
 	return value + min
+}
+
+// SetSource is used exclusively for testing, it should never be used outside
+// of an _test file. This will allow setting a known generator with a predicatble
+// source of random numbers for test prediction.
+func SetSource(source rand.Source) {
+	generator = rand.New(source)
 }
