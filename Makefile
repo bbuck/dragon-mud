@@ -20,7 +20,7 @@ get-glide:
 get-deps:
 	glide install
 	go get github.com/onsi/ginkgo/ginkgo
-	go get github.com/jteeuwen/go-bindata
+	go get github.com/jteeuwen/go-bindata/...
   
 get-coveralls-reqs:
 	go get github.com/axw/gocov/gocov
