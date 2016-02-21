@@ -1,4 +1,4 @@
-package color
+package ansi
 
 import (
 	"fmt"
@@ -37,6 +37,7 @@ var (
 	}
 	colorToANSI = map[string]string{
 		"x": "\033[0m",
+		"u": "\033[4m",
 	}
 	fallbackColors = make(map[string]string)
 )

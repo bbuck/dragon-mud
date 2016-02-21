@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 
-	"github.com/bbuck/dragon-mud/color"
+	"github.com/bbuck/dragon-mud/ansi"
 	"github.com/bbuck/dragon-mud/output"
 	"github.com/spf13/cobra"
 )
@@ -58,7 +58,7 @@ func init() {
 
 	for i := 0; i < 256; i++ {
 		code := fmt.Sprintf("c%03d", i)
-		fallback := color.FallbackColor(code)
+		fallback := ansi.FallbackColor(code)
 		colorDisplayOutput += fmt.Sprintf("   \\{%s} {%s}This is xterm color %03d{x}     \\{%s} {%s}The ANSI fallback color{x}\n", code, code, i, fallback, fallback)
 	}
 }

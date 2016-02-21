@@ -29,13 +29,13 @@ information will be processed.`,
 	}
 
 	dragonColors = []string{
-		"{b}{-w}black{x}",
+		"{b,-W}black{x}",
 		"{R}red{x}",
 		"{G}green{x}",
 		"{c220}gold{x}",
 		"{B}blue{x}",
 		"{W}white{x}",
-		"{w}silver{x}",
+		"{w,u}silver{x}",
 	}
 )
 

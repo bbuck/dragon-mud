@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bbuck/dragon-mud/color"
+	"github.com/bbuck/dragon-mud/ansi"
 )
 
 // ColorSupport defines the level of color support, whether it be Mono, Basic
@@ -36,38 +36,43 @@ type Console struct {
 var (
 	// do dead simple, dumb detection of 256 color support
 	// TODO: Make this way smarter
-	term          = len(os.Getenv("TERM")) > 0
-	term256       = strings.Contains(os.Getenv("TERM"), "256")
-	stdoutConsole = &Console{
-		writer: os.Stdout,
-	}
-	stderrConsole = &Console{
-		writer: os.Stderr,
-	}
+	term                         = len(os.Getenv("TERM")) > 0
+	term256                      = strings.Contains(os.Getenv("TERM"), "256")
+	stdoutConsole, stderrConsole *Console
 )
 
-func init() {
-	var support ColorSupport
+func getColorSupport() ColorSupport {
 	switch {
 	case term && term256:
-		support = Color256
+		return Color256
 	case term:
-		support = ColorBasic
+		return ColorBasic
 	default:
-		support = ColorMono
+		return ColorMono
 	}
-
-	stdoutConsole.ColorSupport = support
-	stderrConsole.ColorSupport = support
 }
 
 // Stdout returns a Console that will print to the servers terminal.
 func Stdout() *Console {
+	if stdoutConsole == nil {
+		stdoutConsole = &Console{
+			writer:       os.Stdout,
+			ColorSupport: getColorSupport(),
+		}
+	}
+
 	return stdoutConsole
 }
 
 // Stderr returns a Console that will print to the servers error outputf
 func Stderr() *Console {
+	if stderrConsole == nil {
+		stderrConsole = &Console{
+			writer:       os.Stderr,
+			ColorSupport: getColorSupport(),
+		}
+	}
+
 	return stderrConsole
 }
 
@@ -95,22 +100,14 @@ func (c *Console) Println(text interface{}) {
 		str = fmt.Sprintf("%v", text)
 	}
 
-	fmt.Fprintf(c.writer, "%s\n", color.Colorize(str))
+	fmt.Fprintf(c.writer, "%s\n", c.colorize(str))
 }
 
 // Write makes Console conform to io.Writer and can therefore be used as a
 // logger target.
 func (c *Console) Write(p []byte) (n int, err error) {
-	var colored string
-	switch c.ColorSupport {
-	case Color256:
-		colored = color.Colorize(string(p))
-	case ColorBasic:
-		colored = color.ColorizeWithFallback(string(p), true)
-	default:
-		colored = color.Purge(string(p))
-	}
-	_, err = c.writer.Write([]byte(colored))
+	text := string(p)
+	_, err = c.writer.Write([]byte(c.colorize(text)))
 
 	return len(p), err
 }
@@ -119,16 +116,7 @@ func (c *Console) Write(p []byte) (n int, err error) {
 // color codes.
 func (c *Console) Printf(format string, params ...interface{}) {
 	text := fmt.Sprintf(format, params...)
-	var colored string
-	switch c.ColorSupport {
-	case Color256:
-		colored = color.Colorize(text)
-	case ColorBasic:
-		colored = color.ColorizeWithFallback(text, true)
-	default:
-		colored = color.Purge(text)
-	}
-	fmt.Fprintf(c.writer, "%s", colored)
+	fmt.Fprintf(c.writer, "%s", c.colorize(text))
 }
 
 // PlainPrintln will print the string ignoring color codes in the text.
@@ -139,4 +127,15 @@ func (c *Console) PlainPrintln(text interface{}) {
 // PlainPrintf will print the string ignoring color codes.
 func (c *Console) PlainPrintf(format string, params ...interface{}) {
 	fmt.Fprintf(c.writer, format, params...)
+}
+
+func (c *Console) colorize(str string) string {
+	switch c.ColorSupport {
+	case Color256:
+		return ansi.Colorize(str)
+	case ColorBasic:
+		return ansi.ColorizeWithFallback(str, true)
+	default:
+		return ansi.Purge(str)
+	}
 }

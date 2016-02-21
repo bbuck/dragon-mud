@@ -1,9 +1,9 @@
-package color_test
+package ansi_test
 
 import (
 	"strings"
 
-	. "github.com/bbuck/dragon-mud/color"
+	. "github.com/bbuck/dragon-mud/ansi"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

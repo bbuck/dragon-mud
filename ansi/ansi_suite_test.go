@@ -1,4 +1,4 @@
-package color_test
+package ansi_test
 
 import (
 	. "github.com/onsi/ginkgo"
@@ -9,5 +9,5 @@ import (
 
 func TestColor(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Color Suite")
+	RunSpecs(t, "ANSI Suite")
 }
