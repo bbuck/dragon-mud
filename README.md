@@ -15,6 +15,30 @@ idea of game rules (such as how skills works, etc.) but outside of game rules
 will be entirely customizable through scripts (using Lua) and being open source
 would be open to forks with custom game rules implemented.
 
+### Why should I use this?
+
+That's really up to you. This project is for me but I believe in sharing. I
+also feel a new "modern" MUD engine may inspire some new games to be created
+in the genre which would be amazing. I'm a huge fan of MUDs and feel that new
+entries have kind of become almost non-existent. Perhaps a new game and an
+accessible low-setup MUD server would make it easier for new games to be quickly
+created.
+
+### What exactly is it?
+
+DragonMUD is a MUD server for text based multi-user games. It will be pretty
+biased on how skills and in game systems works as the core of DragonMUD is to
+power a MUD game that I, myself, have planned. That leads the implementation to
+be driven towards that end. Now, I'm not completely selfish - at any point if I
+can make the the game server configurable I will gladly do that.
+
+### What exactly is it not?
+
+DragonMUD is not a "game engine" for games in general. It's heavily geared to
+building an "MMO with no graphics" that runs over Telnet and is delivered in
+colored text. If you're looking for a game engine in Go to build a 2D platformer
+or a Call of Duty shooter you're in the wrong place.
+
 ## Why Go?
 
 I love C and C++ but they're older and slightly more complex languages to set
