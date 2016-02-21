@@ -1,5 +1,5 @@
-hash: c3b105c25bcab23cd769deef955bfb2662e58df2ab34252c4f19bd300c0ca739
-updated: 2016-01-30T01:29:16.061905517-06:00
+hash: 8612409b0afef9d88ddd37048125ab7bac3f929f5912c77ab129973a69e3fd29
+updated: 2016-02-21T00:20:35.762200128-06:00
 imports:
 - name: github.com/armon/consul-api
   version: dcfedd50ed5334f96adee43fc88518a4f095e15c
@@ -11,9 +11,8 @@ imports:
   version: 2724a9c9051aa62e9cca11304e7dd518e9e41599
 - name: github.com/dchest/blake2b
   version: 3c8c640cd7bea3ca78209d812b5854442ab92fed
-  repo: https://github.com/dchest/blake2b
 - name: github.com/go-sql-driver/mysql
-  version: b4db83c6faa0dc87d33f0bd7cdc81c7078594278
+  version: 1309049fd598c1faa0290fd70ab1afde2b6df0f9
 - name: github.com/golang/protobuf
   version: 2402d76f3d41f928c7902a765dfc872356dd3aad
 - name: github.com/hashicorp/hcl
@@ -37,7 +36,7 @@ imports:
 - name: github.com/mattn/go-colorable
   version: 3dac7b4f76f6e17fb39b768b89e3783d16e237fe
 - name: github.com/mattn/go-sqlite3
-  version: 0cc1174c16b41f18bd77050fb5ffc84d88a739cc
+  version: c5aee9649735e8dadac55eb968ccebd9fa29a881
 - name: github.com/mgutz/ansi
   version: c286dcecd19ff979eeb73ea444e479b903f2cfcb
 - name: github.com/mitchellh/mapstructure

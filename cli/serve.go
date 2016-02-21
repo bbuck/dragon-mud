@@ -29,13 +29,13 @@ information will be processed.`,
 	}
 
 	dragonColors = []string{
-		"{black+h:white+h}black{reset}",
-		"{red+h}red{reset}",
-		"{green+h}green{reset}",
-		"{yellow+h}gold{reset}",
-		"{blue+h}blue{reset}",
-		"{white+h}white{reset}",
-		"{white+u}silver{reset}",
+		"{b}{-w}black{x}",
+		"{R}red{x}",
+		"{G}green{x}",
+		"{Y}gold{x}",
+		"{B}blue{x}",
+		"{W}white{x}",
+		"{w}silver{x}",
 	}
 )
 

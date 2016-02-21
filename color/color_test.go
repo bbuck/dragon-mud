@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	. "github.com/bbuck/dragon-mud/color"
-	"github.com/mgutz/ansi"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -14,20 +13,20 @@ var _ = Describe("Color", func() {
 	var str = "this is a string"
 	Describe("ColorizeWithCode", func() {
 		var (
-			code = "red+h"
+			code = "R"
 		)
 
-		It("performs the same action as ansi.Color", func() {
-			Ω(ColorizeWithCode(code, str)).Should(Equal(ansi.Color(str, code)))
+		It("performs the same action as ANSI codes", func() {
+			Ω(ColorizeWithCode(code, str)).Should(Equal("\033[31;1mthis is a string"))
 		})
 	})
 
 	Describe("Colorize", func() {
 		var (
-			colored       = "{red}this is {green}a colored{reset} string"
-			result        = ColorizeWithCode("red", "this is ") + ColorizeWithCode("green", "a colored") + ColorizeWithCode("reset", " string")
-			escaped       = "sample code \\{red}"
-			escapedResult = "sample code {red}"
+			colored       = "{r}this is {g}a colored{x} string"
+			result        = ColorizeWithCode("r", "this is ") + ColorizeWithCode("g", "a colored") + ColorizeWithCode("x", " string")
+			escaped       = "sample code \\{r}"
+			escapedResult = "sample code {r}"
 		)
 
 		It("processes all color codes in a string", func() {
@@ -49,10 +48,10 @@ var _ = Describe("Color", func() {
 
 	Describe("Purge", func() {
 		var (
-			colored       = "{red}this is {green}a colored{reset} string"
+			colored       = "{r}this is {g}a colored{x} string"
 			result        = "this is a colored string"
-			escaped       = "sample code \\{red}"
-			escapedResult = "sample code {red}"
+			escaped       = "sample code \\{r}"
+			escapedResult = "sample code {r}"
 		)
 
 		It("removes all color codes from a string", func() {
@@ -66,8 +65,8 @@ var _ = Describe("Color", func() {
 
 	Describe("Escape", func() {
 		var (
-			str    = "{red}red{reset}"
-			result = strings.Replace(ansi.Red+"red"+ansi.Reset, "\033", "\\033", -1)
+			str    = "{r}red{x}"
+			result = strings.Replace("\033[31mred\033[0m", "\033", "\\033", -1)
 		)
 
 		It("escapes the ANSI escape sequence", func() {

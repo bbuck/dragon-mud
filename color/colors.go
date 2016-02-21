@@ -1,133 +1,97 @@
 package color
 
 import (
-	"bytes"
+	"fmt"
+	"regexp"
 	"strings"
-
-	"github.com/mgutz/ansi"
 )
 
 const (
-	// ColorCodeOpen is the rune that denotes the beginning of the color code.
-	ColorCodeOpen = '{'
-
-	// ColorCodeClose is the rune that denotes the end of the color code.
-	ColorCodeClose = '}'
-
-	// ColorCodeEscape is the rune that denotes an escaped ColorCodeOpen
-	ColorCodeEscape = '\\'
+	colorCodeEscape = "\\"
 )
 
 // ColorizeFunc is a function that takes a string and returns a string with
 // ANSI color escape codes in it.
 type ColorizeFunc func(string) string
 
+var colorRx = regexp.MustCompile(`(.|^)\{(-?[lLrRgGyYbBmMcCwWx]|c\d{1,3})\}`)
+
 var (
-	noopColorFunc = ColorizeFunc(func(text string) string {
-		return text
-	})
-	colorFuncMap   = make(map[string]ColorizeFunc)
-	commonPatterns = []string{
-		"black", "black+h",
-		"red", "red+h",
-		"green", "green+h",
-		"yellow", "yellow+h",
-		"blue", "blue+h",
-		"magenta", "magenta+h",
-		"cyan", "cyan+h",
-		"white", "white+h",
-		"reset",
+	colorMap = map[string]string{
+		"l": "0",
+		"L": "0;1",
+		"r": "1",
+		"R": "1;1",
+		"g": "2",
+		"G": "2;1",
+		"y": "3",
+		"Y": "3;1",
+		"b": "4",
+		"B": "4;1",
+		"m": "5",
+		"M": "5;1",
+		"c": "6",
+		"C": "6;1",
+		"w": "7",
+		"W": "7;1",
+	}
+	colorToANSI = map[string]string{
+		"x": "\033[0m",
 	}
 )
 
 func init() {
-	// we preload common color patterns to avoid processing these color codes
-	// during runtime
-	for _, pattern := range commonPatterns {
-		getColorFunction(pattern)
+	for k, val := range colorMap {
+		colorToANSI[k] = fmt.Sprintf("\033[3%sm", val)
+		colorToANSI["-"+k] = fmt.Sprintf("\033[4%sm", val)
 	}
-}
-
-func getColorFunction(code string) ColorizeFunc {
-	var (
-		colorFunc ColorizeFunc
-		ok        bool
-	)
-
-	if colorFunc, ok = colorFuncMap[code]; ok {
-		return colorFunc
+	for i := 0; i < 256; i++ {
+		colorToANSI[fmt.Sprintf("c%d", i)] = fmt.Sprintf("\033[38;5;%dm", i)
+		colorToANSI[fmt.Sprintf("-c%d", i)] = fmt.Sprintf("\033[48;5;%dm", i)
 	}
-
-	colorFunc = ColorizeFunc(ansi.ColorFunc(code))
-	colorFuncMap[code] = colorFunc
-
-	return colorFunc
 }
 
 // ColorizeWithCode takes a color code and text string and returns the string
 // with the appropriate color codes in it.
-func ColorizeWithCode(code, text string) string {
-	return getColorFunction(code)(text)
+func ColorizeWithCode(key, text string) string {
+	if code, ok := colorToANSI[key]; ok {
+		return fmt.Sprintf("%s%s", code, text)
+	}
+
+	return text
 }
 
 // Colorize processes all colors in a given text block and returns a new string
 // with all readable codes translated to ANSI codes.
 func Colorize(text string) string {
-	final := new(bytes.Buffer)
-	toColor := new(bytes.Buffer)
-	prevColorFunc := noopColorFunc
-	for len(text) > 0 {
-		startIndex := strings.IndexRune(text, ColorCodeOpen)
-		switch {
-		// if it's escaped, skip it.
-		case startIndex > 0 && rune(text[startIndex-1]) == ColorCodeEscape:
-			toColor.WriteString(text[:startIndex-1])
-			toColor.WriteRune(ColorCodeOpen)
-			text = text[startIndex+1:]
-			continue
-		case startIndex < 0:
-			toColor.WriteString(text)
-			final.WriteString(prevColorFunc(toColor.String()))
-			text = ""
-		default:
-			toColor.WriteString(text[:startIndex])
-			final.WriteString(prevColorFunc(toColor.String()))
-			toColor = new(bytes.Buffer)
-			text = text[startIndex+1:]
-			endIndex := strings.IndexRune(text, ColorCodeClose)
-			prevColorFunc = getColorFunction(text[:endIndex])
-			text = text[endIndex+1:]
+	final := colorRx.ReplaceAllStringFunc(text, func(s string) string {
+		match := colorRx.FindStringSubmatch(s)
+		if len(match[1]) > 0 && match[1] == colorCodeEscape {
+			return fmt.Sprintf("{%s}", match[2])
 		}
-	}
 
-	return final.String()
+		if code, ok := colorToANSI[match[2]]; ok {
+			return fmt.Sprintf("%s%s", match[1], code)
+		}
+
+		return s
+	})
+
+	return final
 }
 
 // Purge will remove color codes from the given string.
 func Purge(text string) string {
-	final := new(bytes.Buffer)
-	for len(text) > 0 {
-		startIndex := strings.IndexRune(text, ColorCodeOpen)
-		switch {
-		case startIndex >= 0:
-			if startIndex > 0 && text[startIndex-1] == ColorCodeEscape {
-				final.WriteString(text[:startIndex-1])
-				final.WriteRune(ColorCodeOpen)
-				text = text[startIndex+1:]
-				continue
-			} else if startIndex > 0 {
-				final.WriteString(text[:startIndex])
-			}
-
-			endIndex := strings.IndexRune(text, ColorCodeClose)
-			text = text[endIndex+1:]
-		default:
-			final.WriteString(text)
-			text = ""
+	final := colorRx.ReplaceAllStringFunc(text, func(s string) string {
+		match := colorRx.FindStringSubmatch(s)
+		if len(match[1]) > 0 && match[1] == colorCodeEscape {
+			return fmt.Sprintf("{%s}", match[2])
 		}
-	}
 
-	return final.String()
+		return match[1]
+	})
+
+	return final
 }
 
 // Escape will replace all ANSI escape codes with text equivalents so strings
