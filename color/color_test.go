@@ -11,22 +11,50 @@ import (
 
 var _ = Describe("Color", func() {
 	var str = "this is a string"
+
 	Describe("ColorizeWithCode", func() {
 		var (
-			code = "R"
+			code        = "R"
+			result      = "\033[31;1m" + str
+			xterm       = "c001"
+			xtermResult = "\033[38;5;1m" + str
 		)
 
 		It("performs the same action as ANSI codes", func() {
-			Ω(ColorizeWithCode(code, str)).Should(Equal("\033[31;1mthis is a string"))
+			Ω(ColorizeWithCode(code, str)).Should(Equal(result))
+		})
+
+		It("returns the string if an invalid code is given", func() {
+			Ω(ColorizeWithCode("invalid", "testing")).Should(Equal("testing"))
+		})
+
+		It("colorizes xterm codes as well", func() {
+			Ω(ColorizeWithCode(xterm, str)).Should(Equal(xtermResult))
+		})
+	})
+
+	Describe("ColorizeWithFallbackCode", func() {
+		var (
+			code   = "c001"
+			result = "\033[31m" + str
+		)
+
+		It("colorizes with fallback values", func() {
+			Ω(ColorizeWithFallbackCode(code, str, true)).Should(Equal(result))
 		})
 	})
 
 	Describe("Colorize", func() {
 		var (
-			colored       = "{r}this is {g}a colored{x} string"
-			result        = ColorizeWithCode("r", "this is ") + ColorizeWithCode("g", "a colored") + ColorizeWithCode("x", " string")
-			escaped       = "sample code \\{r}"
-			escapedResult = "sample code {r}"
+			colored             = "{r}this is {g}a colored{x} string"
+			result              = "\033[31mthis is \033[32ma colored\033[0m string"
+			escaped             = "sample code \\{r}"
+			escapedResult       = "sample code {r}"
+			withBackground      = "{-r}The background should be red!{x}"
+			bgResult            = "\033[41mThe background should be red!\033[0m"
+			withXterm           = "{c001}This is Xterm colored{x}"
+			xtermResult         = "\033[38;5;1mThis is Xterm colored\033[0m"
+			xtermFallbackResult = "\033[31mThis is Xterm colored\033[0m"
 		)
 
 		It("processes all color codes in a string", func() {
@@ -43,6 +71,18 @@ var _ = Describe("Color", func() {
 
 		It("does not replace escaped color codes", func() {
 			Ω(Colorize(escaped)).Should(Equal(escapedResult))
+		})
+
+		It("colorizes background when putting a '-' before the code", func() {
+			Ω(Colorize(withBackground)).Should(Equal(bgResult))
+		})
+
+		It("colorizes xterm 256 color codes", func() {
+			Ω(Colorize(withXterm)).Should(Equal(xtermResult))
+		})
+
+		It("falls back to ASCII from xterm when told to", func() {
+			Ω(ColorizeWithFallback(withXterm, true)).Should(Equal(xtermFallbackResult))
 		})
 	})
 

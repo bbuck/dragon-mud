@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/bbuck/dragon-mud/color"
 )
@@ -12,11 +13,20 @@ import (
 // for the server of represent the endpoint of a client.
 type Console struct {
 	writer io.Writer
+	colors bool
 }
 
 var (
-	stdoutConsole = &Console{os.Stdout}
-	stderrConsole = &Console{os.Stderr}
+	// do dead simple, dumb detection of 256 color support
+	term256       = strings.Contains(os.Getenv("TERM"), "256")
+	stdoutConsole = &Console{
+		writer: os.Stdout,
+		colors: term256,
+	}
+	stderrConsole = &Console{
+		writer: os.Stderr,
+		colors: term256,
+	}
 )
 
 // Stdout returns a Console that will print to the servers terminal.
@@ -31,7 +41,10 @@ func Stderr() *Console {
 
 // NewConsole creates a new console wrapping the given io.Writer
 func NewConsole(w io.Writer) *Console {
-	return &Console{w}
+	return &Console{
+		writer: w,
+		colors: false,
+	}
 }
 
 // Println prints the text followed by a trailing newline processing color codes.
