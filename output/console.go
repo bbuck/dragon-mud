@@ -9,25 +9,57 @@ import (
 	"github.com/bbuck/dragon-mud/color"
 )
 
+// ColorSupport defines the level of color support, whether it be Mono, Basic
+// or Xterm 256 colors.
+type ColorSupport int8
+
+const (
+	// ColorMono specifies the console supports no color values. This will purge
+	// color codes from text.
+	ColorMono ColorSupport = iota
+
+	// ColorBasic specifies support for the 8 standard (16 if you count bright)
+	// ANSI colors.
+	ColorBasic
+
+	// Color256 specifies support for the extend Xterm 256 color codes.
+	Color256
+)
+
 // Console is an output source, used for printing text to. This can be stdout
 // for the server of represent the endpoint of a client.
 type Console struct {
 	writer io.Writer
-	colors bool
+	ColorSupport
 }
 
 var (
 	// do dead simple, dumb detection of 256 color support
+	// TODO: Make this way smarter
+	term          = len(os.Getenv("TERM")) > 0
 	term256       = strings.Contains(os.Getenv("TERM"), "256")
 	stdoutConsole = &Console{
 		writer: os.Stdout,
-		colors: term256,
 	}
 	stderrConsole = &Console{
 		writer: os.Stderr,
-		colors: term256,
 	}
 )
+
+func init() {
+	var support ColorSupport
+	switch {
+	case term && term256:
+		support = Color256
+	case term:
+		support = ColorBasic
+	default:
+		support = ColorMono
+	}
+
+	stdoutConsole.ColorSupport = support
+	stderrConsole.ColorSupport = support
+}
 
 // Stdout returns a Console that will print to the servers terminal.
 func Stdout() *Console {
@@ -42,8 +74,8 @@ func Stderr() *Console {
 // NewConsole creates a new console wrapping the given io.Writer
 func NewConsole(w io.Writer) *Console {
 	return &Console{
-		writer: w,
-		colors: false,
+		writer:       w,
+		ColorSupport: ColorMono,
 	}
 }
 
@@ -69,8 +101,16 @@ func (c *Console) Println(text interface{}) {
 // Write makes Console conform to io.Writer and can therefore be used as a
 // logger target.
 func (c *Console) Write(p []byte) (n int, err error) {
-	str := color.Colorize(string(p))
-	_, err = c.writer.Write([]byte(str))
+	var colored string
+	switch c.ColorSupport {
+	case Color256:
+		colored = color.Colorize(string(p))
+	case ColorBasic:
+		colored = color.ColorizeWithFallback(string(p), true)
+	default:
+		colored = color.Purge(string(p))
+	}
+	_, err = c.writer.Write([]byte(colored))
 
 	return len(p), err
 }
@@ -79,7 +119,16 @@ func (c *Console) Write(p []byte) (n int, err error) {
 // color codes.
 func (c *Console) Printf(format string, params ...interface{}) {
 	text := fmt.Sprintf(format, params...)
-	fmt.Fprintf(c.writer, "%s", color.Colorize(text))
+	var colored string
+	switch c.ColorSupport {
+	case Color256:
+		colored = color.Colorize(text)
+	case ColorBasic:
+		colored = color.ColorizeWithFallback(text, true)
+	default:
+		colored = color.Purge(text)
+	}
+	fmt.Fprintf(c.writer, "%s", colored)
 }
 
 // PlainPrintln will print the string ignoring color codes in the text.
