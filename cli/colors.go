@@ -46,6 +46,10 @@ really only for specyfing a foreground/background color simultaneously as there
 is an issue with the Regular Expressions that break back to back codes (like
 \{l}\{-Y} would fail to match both, and just produce black text.
 
+Another special code is \{u} which {u}underlines{x} text. It's important to remember to
+include \{x} after you underline text otherwise all text following will be
+underlined.
+
 It's best practice to end colored lines or sections with \{x} which is a special
 code used to reset the foreground and background colors. If you don't do this
 colors will bleed across lines.
