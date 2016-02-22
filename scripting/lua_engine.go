@@ -108,7 +108,7 @@ func (e *LuaEngine) SetGlobal(name string, val interface{}) {
 func (e *LuaEngine) GetGlobal(name string) *LuaValue {
 	lv := e.state.GetGlobal(name)
 
-	return newValue(lv)
+	return e.newValue(lv)
 }
 
 // SetField applies the value to the given table associated with the given
@@ -160,8 +160,8 @@ func (e *LuaEngine) RegisterModule(name string, fields map[string]interface{}) *
 func (e *LuaEngine) PopArg() *LuaValue {
 	lv := e.state.Get(-1)
 	e.state.Pop(1)
-	val := newValue(lv)
-	if val.isTable() {
+	val := e.newValue(lv)
+	if val.IsTable() {
 		val.owner = e
 	}
 
@@ -272,7 +272,7 @@ func (e *LuaEngine) Call(name string, retCount int, params ...interface{}) ([]*L
 
 	retVals := make([]*LuaValue, retCount)
 	for i := 0; i < retCount; i++ {
-		retVals[i] = newValue(e.state.Get(-1))
+		retVals[i] = e.ValueFor(e.state.Get(-1))
 	}
 	e.state.Pop(retCount)
 
@@ -313,12 +313,20 @@ func (e *LuaEngine) ValueFor(val interface{}) *LuaValue {
 		return v
 	}
 
-	return newValue(luar.New(e.state, val))
+	return e.newValue(luar.New(e.state, val))
+}
+
+// newValue constructs a new value from an LValue.
+func (e *LuaEngine) newValue(val lua.LValue) *LuaValue {
+	return &LuaValue{
+		lval:  val,
+		owner: e,
+	}
 }
 
 // NewTable creates and returns a new NewTable.
 func (e *LuaEngine) NewTable() *LuaValue {
-	tbl := newValue(e.state.NewTable())
+	tbl := e.newValue(e.state.NewTable())
 	tbl.owner = e
 
 	return tbl

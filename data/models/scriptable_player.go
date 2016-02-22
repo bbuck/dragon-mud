@@ -16,5 +16,5 @@ type ScriptablePlayer struct {
 
 // DisplayName returns the display name of the user.
 func (s *ScriptablePlayer) DisplayName() string {
-	return fmt.Sprintf("{green}%s{reset}", s.player.DisplayName)
+	return fmt.Sprintf("{G}%s{x}", s.player.DisplayName)
 }

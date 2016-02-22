@@ -21,10 +21,10 @@ var _ = Describe("LuaValue", func() {
 		fn     = func(a, b int) int {
 			return a + b
 		}
-		value = func(iface interface{}) *LuaValue {
-			return engine.ValueFor(iface)
-		}
 	)
+	value := func(iface interface{}) *LuaValue {
+		return engine.ValueFor(iface)
+	}
 
 	BeforeEach(func() {
 		engine = NewLuaEngine()
@@ -142,4 +142,119 @@ var _ = Describe("LuaValue", func() {
 		Entry("does not think numbers are functions", i, false),
 		Entry("does not think nil is a function", Nil, false),
 	)
+
+	DescribeTable("IsString()",
+		func(v interface{}, expected bool) {
+			Ω(value(v).IsString()).Should(Equal(expected))
+		},
+		Entry("thinks a string is a string", str, true),
+		Entry("does not think a number is a string", i, false),
+		Entry("does not think a boolean is a string", b, false),
+		Entry("does not think a function is a string", fn, false),
+		Entry("does not think nil is a string", Nil, false),
+	)
+
+	Context("with a table as a list", func() {
+		var list *LuaValue
+
+		BeforeEach(func() {
+			list = engine.NewTable()
+			list.Append(str)
+			list.Append(i)
+			list.Append(fn)
+		})
+
+		It("has a length of 3", func() {
+			Ω(list.Len()).Should(Equal(3))
+		})
+
+		It("contains a string at index 1", func() {
+			Ω(list.Get(1).AsString()).Should(Equal(str))
+		})
+
+		It("contains a number at index 2", func() {
+			Ω(list.Get(2).AsNumber()).Should(Equal(float64(i)))
+		})
+
+		It("contains a function at index 3", func() {
+			Ω(list.Get(3).IsFunction()).Should(BeTrue())
+		})
+
+		Context("when calling functions on the list", func() {
+			var (
+				results []*LuaValue
+				err     error
+			)
+
+			BeforeEach(func() {
+				results, err = list.Get(3).Call(1, i, i64)
+			})
+
+			It("should not fail", func() {
+				Ω(err).Should(BeNil())
+			})
+
+			It("should return 1 result", func() {
+				Ω(len(results)).Should(Equal(1))
+			})
+
+			It("should return the correct value", func() {
+				Ω(results[0].AsNumber()).Should(Equal(float64(int64(i) + i64)))
+			})
+		})
+
+		Context("iterating over a list", func() {
+			var (
+				isString   bool
+				isNumber   bool
+				isFunction bool
+			)
+
+			BeforeEach(func() {
+				list.ForEach(func(key, val *LuaValue) {
+					i := int(key.AsNumber())
+					switch i {
+					case 1:
+						isString = val.IsString()
+					case 2:
+						isNumber = val.IsNumber()
+					case 3:
+						isFunction = val.IsFunction()
+					}
+				})
+			})
+
+			It("found a string", func() {
+				Ω(isString).Should(BeTrue())
+			})
+
+			It("found a number", func() {
+				Ω(isNumber).Should(BeTrue())
+			})
+
+			It("found a function", func() {
+				Ω(isFunction).Should(BeTrue())
+			})
+		})
+
+		Context("when inserting values", func() {
+			BeforeEach(func() {
+				list.Insert(2, i64)
+			})
+
+			It("changed the value at index 2", func() {
+				Ω(list.Get(2).AsNumber()).Should(Equal(float64(i64)))
+			})
+		})
+
+		Context("when removing a value", func() {
+			BeforeEach(func() {
+				list.Remove(2)
+			})
+
+			It("remove the value at index 2", func() {
+				Ω(list.Get(2).IsFunction()).Should(BeTrue())
+			})
+		})
+	})
 })

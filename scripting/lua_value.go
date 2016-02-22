@@ -1,25 +1,9 @@
 package scripting
 
 import (
-	"fmt"
-
 	"github.com/layeh/gopher-luar"
 	"github.com/yuin/gopher-lua"
 )
-
-// ValueError provides information about failed Value typecasts.
-type ValueError string
-
-// newValueError creates a new error explaining failure from a given type to an
-// actual type.
-func newValueError(exp string, v *LuaValue) ValueError {
-	return ValueError(fmt.Sprintf("expected %s, found \"%s\"", exp, v.lval.Type()))
-}
-
-// Implements the Error interface for ValueError
-func (v ValueError) Error() string {
-	return string(v)
-}
 
 // LuaValue is a utility wrapper for lua.LValue that provies conveinient methods
 // for casting.
@@ -28,12 +12,8 @@ type LuaValue struct {
 	owner *LuaEngine
 }
 
-// newValue constructs a new value from an LValue.
-func newValue(val lua.LValue) *LuaValue {
-	return &LuaValue{
-		lval: val,
-	}
-}
+// Nil represents the Lua nil value.
+var Nil = &LuaValue{lval: lua.LNil}
 
 // String makes Value conform to Stringer
 func (v *LuaValue) String() string {
@@ -108,11 +88,6 @@ func (v *LuaValue) IsTable() bool {
 
 // The following methods allow LTable values to be modified through Go.
 
-// isTable returns a bool if the Value is an LTable.
-func (v *LuaValue) isTable() bool {
-	return v.lval.Type() == lua.LTTable
-}
-
 // asTable converts the Value into an LTable.
 func (v *LuaValue) asTable() (t *lua.LTable) {
 	t, _ = v.lval.(*lua.LTable)
@@ -134,7 +109,7 @@ func (v *LuaValue) asUserData() (t *lua.LUserData) {
 
 // Append maps to lua.LTable.Append
 func (v *LuaValue) Append(value interface{}) {
-	if v.isTable() {
+	if v.IsTable() {
 		val := getLValue(v.owner, value)
 
 		t := v.asTable()
@@ -144,9 +119,9 @@ func (v *LuaValue) Append(value interface{}) {
 
 // ForEach maps to lua.LTable.ForEach
 func (v *LuaValue) ForEach(cb func(*LuaValue, *LuaValue)) {
-	if v.isTable() {
+	if v.IsTable() {
 		actualCb := func(key lua.LValue, val lua.LValue) {
-			cb(newValue(key), newValue(val))
+			cb(v.owner.newValue(key), v.owner.newValue(val))
 		}
 		t := v.asTable()
 		t.ForEach(actualCb)
@@ -155,7 +130,7 @@ func (v *LuaValue) ForEach(cb func(*LuaValue, *LuaValue)) {
 
 // Insert maps to lua.LTable.Insert
 func (v *LuaValue) Insert(i int, value interface{}) {
-	if v.isTable() {
+	if v.IsTable() {
 		val := getLValue(v.owner, value)
 
 		t := v.asTable()
@@ -165,7 +140,7 @@ func (v *LuaValue) Insert(i int, value interface{}) {
 
 // Len maps to lua.LTable.Len
 func (v *LuaValue) Len() int {
-	if v.isTable() {
+	if v.IsTable() {
 		t := v.asTable()
 
 		return t.Len()
@@ -176,7 +151,7 @@ func (v *LuaValue) Len() int {
 
 // MaxN maps to lua.LTable.MaxN
 func (v *LuaValue) MaxN() int {
-	if v.isTable() {
+	if v.IsTable() {
 		t := v.asTable()
 
 		return t.MaxN()
@@ -187,13 +162,13 @@ func (v *LuaValue) MaxN() int {
 
 // Next maps to lua.LTable.Next
 func (v *LuaValue) Next(key interface{}) (*LuaValue, *LuaValue) {
-	if v.isTable() {
+	if v.IsTable() {
 		val := getLValue(v.owner, key)
 
 		t := v.asTable()
 		v1, v2 := t.Next(val)
 
-		return newValue(v1), newValue(v2)
+		return v.owner.newValue(v1), v.owner.newValue(v2)
 	}
 
 	return Nil, Nil
@@ -201,11 +176,11 @@ func (v *LuaValue) Next(key interface{}) (*LuaValue, *LuaValue) {
 
 // Remove maps to lua.LTable.Remove
 func (v *LuaValue) Remove(pos int) *LuaValue {
-	if v.isTable() {
+	if v.IsTable() {
 		t := v.asTable()
 		ret := t.Remove(pos)
 
-		return newValue(ret)
+		return v.owner.newValue(ret)
 	}
 
 	return Nil
@@ -227,10 +202,52 @@ func getLValue(e *LuaEngine, item interface{}) lua.LValue {
 	return lua.LNil
 }
 
+// Call a LuaValue object that is a function.
+func (v *LuaValue) Call(retCount int, argList ...interface{}) ([]*LuaValue, error) {
+	if v.IsFunction() && v.owner != nil {
+		p := lua.P{
+			Fn:      v.lval,
+			NRet:    retCount,
+			Protect: true,
+		}
+		args := make([]lua.LValue, len(argList))
+		for i, iface := range argList {
+			args[i] = getLValue(v.owner, iface)
+		}
+
+		err := v.owner.state.CallByParam(p, args...)
+		if err != nil {
+			return nil, err
+		}
+
+		retVals := make([]*LuaValue, retCount)
+		for i := 0; i < retCount; i++ {
+			retVals[i] = v.owner.ValueFor(v.owner.state.Get(-1))
+		}
+
+		return retVals, nil
+	}
+
+	return make([]*LuaValue, 0), nil
+}
+
+// Get returns the value associated with the key given if the LuaValue wraps
+// a table.
+func (v *LuaValue) Get(key interface{}) *LuaValue {
+	if v.IsTable() {
+		k := getLValue(v.owner, key)
+		val := v.owner.state.GetTable(v.lval, k)
+
+		return v.owner.ValueFor(val)
+	}
+
+	return nil
+}
+
 // Set sets the value of a given key on the table, this method checks for
 // validity of array keys and handles them accordingly.
 func (v *LuaValue) Set(goKey interface{}, val interface{}) {
-	if v.isTable() {
+	if v.IsTable() {
 		key := getLValue(v.owner, goKey)
 		lval := getLValue(v.owner, val)
 
@@ -241,7 +258,7 @@ func (v *LuaValue) Set(goKey interface{}, val interface{}) {
 // RawSet bypasses any checks for key existence and sets the value onto the
 // table with the given key.
 func (v *LuaValue) RawSet(goKey interface{}, val interface{}) {
-	if v.isTable() {
+	if v.IsTable() {
 		key := getLValue(v.owner, goKey)
 		lval := getLValue(v.owner, val)
 
