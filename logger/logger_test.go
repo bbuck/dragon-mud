@@ -7,6 +7,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/bbuck/dragon-mud/logger"
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 )
 
@@ -24,6 +25,19 @@ var _ = Describe("Logger", func() {
 	BeforeEach(func() {
 		logger.TestBuffer.Reset()
 	})
+
+	DescribeTable("Level values",
+		func(str string, expected logrus.Level) {
+			Ω(logger.GetLogLevel(str)).Should(Equal(expected))
+		},
+		Entry("'info' returns the InfoLevel", "info", logrus.InfoLevel),
+		Entry("'warn' returns the WarnLevel", "warn", logrus.WarnLevel),
+		Entry("'warning' returns the WarnLevel", "warning", logrus.WarnLevel),
+		Entry("'error' returns the ErrorLevel", "error", logrus.ErrorLevel),
+		Entry("'panic' returns the PanicLevel", "panic", logrus.PanicLevel),
+		Entry("'fatal' returns the FatalLevel", "fatal", logrus.FatalLevel),
+		Entry("'debug' returns the DebugLevel", "debug", logrus.DebugLevel),
+	)
 
 	Context("log wrappers", func() {
 		Describe("Info", func() {

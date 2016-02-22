@@ -6,6 +6,7 @@
 [![Issue Count](https://codeclimate.com/github/bbuck/dragon-mud/badges/issue_count.svg)](https://codeclimate.com/github/bbuck/dragon-mud)
 [![Coverage Status](https://coveralls.io/repos/github/bbuck/dragon-mud/badge.svg?branch=develop)](https://coveralls.io/github/bbuck/dragon-mud?branch=master)
 [![Discord Channel](https://img.shields.io/badge/discord-DragonMUD-blue.svg?style=flat)](https://discordapp.com/channels/141274099262423040/141274099262423040)
+[![Go Report Card](https://goreportcard.com/badge/github.com/bbuck/dragon-mud)](https://goreportcard.com/report/github.com/bbuck/dragon-mud)
 
 
 DragonMUD is a dream of mine, building a new MUD engine for experience and fun

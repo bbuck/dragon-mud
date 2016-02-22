@@ -83,7 +83,7 @@ func gamefileToml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "Gamefile.toml", size: 1249, mode: os.FileMode(420), modTime: time.Unix(1454902392, 0)}
+	info := bindataFileInfo{name: "Gamefile.toml", size: 1249, mode: os.FileMode(420), modTime: time.Unix(1454914513, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
