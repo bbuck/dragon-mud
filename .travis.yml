@@ -7,7 +7,6 @@ install: make bootstrap
 
 script:
 - make test
-- make coveralls
 
 env:
   global:

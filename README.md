@@ -4,7 +4,6 @@
 [![Build Status](https://travis-ci.org/bbuck/dragon-mud.svg?branch=develop)](https://travis-ci.org/bbuck/dragon-mud)
 [![Code Climate](https://codeclimate.com/github/bbuck/dragon-mud/badges/gpa.svg)](https://codeclimate.com/github/bbuck/dragon-mud)
 [![Issue Count](https://codeclimate.com/github/bbuck/dragon-mud/badges/issue_count.svg)](https://codeclimate.com/github/bbuck/dragon-mud)
-[![Coverage Status](https://coveralls.io/repos/github/bbuck/dragon-mud/badge.svg?branch=develop)](https://coveralls.io/github/bbuck/dragon-mud?branch=master)
 [![Discord Channel](https://img.shields.io/badge/discord-DragonMUD-blue.svg?style=flat)](https://discordapp.com/channels/141274099262423040/141274099262423040)
 [![Go Report Card](https://goreportcard.com/badge/github.com/bbuck/dragon-mud)](https://goreportcard.com/report/github.com/bbuck/dragon-mud)
 
@@ -73,11 +72,11 @@ this project matures I will clean up and define these details more and more.
    - [ ] MySQL
  - [ ] Script engine for loading and executing Lua files.
  - [ ] MUD Server
- 
+
 ## Future
 
  - [ ] Admin web interface with game building capabilities
- 
+
 # Contributing
 
 Please reference CONTRIBUTING.md for details on becoming a contributor and/or

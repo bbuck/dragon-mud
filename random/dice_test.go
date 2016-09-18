@@ -9,6 +9,11 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+// The tests found here say "choose a random number" and as the random generated
+// is seeded with 1 these tests specify the values that will be generted with a
+// seed value of 1, so if you find it odd "generates a random number" has a
+// matcher like "should equal 1" it's because a predictable source.
+
 var _ = Describe("Die", func() {
 	BeforeEach(func() {
 		SetSource(rand.NewSource(1))

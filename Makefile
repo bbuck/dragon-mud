@@ -6,25 +6,17 @@ test: install
 install: pre-build
 	go install github.com/bbuck/dragon-mud/cmd/...
 
-coveralls: get-coveralls-reqs
-	goveralls -service=travis-ci $(SOURCE_FILES)
-	
 bootstrap: get-glide get-deps
-  
+
 pre-build:
 	go-bindata -pkg assets -o assets/assets.go -prefix assets/raw assets/raw/...
-	
+
 get-glide:
 	go get github.com/Masterminds/glide
-  
+
 get-deps:
 	glide install
 	go get github.com/onsi/ginkgo/ginkgo
 	go get github.com/jteeuwen/go-bindata/...
-  
-get-coveralls-reqs:
-	go get github.com/axw/gocov/gocov
-	go get golang.org/x/tools/cmd/cover
-	go get github.com/mattn/goveralls
-  
-.PHONY: test install coveralls bootstrap get-glide get-deps get-coveralls-reqs pre-build
+
+.PHONY: test install bootstrap get-glide get-deps pre-build

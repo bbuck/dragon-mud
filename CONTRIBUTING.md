@@ -46,9 +46,16 @@ if you introduce changes without a test suite, this will not impact testing
 negatively. So any build without a test suite (unless justified) will be
 rejected for this purpose.
 
-The current goals of Coveralls is to keep test coverage above 90%, if it falls
-below this value a build will be rejected. If this proves too problematic I will
-review the goals and update Coveralls and this article accordingly.
+The current goals of Coveralls is to keep test coverage as high as possible but
+unfortunately the tools used to generate coverage only calculate coverage for
+tested code. So coverage results are inaccurate, although still a nice metric
+to have. My policy on exact percentage of coverage has changed since the projects
+inception due to this fact and the fact there are some things that don't fit
+into testing (based on how they're used).
+
+That's not say testing is being dropped or reduced intentionally. Quite the
+contrary I still plan on testing all relevant major pieces of code to ensure
+the project does as expected (according to the tests).
 
 ## Development Tools
 
