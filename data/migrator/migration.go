@@ -1,6 +1,9 @@
-package models
+package migrator
 
-import "github.com/bbuck/dragon-mud/data"
+import (
+	"github.com/bbuck/dragon-mud/data"
+	"github.com/bbuck/dragon-mud/data/models"
+)
 
 var haveMigrated = false
 
@@ -17,7 +20,7 @@ func MigrateDatabase() error {
 	}
 
 	// Perform migrations below
-	db.AutoMigrate(&Player{})
+	db.AutoMigrate(&models.Player{})
 
 	return nil
 }

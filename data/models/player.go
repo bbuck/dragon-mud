@@ -22,52 +22,16 @@ const (
 // signed into a player this will likley be populated.
 type Player struct {
 	BaseModel
+	SoftDeletedModel
 	Username    string `json:"username" sql:"index:idx_username;unique;not null"`
 	DisplayName string `json:"display_name" sql:"not_null"`
-	RawPassword string `json:"-" sql:"-"`
 	Password    string `json:"-" sql:"not null"`
 	Salt        string `json:"-" sql:"not null"`
 	Iterations  uint32 `json:"-" sql:"not null"`
 }
 
-// NewPlayer creates a player with the given DisplayName and Password, doing some
-// pregeneratio of BeforeSave operations.
-func NewPlayer(displayName, password string) *Player {
-	p := &Player{
-		Username:    strings.ToLower(displayName),
-		DisplayName: displayName,
-	}
-
-	hash, err := p.hashPassword(password)
-	if err != nil {
-		p.RawPassword = password
-	} else {
-		p.Password = hash
-	}
-
-	return p
-}
-
-// FindPlayerByUsername searches the player database for a player with the given
-// username
-func FindPlayerByUsername(query string) (*Player, bool) {
-	player := new(Player)
-	player.DB().Where(&Player{Username: strings.ToLower(query)}).First(&player)
-
-	return player, player.ID != 0
-}
-
 // BeforeSave is provided to satisy the BeforeSaver interface.
 func (p *Player) BeforeSave() error {
-	if len(p.RawPassword) > 0 {
-		hash, err := p.hashPassword(p.RawPassword)
-		if err != nil {
-			return err
-		}
-		p.Password = hash
-		p.RawPassword = ""
-	}
-
 	if len(p.Password) == 0 {
 		return errors.New("Cannot save player without a password")
 	}
@@ -75,9 +39,21 @@ func (p *Player) BeforeSave() error {
 	if len(p.DisplayName) == 0 {
 		p.DisplayName = strings.Title(p.Username)
 	}
+
 	p.Username = strings.ToLower(p.DisplayName)
 
 	return nil
+}
+
+// SetPassword takes the password given and converts into a hash according to
+// the settings of this player and sets that as the players new password
+func (p *Player) SetPassword(password string) bool {
+	hash, err := p.hashPassword(password)
+	if err == nil {
+		p.Password = hash
+	}
+
+	return err == nil
 }
 
 // IsValidPassword checks the given string against the users password to see

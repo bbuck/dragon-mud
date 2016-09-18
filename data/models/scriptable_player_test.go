@@ -2,6 +2,7 @@ package models_test
 
 import (
 	. "github.com/bbuck/dragon-mud/data/models"
+	"github.com/bbuck/dragon-mud/data/models/players"
 	"github.com/bbuck/dragon-mud/scripting"
 
 	. "github.com/onsi/ginkgo"
@@ -12,7 +13,7 @@ var _ = Describe("ScriptablePlayer", func() {
 	var player *Player
 
 	BeforeEach(func() {
-		player = NewPlayer("Izuriel", "password")
+		player = players.New("Izuriel", "password")
 		Save(player)
 	})
 
