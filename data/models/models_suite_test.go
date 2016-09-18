@@ -2,7 +2,7 @@ package models_test
 
 import (
 	"github.com/bbuck/dragon-mud/data"
-	"github.com/bbuck/dragon-mud/data/models"
+	"github.com/bbuck/dragon-mud/data/migrator"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -22,7 +22,7 @@ var (
 var _ = BeforeSuite(func() {
 	old = data.DefaultFactory
 	data.DefaultFactory = testFactory
-	models.MigrateDatabase()
+	migrator.MigrateDatabase()
 })
 
 var _ = AfterSuite(func() {

@@ -2,6 +2,7 @@ package models_test
 
 import (
 	. "github.com/bbuck/dragon-mud/data/models"
+	"github.com/bbuck/dragon-mud/data/models/players"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -12,22 +13,22 @@ var _ = Describe("Player", func() {
 
 	BeforeEach(func() {
 		player = &Player{
-			Username:    "Izuriel",
-			RawPassword: "password",
+			Username: "Izuriel",
 		}
+		player.SetPassword("password")
 	})
 
 	Describe("saving", func() {
 		BeforeEach(func() {
-			player.BeforeSave()
+			Save(player)
+		})
+
+		AfterEach(func() {
+			player.DB().Unscoped().Delete(player)
 		})
 
 		It("should lowercase username", func() {
 			Ω(player.Username).Should(Equal("izuriel"))
-		})
-
-		It("should reset RawPassword", func() {
-			Ω(player.RawPassword).Should(Equal(""))
 		})
 
 		It("should configure data for password hash", func() {
@@ -41,10 +42,6 @@ var _ = Describe("Player", func() {
 	})
 
 	Describe("password matching", func() {
-		BeforeEach(func() {
-			player.BeforeSave()
-		})
-
 		It("should identify password matches", func() {
 			Ω(player.IsValidPassword("password")).Should(BeTrue())
 		})
@@ -65,14 +62,14 @@ var _ = Describe("Player", func() {
 			BeforeEach(func() {
 				player = &Player{
 					DisplayName: "TestName",
-					RawPassword: "password",
 				}
+				player.SetPassword("password")
 				Save(player)
-				oPlayer, found = FindPlayerByUsername("TestName")
+				oPlayer, found = players.FindByUsername("TestName")
 			})
 
 			AfterEach(func() {
-				oPlayer.DB().Unscoped().Delete(&oPlayer)
+				player.DB().Unscoped().Delete(player)
 				player = nil
 				oPlayer = nil
 			})
@@ -85,7 +82,7 @@ var _ = Describe("Player", func() {
 			It("is findable by id", func() {
 				ooPlayer := new(Player)
 				ByID(player.ID).First(&ooPlayer)
-				Ω(ooPlayer.ID).Should(Equal(player.ID))
+				Ω(oPlayer.ID).Should(Equal(player.ID))
 			})
 
 			It("preserves the original display name", func() {

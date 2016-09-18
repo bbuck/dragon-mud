@@ -52,7 +52,7 @@ func NewLuaEngine() *LuaEngine {
 func NewSecureLuaEngine() (*LuaEngine, error) {
 	engine := NewLuaEngine()
 	engine.Secure = true
-	if err := engine.initiateKnockdown(); err != nil {
+	if err := engine.initiateLockdown(); err != nil {
 		return nil, err
 	}
 
@@ -65,16 +65,16 @@ func NewCustomSecureLuaEngine(sandbox LuaSandbox) (*LuaEngine, error) {
 	engine := NewLuaEngine()
 	engine.Secure = true
 	engine.sandbox = sandbox
-	if err := engine.initiateKnockdown(); err != nil {
+	if err := engine.initiateLockdown(); err != nil {
 		return nil, err
 	}
 
 	return engine, nil
 }
 
-// initiateKnockdown runs the SecureScript of the engine, this allows for custom
+// initiateLockdown runs the SecureScript of the engine, this allows for custom
 // security settings.
-func (e *LuaEngine) initiateKnockdown() error {
+func (e *LuaEngine) initiateLockdown() error {
 	if err := e.LoadString(e.sandbox.Script); err != nil {
 		return err
 	}

@@ -249,4 +249,70 @@ var _ = Describe("LuaEngine", func() {
 			})
 		})
 	})
+
+	Describe("passing in go objects", func() {
+		var obj = TestObject{}
+
+		BeforeEach(func() {
+			engine.LoadString(`
+				function call_by_value_fn(obj)
+				  return obj:GetStringFromValue()
+				end
+
+				function call_by_ptr_fn(obj)
+					return obj:GetStringFromPtr()
+				end
+			`)
+		})
+
+		Context("calling methods by value", func() {
+			var (
+				result []*LuaValue
+				cerr   error
+			)
+
+			BeforeEach(func() {
+				result, cerr = engine.Call("call_by_value_fn", 1, obj)
+			})
+
+			It("should not fail", func() {
+				Ω(cerr).Should(BeNil())
+			})
+
+			It("should return the correct value", func() {
+				Ω(len(result)).Should(BeNumerically(">", 0))
+				Ω(result[0].AsString()).Should(Equal("success"))
+			})
+		})
+
+		Context("calling methods by pointer", func() {
+			var (
+				result []*LuaValue
+				cerr   error
+			)
+
+			BeforeEach(func() {
+				result, cerr = engine.Call("call_by_ptr_fn", 1, &obj)
+			})
+
+			It("should not fail", func() {
+				Ω(cerr).Should(BeNil())
+			})
+
+			It("should return the correct value", func() {
+				Ω(len(result)).Should(BeNumerically(">", 0))
+				Ω(result[0].AsString()).Should(Equal("success"))
+			})
+		})
+	})
 })
+
+type TestObject struct{}
+
+func (t TestObject) GetStringFromValue() string {
+	return "success"
+}
+
+func (t *TestObject) GetStringFromPtr() string {
+	return "success"
+}
