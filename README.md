@@ -1,12 +1,10 @@
 # DragonMUD
 
-[![Issues In Progress](https://badge.waffle.io/bbuck/dragon-mud.svg?label=in%20progress&title=In%20Progress)](http://waffle.io/bbuck/dragon-mud)
 [![Build Status](https://travis-ci.org/bbuck/dragon-mud.svg?branch=develop)](https://travis-ci.org/bbuck/dragon-mud)
 [![Code Climate](https://codeclimate.com/github/bbuck/dragon-mud/badges/gpa.svg)](https://codeclimate.com/github/bbuck/dragon-mud)
 [![Issue Count](https://codeclimate.com/github/bbuck/dragon-mud/badges/issue_count.svg)](https://codeclimate.com/github/bbuck/dragon-mud)
 [![Discord Channel](https://img.shields.io/badge/discord-DragonMUD-blue.svg?style=flat)](https://discordapp.com/channels/141274099262423040/141274099262423040)
 [![Go Report Card](https://goreportcard.com/badge/github.com/bbuck/dragon-mud)](https://goreportcard.com/report/github.com/bbuck/dragon-mud)
-
 
 DragonMUD is a dream of mine, building a new MUD engine for experience and fun
 before building my own game on top of it. The engine will have a very opinionated
