@@ -69,17 +69,17 @@ to add some wild new feature just create an issue for it and go from there -
 issues don't have to be _approved_ to be valid for a pull request. There just
 needs to be an issue.
 
-### Waffle.io
+### Github Projects
 
-For advanced feature/issue tracking I chose to use Waffle.io. It's got a decent
-interface and provides a free service for open source repositories and it's data
-is backed solely through Github issues. This means that issues created in Github
-will appear in Waffle and issues created in Waffle will appear in Github.
-Moving issues through the workflow will update in Github and so forth. I expect
-any collaborators to use and maintain Waffle, while general contributors can
-choose to do so by contacting me or just use Github issues.
+This repo has two projects associated with as they result in two separate end
+goals. The primary project, Dragon MUD represents the MUD engine and capabilities
+of running and building your own game. The second project represents web interface
+efforts and potentially static site support on top of that. This project exists
+currently but will most likely see use later in the projects lifespan.
 
-The Waffle.io project can be found [here](https://waffle.io/bbuck/dragon-mud).
+Github Projects are used kanban style to represent the current status of of any
+issue that currently exists under a project and collaborators will remain diligent
+in making sure that tickets get added to their appropriate projects ASAP.
 
 ## Git Management
 

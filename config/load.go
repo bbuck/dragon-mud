@@ -18,9 +18,7 @@ func Load() {
 	viper.SetConfigName("Gamefile")
 	viper.SetEnvPrefix("dragon_mud")
 	if err := viper.ReadInConfig(); err != nil {
-		if os.IsNotExist(err) {
-			fmt.Fprintf(os.Stderr, " WARN: Config file not found, using defaults. It's wise to run `dragon init`\n")
-		} else {
+		if !os.IsNotExist(err) {
 			fmt.Fprintf(os.Stderr, "ERROR: Error loading configuration: %s\n", err)
 			os.Exit(1)
 		}
