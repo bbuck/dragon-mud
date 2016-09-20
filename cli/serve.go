@@ -4,6 +4,7 @@ import (
 	"github.com/bbuck/dragon-mud/data/migrator"
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/random"
+	"github.com/bbuck/dragon-mud/server"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -25,6 +26,7 @@ information will be processed.`,
 			}
 
 			// TODO: Implement serve command
+			server.Run()
 		},
 	}
 

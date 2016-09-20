@@ -3,13 +3,20 @@
 # Game network configuration.
 [net]
 
-# Change the port the game runs on
-game_port = 8080
-# Change the port the server private port runs on. This private port is only
-# connectable from the machine hosting the server and is the only way to send
-# 'SERVER' messages to all memebers of the game. Other than this, it's the same
-# as connecting to the standard port.
-private_port = 8081
+  # Interface is the address you want the server to bind to. By default it's
+  # "localhost" but it can also be set to "0.0.0.0" as well or another IP address
+  # to be accessible from outside the server.
+  interface = "localhost"
+
+  # Change the port the game runs on
+  port = 8080
+
+  # Change the port the server private port runs on. This private port is only
+  # connectable from the machine hosting the server and is the only way to send
+  # 'SERVER' messages to all memebers of the game. Other than this, it's the same
+  # as connecting to the standard port.
+  # TODO: Assess necessity.
+  # private_port = 8081
 
 # log contains settings specific to the logger for the project such as maximum
 # log level and output targets.
