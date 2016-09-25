@@ -168,10 +168,10 @@ func (e *LuaEngine) PopArg() *LuaValue {
 	return val
 }
 
-// PushRet pushes the given Value onto the Lua stack.
+// PushValue pushes the given Value onto the Lua stack.
 // Use this method when 'returning' values from a Go function called from a
 // Lua script.
-func (e *LuaEngine) PushRet(val interface{}) {
+func (e *LuaEngine) PushValue(val interface{}) {
 	v := e.ValueFor(val)
 	e.state.Push(v.lval)
 }
@@ -271,10 +271,10 @@ func (e *LuaEngine) Call(name string, retCount int, params ...interface{}) ([]*L
 	}
 
 	retVals := make([]*LuaValue, retCount)
-	for i := 0; i < retCount; i++ {
+	for i := retCount - 1; i >= 0; i-- {
 		retVals[i] = e.ValueFor(e.state.Get(-1))
+		e.state.Pop(1)
 	}
-	e.state.Pop(retCount)
 
 	return retVals, nil
 }

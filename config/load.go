@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/bbuck/dragon-mud/cli"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 // Load will initiate the loading of the configuration file for use by the
 // application. Reading settings from the config file into the configuration
 // manager.
-func Load() {
+func Load(rootCmd *cobra.Command) {
 	registerDefaults()
 	viper.SetConfigType("toml")
 	viper.AddConfigPath(".")
@@ -23,7 +23,7 @@ func Load() {
 			os.Exit(1)
 		}
 	}
-	bindFlags()
+	bindFlags(rootCmd)
 	bindEnvVars()
 }
 
@@ -33,6 +33,6 @@ func bindEnvVars() {
 	viper.BindEnv("env")
 }
 
-func bindFlags() {
-	viper.BindPFlag("env", cli.RootCmd.PersistentFlags().Lookup("env"))
+func bindFlags(rootCmd *cobra.Command) {
+	viper.BindPFlag("env", rootCmd.PersistentFlags().Lookup("env"))
 }

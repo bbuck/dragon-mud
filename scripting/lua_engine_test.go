@@ -111,7 +111,47 @@ var _ = Describe("LuaEngine", func() {
 		})
 	})
 
-	Describe("SetGlobal", func() {
+	Describe("Call()", func() {
+		var (
+			results []*LuaValue
+			err     error
+			script  = `
+				function swap(a, b)
+					return b, a
+				end
+			`
+			a                float64 = 10.0
+			b                float64 = 20.0
+			aResult, bResult float64
+		)
+
+		BeforeEach(func() {
+			engine.LoadString(script)
+			results, err = engine.Call("swap", 2, a, b)
+			if err == nil {
+				aResult = results[0].AsNumber()
+				bResult = results[1].AsNumber()
+			}
+		})
+
+		It("does not return an error", func() {
+			Ω(err).Should(BeNil())
+		})
+
+		It("returns two results", func() {
+			Ω(len(results)).Should(Equal(2))
+		})
+
+		It("returns the second input first", func() {
+			Ω(aResult).Should(Equal(b))
+		})
+
+		It("returns the first input second", func() {
+			Ω(bResult).Should(Equal(a))
+		})
+	})
+
+	Describe("SetGlobal()", func() {
 		var (
 			results []*LuaValue
 			err     error
@@ -221,7 +261,7 @@ var _ = Describe("LuaEngine", func() {
 						called = true
 					}
 
-					e.PushRet(first - second)
+					e.PushValue(first - second)
 
 					return 1
 				})

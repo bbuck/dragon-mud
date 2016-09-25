@@ -22,7 +22,7 @@ information will be processed.`,
 
 			err := migrator.MigrateDatabase()
 			if err != nil {
-				logger.WithField("err", err.Error()).Fatal("Failed to configure and setup database")
+				logger.WithField("error", err.Error()).Fatal("Failed to configure and setup database")
 			}
 
 			// TODO: Implement serve command
