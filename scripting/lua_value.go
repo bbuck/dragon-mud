@@ -20,6 +20,26 @@ func (v *LuaValue) String() string {
 	return v.lval.String()
 }
 
+// AsRaw returns the best associated Go type, ingoring functions and any other
+// odd types. Only concerns itself with string, bool, nil, number and user data
+// types. Tables are again, ignored.
+func (v *LuaValue) AsRaw() interface{} {
+	switch v.lval.Type() {
+	case lua.LTString:
+		return v.AsString()
+	case lua.LTBool:
+		return v.AsBool()
+	case lua.LTNil:
+		return nil
+	case lua.LTNumber:
+		return v.AsNumber()
+	case lua.LTUserData:
+		return v.Interface()
+	}
+
+	return nil
+}
+
 // AsString returns the LValue as a Go string
 func (v *LuaValue) AsString() string {
 	return lua.LVAsString(v.lval)
@@ -41,6 +61,21 @@ func (v *LuaValue) AsNumber() float64 {
 // non bool Values)
 func (v *LuaValue) AsBool() bool {
 	return lua.LVAsBool(v.lval)
+}
+
+// AsMapStringInterface will work on a Lua Table to convert it into a go
+// map[string]interface.
+func (v *LuaValue) AsMapStringInterface() map[string]interface{} {
+	if v.IsTable() {
+		result := make(map[string]interface{})
+		v.ForEach(func(key, value *LuaValue) {
+			result[key.AsString()] = value.AsRaw()
+		})
+
+		return result
+	}
+
+	return nil
 }
 
 // IsNil will only return true if the Value wraps LNil.
