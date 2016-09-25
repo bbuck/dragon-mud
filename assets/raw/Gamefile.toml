@@ -1,4 +1,4 @@
-# DragonDetails base file
+# %{game_title} base configuration file
 
 # Game network configuration.
 [net]
@@ -39,14 +39,14 @@
 [database.development]
 
   adapter = "sqlite3"
-  dbname = "{{GameName}}.db3"
+  dbname = "%{game_name}.db3"
 
   # adapter = "mysql"
   # adapter = "postgres"
 
   # user = ""
   # password = ""
-  # dbname = "{{GameName}}"
+  # dbname = "%{game_name}"
 
   # sslmode is only for postgres databases
   # sslmode = "disable"

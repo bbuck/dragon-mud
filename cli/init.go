@@ -1,12 +1,15 @@
 package cli
 
 import (
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/bbuck/dragon-mud/assets"
 	"github.com/bbuck/dragon-mud/config"
 	"github.com/bbuck/dragon-mud/data/migrator"
 	"github.com/bbuck/dragon-mud/logger"
+	"github.com/bbuck/dragon-mud/text/tmpl"
 	"github.com/spf13/cobra"
 )
 
@@ -19,6 +22,14 @@ copy in required configuration files with defaults set ready for you to get
 started.`,
 	Run: func(_ *cobra.Command, _ []string) {
 		gamefile := assets.MustAsset("Gamefile.toml")
+		var gameName string
+		fmt.Print("Enter the name of your game >> ")
+		fmt.Scanf("%s", &gameName)
+		gamefile = []byte(tmpl.MustRenderOnce(string(gamefile), map[string]interface{}{
+			"game_title": strings.Title(gameName),
+			"game_name":  strings.ToLower(gameName),
+		}))
+
 		file, err := os.Create("Gamefile.toml")
 		if err != nil && !os.IsExist(err) {
 			logger.WithField("error", err.Error()).Fatal("Failed to create a Gamefile.toml in the current directory.")
