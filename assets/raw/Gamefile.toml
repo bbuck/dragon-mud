@@ -34,19 +34,14 @@
     type = "os"
     target = "stdout"
 
-# Configure the database. For a list of supported databases please check the
-# wiki. The default database is SQLite.
+# Configure the connection information to Neo4j. You can use any environment
+# name you want as you can specify which environment to execute when running
+# the server. This connects to the default username and password of Neo4j.
 [database.development]
 
-  adapter = "sqlite3"
-  dbname = "%{game_name}.db3"
-
-  # adapter = "mysql"
-  # adapter = "postgres"
-
-  # user = ""
-  # password = ""
-  # dbname = "%{game_name}"
-
-  # sslmode is only for postgres databases
-  # sslmode = "disable"
+  authentication = true
+  host = "localhost"
+  port = "7474"
+  username = "neo4j"
+  password = "neo4j"
+  connection_max = 10

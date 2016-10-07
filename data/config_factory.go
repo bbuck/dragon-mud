@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/bbuck/dragon-mud/logger"
-	"github.com/jinzhu/gorm"
+	neo4j "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 )
@@ -14,46 +14,39 @@ import (
 // settings.
 type ConfigFactory struct {
 	initialized bool
-	db          gorm.DB
+	db          neo4j.DriverPool
 }
 
 // Open will load in configuration from the config file and generate a gorm
 // connection.
-func (cf ConfigFactory) Open() (*gorm.DB, error) {
+func (cf ConfigFactory) Open() (neo4j.Conn, error) {
 	if !cf.initialized {
 		cf.initialized = true
 		configKey := fmt.Sprintf("database.%s", viper.GetString("env"))
 		configMap := viper.GetStringMapString(configKey)
 		if configMap == nil {
-			return &cf.db, errors.New("No database configuration for environemnt")
+			return nil, errors.New("No database configuration for environemnt")
 		}
 		config := new(databaseConfig)
 		if err := mapstructure.Decode(configMap, &config); err != nil {
-			return &cf.db, err
+			return nil, err
 		}
 		if !config.valid() {
-			return &cf.db, errors.New("Invalid database configuration, make sure you have 'adapter' and 'dbname' set")
+			return nil, errors.New("Invalid database configuration, make sure you have 'adapter' and 'dbname' set")
 		}
-		if err := config.createDatabase(); err != nil {
-			return &cf.db, err
-		}
-		db, err := gorm.Open(config.Adapter, config.connectionString(true))
+		db, err := neo4j.NewDriverPool(config.connectionString(), config.ConnectionMax)
 		if err != nil {
-			return &cf.db, err
-		}
-		// Set configuration for database
-		if config.Adapter == "mysql" {
-			cf.db.Set("gorm:table_options", "ENGINE=InnoDB")
+			return nil, err
 		}
 		cf.db = db
 	}
 
-	return &cf.db, nil
+	return cf.db.OpenPool()
 }
 
 // MustOpen fetches a reference to the shared database connection object. It's
 // shorthand for calling DefaultFactory.Open() and handling an error
-func (cf ConfigFactory) MustOpen() *gorm.DB {
+func (cf ConfigFactory) MustOpen() neo4j.Conn {
 	db, err := DefaultFactory.Open()
 	if err != nil {
 		logger.WithField("error", err.Error()).Fatal("Failed to fetch cached DB connection")

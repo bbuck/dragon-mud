@@ -1,10 +1,5 @@
 package migrator
 
-import (
-	"github.com/bbuck/dragon-mud/data"
-	"github.com/bbuck/dragon-mud/data/models"
-)
-
 var haveMigrated = false
 
 // MigrateDatabase will perform the necessary database migrations to configure
@@ -14,13 +9,10 @@ func MigrateDatabase() error {
 		return nil
 	}
 	haveMigrated = true
-	db, err := data.DefaultFactory.Open()
-	if err != nil {
-		return err
-	}
 
-	// Perform migrations below
-	db.AutoMigrate(&models.Player{})
+	// db := data.DefaultFactory.MustOpen()
+
+	// TODO: Execute queries to configure indexes and constraints.
 
 	return nil
 }

@@ -18,3 +18,5 @@ import:
 - package: github.com/mattn/go-sqlite3
 - package: github.com/pzduniak/argon2
 - package: github.com/valyala/fasttemplate
+- package: github.com/johnadratowski/golang-neo4j-bolt-driver
+- package: github.com/johnnadratowski/golang-neo4j-bolt-driver

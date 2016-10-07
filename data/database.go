@@ -1,118 +1,51 @@
 package data
 
 import (
-	"database/sql"
-	"fmt"
-	"os"
-	"path/filepath"
-	"regexp"
+	"github.com/bbuck/dragon-mud/logger"
+	"github.com/bbuck/dragon-mud/text/tmpl"
 
-	"github.com/jinzhu/gorm"
+	neo4j "github.com/johnnadratowski/golang-neo4j-bolt-driver"
+)
 
-	// load database drivers
-	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/lib/pq"
-	_ "github.com/mattn/go-sqlite3"
+const (
+	authConnStringTemplate   = "bolt://%{host}:%{port}"
+	noAuthConnStringTemplate = "bolt://%{username}:%{password}@%{host}:%{port}"
 )
 
 type databaseConfig struct {
-	Adapter  string
-	User     string
-	Password string
-	DBName   string
-	SSLMode  string
+	Authentication bool
+	Username       string
+	Password       string
+	Host           string
+	Port           int
+	ConnectionMax  int
 }
 
 func (d *databaseConfig) valid() bool {
-	if len(d.Adapter) == 0 {
-		return false
-	}
-
-	if len(d.DBName) == 0 {
+	if d.Authentication && len(d.Username) == 0 && len(d.Password) == 0 {
 		return false
 	}
 
 	return true
 }
 
-func (d *databaseConfig) createDatabase() error {
-	var connStr = d.connectionString(false)
-	switch d.Adapter {
-	case "sqlite3":
-		os.Mkdir("data", os.ModePerm)
-		if _, err := os.Open(connStr); err != nil {
-			if os.IsNotExist(err) {
-				os.Create(connStr)
-			} else {
-				return err
-			}
-		}
-
-		return nil
-	case "mysql":
-		db, err := sql.Open(d.Adapter, connStr)
-		if err != nil {
-			return err
-		}
-		query := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", d.DBName)
-		if _, err := db.Exec(query); err != nil {
-			return err
-		}
-	case "postgres":
-		db, err := sql.Open(d.Adapter, connStr)
-		if err != nil {
-			return err
-		}
-		query := fmt.Sprintf("CREATE DATABASE %s", d.DBName)
-		if _, err := db.Exec(query); err != nil {
-			// we ignore the error if the database already exists
-			matches, _ := regexp.MatchString(`database\s+(.+)\s+already\s+exists`, err.Error())
-			if !matches {
-				return err
-			}
-		}
+func (d *databaseConfig) connectionString() string {
+	data := map[string]interface{}{
+		"host": d.Host,
+		"port": d.Port,
 	}
 
-	return nil
-}
+	tmplStr := noAuthConnStringTemplate
+	if d.Authentication {
+		tmplStr = authConnStringTemplate
+		data["username"] = d.Username
+		data["password"] = d.Password
+	}
 
-func (d *databaseConfig) connectionString(withDatabase bool) string {
-	switch {
-	case d.Adapter == "postgres":
-		str := ""
-		if len(d.User) > 0 {
-			str += "user=" + d.User + " "
-		}
-		if len(d.Password) > 0 {
-			str += "password=" + d.Password + " "
-		}
-		if withDatabase && len(d.DBName) > 0 {
-			str += "dbname=" + d.DBName + " "
-		}
-		str += "sslmode="
-		if len(d.SSLMode) > 0 {
-			str += d.SSLMode + " "
-		} else {
-			str += "disable "
-		}
+	if str, err := tmpl.RenderOnce(tmplStr, data); err == nil {
 		return str
-	case d.Adapter == "sqlite3":
-		return filepath.Join("data", d.DBName)
-	case d.Adapter == "mysql":
-		str := ""
-		if len(d.User) > 0 {
-			str += d.User
-			if len(d.Password) > 0 {
-				str += ":" + d.Password
-			}
-			str += "@"
-		}
-		str += "/"
-		if withDatabase {
-			str += d.DBName
-		}
-
-		return str
+	} else {
+		logger.WithField("error", err.Error()).Fatal("Failed to generate connection data.")
 	}
 
 	return ""
@@ -120,8 +53,8 @@ func (d *databaseConfig) connectionString(withDatabase bool) string {
 
 // Factory is an interface that defines how to create new references to the database.
 type Factory interface {
-	Open() (*gorm.DB, error)
-	MustOpen() *gorm.DB
+	Open() (neo4j.Conn, error)
+	MustOpen() neo4j.Conn
 }
 
 // DefaultFactory is the factory that should be used to generate database
