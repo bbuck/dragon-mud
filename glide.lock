@@ -1,5 +1,5 @@
-hash: a4b59b455e1078b1c875e2407a0b4b0f94d32089761b8d447847af7df2a388a3
-updated: 2016-10-07T11:10:36.830093071-05:00
+hash: 8252fc1dd9f1636f4615ed9caf1afaafbceec6020894c8d1b56a685aa5aa6092
+updated: 2016-10-07T15:28:00.569305612-05:00
 imports:
 - name: github.com/armon/consul-api
   version: dcfedd50ed5334f96adee43fc88518a4f095e15c
@@ -9,14 +9,24 @@ imports:
   version: 003851be7bb0694fe3cc457a49529a19388ee7cf
 - name: github.com/cpuguy83/go-md2man
   version: 2724a9c9051aa62e9cca11304e7dd518e9e41599
+- name: github.com/davecgh/go-spew
+  version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
+  subpackages:
+  - spew
 - name: github.com/dchest/blake2b
   version: 3c8c640cd7bea3ca78209d812b5854442ab92fed
+- name: github.com/fatih/structs
+  version: dc3312cb1a4513a366c4c9e622ad55c32df12ed3
 - name: github.com/golang/protobuf
   version: 2402d76f3d41f928c7902a765dfc872356dd3aad
 - name: github.com/hashicorp/hcl
   version: 578dd9746824a54637686b51a41bad457a56bcef
-- name: github.com/johnnadratowski/golang-neo4j-bolt-driver
-  version: d207d9de78257d73d02225609fd661873f5c966a
+- name: github.com/howeyc/gopass
+  version: f5387c492211eb133053880d23dfae62aa14123d
+- name: github.com/jmcvetta/neoism
+  version: 9d29cb10be18b1256c9290b9fc9b64c34278b8b7
+- name: github.com/jmcvetta/randutil
+  version: 2bb1b664bcff821e02b2a0644cd29c7e824d54f8
 - name: github.com/kr/pretty
   version: e6ac2fc51e89a3249e82157fa0bb7a18ef9dd5bb
 - name: github.com/kr/pty
@@ -39,6 +49,10 @@ imports:
   - ginkgo
 - name: github.com/onsi/gomega
   version: 0fe204460da2c8fa1babcaac196e694de8f1aaa1
+- name: github.com/pmezard/go-difflib
+  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
+  subpackages:
+  - difflib
 - name: github.com/pzduniak/argon2
   version: 2e310c35143933ecb508bd1f86a0b3f499c26e65
 - name: github.com/russross/blackfriday
@@ -59,6 +73,10 @@ imports:
   version: 7f60f83a2c81bc3c3c0d5297f61ddfa68da9d3b7
 - name: github.com/spf13/viper
   version: a212099cbe6fbe8d07476bfda8d2d39b6ff8f325
+- name: github.com/stretchr/objx
+  version: cbeaeb16a013161a98496fad62933b1d21786672
+- name: github.com/stretchr/testify
+  version: 976c720a22c8eb4eb6a0b4348ad85ad12491a506
 - name: github.com/ugorji/go
   version: 646ae4a518c1c3be0739df898118d9bccf993858
 - name: github.com/valyala/fasttemplate
@@ -77,6 +95,8 @@ imports:
   version: 8611c35ab31c1c28aa903d33cf8b6e44a399b09e
 - name: gopkg.in/gemnasium/logrus-airbrake-hook.v2
   version: 31e6fd4bd5a98d8ee7673d24bc54ec73c31810dd
+- name: gopkg.in/jmcvetta/napping.v3
+  version: d2748d8bdd2cffedec5c3024958de65bf7cb55aa
 - name: gopkg.in/yaml.v2
   version: f7716cbe52baa25d2e9b0d0da546fcf909fc16b4
 devImports: []

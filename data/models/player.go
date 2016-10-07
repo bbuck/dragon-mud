@@ -23,11 +23,11 @@ const (
 type Player struct {
 	BaseModel
 	SoftDeletedModel
-	Username    string `json:"username" sql:"index:idx_username;unique;not null"`
-	DisplayName string `json:"display_name" sql:"not_null"`
-	Password    string `json:"-" sql:"not null"`
-	Salt        string `json:"-" sql:"not null"`
-	Iterations  uint32 `json:"-" sql:"not null"`
+	Username    string `json:"username" structs:"username"`
+	DisplayName string `json:"display_name" structs:"display_name"`
+	Password    string `json:"-" structs:"password"`
+	Salt        string `json:"-" structs:"salt"`
+	Iterations  uint32 `json:"-" structs:"iterations"`
 }
 
 // BeforeSave is provided to satisy the BeforeSaver interface.

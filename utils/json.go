@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 
 	"github.com/bbuck/dragon-mud/logger"
+	"github.com/fatih/structs"
 )
 
+// ToJSON take the object given and return a JSON string representation of that
+// object.
 func ToJSON(i interface{}) string {
 	buf := new(bytes.Buffer)
 	encoder := json.NewEncoder(buf)
@@ -17,4 +20,8 @@ func ToJSON(i interface{}) string {
 	}
 
 	return buf.String()
+}
+
+func ToMap(i interface{}) map[string]interface{} {
+	return structs.Map(i)
 }
