@@ -12,6 +12,12 @@ const (
 	noAuthConnStringTemplate = "bolt://%{username}:%{password}@%{host}:%{port}"
 )
 
+type DB interface {
+	Create(interface{}) error
+	Save(interface{}) error
+	Delete(interface{}) error
+}
+
 type databaseConfig struct {
 	Authentication bool
 	Username       string

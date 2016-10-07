@@ -19,7 +19,7 @@ type ConfigFactory struct {
 
 // Open will load in configuration from the config file and generate a gorm
 // connection.
-func (cf ConfigFactory) Open() (neo4j.Conn, error) {
+func (cf ConfigFactory) Open() (DB, error) {
 	if !cf.initialized {
 		cf.initialized = true
 		configKey := fmt.Sprintf("database.%s", viper.GetString("env"))
@@ -46,7 +46,7 @@ func (cf ConfigFactory) Open() (neo4j.Conn, error) {
 
 // MustOpen fetches a reference to the shared database connection object. It's
 // shorthand for calling DefaultFactory.Open() and handling an error
-func (cf ConfigFactory) MustOpen() neo4j.Conn {
+func (cf ConfigFactory) MustOpen() DB {
 	db, err := DefaultFactory.Open()
 	if err != nil {
 		logger.WithField("error", err.Error()).Fatal("Failed to fetch cached DB connection")
