@@ -1,0 +1,3 @@
+package: github.com/bbuck/talon
+import:
+- package: github.com/johnnadratowski/golang-neo4j-bolt-driver
