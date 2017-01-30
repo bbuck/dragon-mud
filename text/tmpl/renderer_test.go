@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var templateWithBraces = "%{this} should have {braces}"
+var templateWithBraces = "{{this}} should have {braces}"
 
 var _ = Describe("Renderer", func() {
 	Describe("Render", func() {

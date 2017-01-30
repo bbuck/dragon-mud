@@ -20,11 +20,16 @@ type LuaTableMap map[string]interface{}
 
 // NewLua creates a new engine containing a new lua.LState.
 func NewLua() *Lua {
-	return &Lua{
+	eng := &Lua{
 		state: lua.NewState(lua.Options{
-			SkipOpenLibs: true,
+			SkipOpenLibs:        true,
+			IncludeGoStackTrace: true,
 		}),
 	}
+	eng.OpenBase()
+	eng.OpenPackage()
+
+	return eng
 }
 
 // Close will perform a close on the Lua state.

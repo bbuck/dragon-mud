@@ -4,7 +4,6 @@ import "github.com/bbuck/dragon-mud/scripting/engine"
 
 func newServerEngine() *engine.Lua {
 	engine := engine.NewLua()
-	engine.OpenBase()
 	engine.OpenChannel()
 	engine.OpenCoroutine()
 	engine.OpenMath()
