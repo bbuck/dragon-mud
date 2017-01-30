@@ -1,4 +1,4 @@
-package scripting
+package engine
 
 import (
 	"github.com/layeh/gopher-luar"
@@ -9,7 +9,7 @@ import (
 // for casting.
 type LuaValue struct {
 	lval  lua.LValue
-	owner *LuaEngine
+	owner *Lua
 }
 
 // Nil represents the Lua nil value.
@@ -222,7 +222,7 @@ func (v *LuaValue) Remove(pos int) *LuaValue {
 }
 
 // Helper method for Set and RawSet
-func getLValue(e *LuaEngine, item interface{}) lua.LValue {
+func getLValue(e *Lua, item interface{}) lua.LValue {
 	switch val := item.(type) {
 	case (*LuaValue):
 		return val.lval

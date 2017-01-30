@@ -1,4 +1,4 @@
-package scripting_test
+package engine_test
 
 import (
 	"fmt"

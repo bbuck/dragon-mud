@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	openTemplateTags  = "%{"
-	closeTemplateTags = "}"
+	openTemplateTags  = "{{"
+	closeTemplateTags = "}}"
 )
 
 var compiledTemplates = make(map[string]Renderer)

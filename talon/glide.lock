@@ -1,6 +1,0 @@
-hash: 5ee45ea473f559ebfd71b2071871cc2c3b31787ecf25c3bbab14fc4c914374f4
-updated: 2017-01-06T15:47:53.38252991-06:00
-imports:
-- name: github.com/johnnadratowski/golang-neo4j-bolt-driver
-  version: d207d9de78257d73d02225609fd661873f5c966a
-testImports: []

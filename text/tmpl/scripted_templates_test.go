@@ -11,7 +11,7 @@ import (
 var script = `
     local tmpl = require("tmpl")
 
-    tmpl.Register("Hello, %{name}!", "lua_test")
+    tmpl.Register("Hello, {{name}}!", "lua_test")
 
     function testTemplate()
         result, ok = tmpl.Render("lua_test", {name = "World"})

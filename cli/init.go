@@ -7,7 +7,6 @@ import (
 
 	"github.com/bbuck/dragon-mud/assets"
 	"github.com/bbuck/dragon-mud/config"
-	"github.com/bbuck/dragon-mud/data/migrator"
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/text/tmpl"
 	"github.com/spf13/cobra"
@@ -51,7 +50,6 @@ started.`,
 		logger.Info("Copied Gamefile.toml into the current directory.")
 		config.Load(RootCmd)
 		logger.Info("Loaded new configuration")
-		err = migrator.MigrateDatabase()
 		if err != nil {
 			logger.WithField("error", err.Error()).Fatal("Failed to configure and setup database")
 			return

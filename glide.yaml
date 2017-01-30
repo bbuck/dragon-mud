@@ -1,19 +1,30 @@
 package: github.com/bbuck/dragon-mud
 import:
 - package: github.com/Sirupsen/logrus
-- package: github.com/spf13/cobra
-- package: github.com/x-cray/logrus-prefixed-formatter
-- package: github.com/onsi/ginkgo
+  version: ^0.11.0
+- package: github.com/bbuck/talon
   subpackages:
-  - ginkgo
-- package: github.com/onsi/gomega
-- package: github.com/BurntSushi/toml
-- package: github.com/yuin/gopher-lua
+  - types
+- package: github.com/fatih/structs
+- package: github.com/johnnadratowski/golang-neo4j-bolt-driver
+  subpackages:
+  - structures/graph
 - package: github.com/layeh/gopher-luar
-- package: github.com/spf13/viper
 - package: github.com/mitchellh/mapstructure
 - package: github.com/pzduniak/argon2
-- package: github.com/valyala/fasttemplate
 - package: github.com/satori/go.uuid
-- package: github.com/fatih/structs
-- package: github.com/jmcvetta/neoism
+  version: ^1.1.0
+- package: github.com/spf13/cobra
+- package: github.com/spf13/viper
+- package: github.com/valyala/fasttemplate
+- package: github.com/x-cray/logrus-prefixed-formatter
+- package: github.com/yuin/gopher-lua
+testImport:
+- package: github.com/jinzhu/gorm
+  version: ^1.0.0
+- package: github.com/onsi/ginkgo
+  version: bb93381d543b0e5725244abe752214a110791d01
+  subpackages:
+  - extensions/table
+- package: github.com/onsi/gomega
+  version: e85f63af4302dc0e4277c6008ecf803f1d80e4f0

@@ -1,7 +1,7 @@
-package scripting_test
+package engine_test
 
 import (
-	. "github.com/bbuck/dragon-mud/scripting"
+	. "github.com/bbuck/dragon-mud/scripting/engine"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -10,7 +10,7 @@ import (
 var _ = Describe("LuaEngine", func() {
 	var (
 		err          error
-		engine       *LuaEngine
+		engine       *Lua
 		stringScript = `
 			function hello(name)
 				return "Hello, " .. name .. "!"
@@ -19,7 +19,7 @@ var _ = Describe("LuaEngine", func() {
 	)
 
 	BeforeEach(func() {
-		engine = NewLuaEngine()
+		engine = NewLua()
 	})
 
 	AfterEach(func() {
@@ -253,7 +253,7 @@ var _ = Describe("LuaEngine", func() {
 			)
 
 			BeforeEach(func() {
-				engine.RegisterFunc("sub", func(e *LuaEngine) int {
+				engine.RegisterFunc("sub", func(e *Lua) int {
 					second := e.PopInt64()
 					first := e.PopInt64()
 

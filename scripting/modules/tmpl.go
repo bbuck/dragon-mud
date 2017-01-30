@@ -3,12 +3,13 @@ package tmpl
 import (
 	"github.com/Sirupsen/logrus"
 	"github.com/bbuck/dragon-mud/logger"
-	"github.com/bbuck/dragon-mud/scripting"
+	"github.com/bbuck/dragon-mud/scripting/engine"
+	"github.com/bbuck/dragon-mud/text/tmpl"
 )
 
 var scriptModule = map[string]interface{}{
 	"Register": func(contents, name string) bool {
-		err := Register(contents, name)
+		err := tmpl.Register(contents, name)
 
 		if err != nil {
 			fields := logrus.Fields{
@@ -22,15 +23,15 @@ var scriptModule = map[string]interface{}{
 
 		return err == nil
 	},
-	"Render": func(engine *scripting.LuaEngine) int {
+	"Render": func(engine *engine.Lua) int {
 		data := engine.PopTable()
 		name := engine.PopString()
 
 		log := logger.WithField("name", name)
 
-		t, err := Template(name)
+		t, err := tmpl.Template(name)
 		if err != nil {
-			log.WithField("error", err.Error()).Error("Failed to fetch tempalte name.")
+			log.WithField("error", err.Error()).Error("Failed to fetch template name.")
 
 			engine.PushValue("")
 			engine.PushValue(false)
@@ -51,8 +52,4 @@ var scriptModule = map[string]interface{}{
 
 		return 2
 	},
-}
-
-func RegisterScriptModules(engine *scripting.LuaEngine) {
-	engine.RegisterModule("tmpl", scriptModule)
 }

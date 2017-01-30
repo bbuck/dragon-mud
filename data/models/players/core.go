@@ -22,7 +22,6 @@ func New(displayName, password string) *models.Player {
 // username
 func FindByUsername(query string) (*models.Player, bool) {
 	player := new(models.Player)
-	player.DB().Where(&models.Player{Username: strings.ToLower(query)}).First(&player)
 
-	return player, player.ID != 0
+	return player, player.ID != ""
 }

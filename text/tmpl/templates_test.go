@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var testTemplate = "Hello, %{name}!"
+var testTemplate = "Hello, {{name}}!"
 
 var _ = Describe("Templates", func() {
 	Describe("Register", func() {

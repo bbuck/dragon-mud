@@ -1,9 +1,9 @@
-package scripting_test
+package engine_test
 
 import (
 	"fmt"
 
-	. "github.com/bbuck/dragon-mud/scripting"
+	. "github.com/bbuck/dragon-mud/scripting/engine"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -12,7 +12,7 @@ import (
 
 var _ = Describe("LuaValue", func() {
 	var (
-		engine *LuaEngine
+		engine *Lua
 		str    = "testing"
 		i      = int(10)
 		i64    = int64(100)
@@ -27,7 +27,7 @@ var _ = Describe("LuaValue", func() {
 	}
 
 	BeforeEach(func() {
-		engine = NewLuaEngine()
+		engine = NewLua()
 	})
 
 	AfterEach(func() {

@@ -1,4 +1,4 @@
-package scripting
+package engine
 
 // ScriptableObject defines an interface that returns an object to represent
 // it in a script. For example, in game scripts should not have access to a full
