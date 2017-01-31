@@ -1,6 +1,10 @@
 package scripting
 
-import "github.com/bbuck/dragon-mud/scripting/engine"
+import (
+	"runtime"
+
+	"github.com/bbuck/dragon-mud/scripting/engine"
+)
 
 type EngineSpawner func() *engine.Lua
 
@@ -10,8 +14,10 @@ type PooledEngine struct {
 }
 
 func (pe *PooledEngine) Release() {
-	pe.pool.engines <- pe.Lua
-	pe.Lua = nil
+	if pe.Lua != nil {
+		pe.pool.engines <- pe.Lua
+		pe.Lua = nil
+	}
 }
 
 type EnginePool struct {
@@ -41,8 +47,13 @@ func (ep *EnginePool) Get() *PooledEngine {
 		engine = <-ep.engines
 	}
 
-	return &PooledEngine{
+	pe := &PooledEngine{
 		Lua:  engine,
 		pool: ep,
 	}
+	// NOTE: precaution to prevent leaks for long running servers, not a perfect
+	//       solution. BE DILIGENT AND RELEASE YOUR ENGINES!!
+	runtime.SetFinalizer(pe, (*PooledEngine).Release)
+
+	return pe
 }
