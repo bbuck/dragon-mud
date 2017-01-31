@@ -7,6 +7,8 @@ import (
 	"github.com/bbuck/dragon-mud/text/tmpl"
 )
 
+var tmplLog = logger.LogWithSource("tmpl module")
+
 // Tmpl is the templating module accessible in scripts. This module consists of
 // two accessible methods:
 //   Register(body: string, name: string)
@@ -25,7 +27,7 @@ var Tmpl = map[string]interface{}{
 			if len(contents) < 255 {
 				fields["tempalte"] = contents
 			}
-			logger.WithFields(fields).Error("Register failed from script with error")
+			tmplLog.WithFields(fields).Error("Register failed from script with error")
 		}
 
 		return err == nil
@@ -34,7 +36,7 @@ var Tmpl = map[string]interface{}{
 		data := engine.PopTable()
 		name := engine.PopString()
 
-		log := logger.WithField("name", name)
+		log := tmplLog.WithField("name", name)
 
 		t, err := tmpl.Template(name)
 		if err != nil {

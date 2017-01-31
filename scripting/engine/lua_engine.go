@@ -253,6 +253,21 @@ func (e *Lua) PopInterface() interface{} {
 	return v.Interface()
 }
 
+// True returns a value for the constant 'true' in Lua.
+func (e *Lua) True() *LuaValue {
+	return e.newValue(lua.LTrue)
+}
+
+// False returns a value for the constant 'false' in Lua.
+func (e *Lua) False() *LuaValue {
+	return e.newValue(lua.LFalse)
+}
+
+// Nil returns a value for the constant 'nil' in Lua.
+func (e *Lua) Nil() *LuaValue {
+	return e.newValue(lua.LNil)
+}
+
 // Call allows for calling a method by name.
 // The second parameter is the number of return values the function being
 // called should return. These values will be returned in a slice of Value

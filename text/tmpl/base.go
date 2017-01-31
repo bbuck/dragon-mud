@@ -9,6 +9,10 @@ import (
 	"github.com/valyala/fasttemplate"
 )
 
+var (
+	log = logger.LogWithSource("tmpl")
+)
+
 const (
 	openTemplateTags  = "{{"
 	closeTemplateTags = "}}"
@@ -69,7 +73,7 @@ func RenderOnce(contents string, data map[string]interface{}) (string, error) {
 func MustRenderOnce(contents string, data map[string]interface{}) string {
 	result, err := RenderOnce(contents, data)
 	if err != nil {
-		logger.WithField("error", err.Error()).Fatal("Failed to render template once.")
+		log.WithField("error", err.Error()).Fatal("Failed to render template once.")
 	}
 
 	return result

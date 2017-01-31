@@ -8,9 +8,9 @@ import (
 )
 
 var _ = Describe("Existence", func() {
-	Describe("Gamefile.toml", func() {
+	Describe("Dragonfile.toml", func() {
 		It("should exist as an asset file", func() {
-			_, err := Asset("Gamefile.toml")
+			_, err := Asset("Dragonfile.toml")
 			Ω(err).Should(BeNil())
 		})
 	})

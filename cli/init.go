@@ -20,7 +20,8 @@ for a DragonMUD game server. This will build the necessary folder structure and
 copy in required configuration files with defaults set ready for you to get
 started.`,
 	Run: func(_ *cobra.Command, _ []string) {
-		gamefile := assets.MustAsset("Gamefile.toml")
+		log := logger.LogWithSource("init cmd")
+		gamefile := assets.MustAsset("Dragonfile.toml")
 		var gameName string
 		fmt.Print("Enter the name of your game >> ")
 		fmt.Scanf("%s", &gameName)
@@ -29,9 +30,9 @@ started.`,
 			"game_name":  strings.ToLower(gameName),
 		}))
 
-		file, err := os.Create("Gamefile.toml")
+		file, err := os.Create("Dragonfile.toml")
 		if err != nil && !os.IsExist(err) {
-			logger.WithField("error", err.Error()).Fatal("Failed to create a Gamefile.toml in the current directory.")
+			log.WithField("error", err.Error()).Fatal("Failed to create a Dragonfile.toml in the current directory.")
 			return
 		}
 		defer file.Close()
@@ -39,22 +40,22 @@ started.`,
 		if err == nil {
 			n, werr := file.Write(gamefile)
 			if werr != nil {
-				logger.WithField("error", werr.Error()).Fatal("Failed to write the default Gamefile.toml.")
+				log.WithField("error", werr.Error()).Fatal("Failed to write the default Dragonfile.toml.")
 				return
 			} else if n != len(gamefile) {
-				logger.WithField("percentage", (float64(n) / float64(len(gamefile)) * 100.0)).Fatal("Failed to write the entire file config file.")
+				log.WithField("percentage", (float64(n) / float64(len(gamefile)) * 100.0)).Fatal("Failed to write the entire file config file.")
 				return
 			}
 		}
 
-		logger.Info("Copied Gamefile.toml into the current directory.")
-		config.Load(RootCmd)
-		logger.Info("Loaded new configuration")
+		log.Info("Copied Dragonfile.toml into the current directory.")
+		config.Load()
+		log.Info("Loaded new configuration")
 		if err != nil {
-			logger.WithField("error", err.Error()).Fatal("Failed to configure and setup database")
+			log.WithField("error", err.Error()).Fatal("Failed to configure and setup database")
 			return
 		}
-		logger.Info("Migrated the database in preperation for execution.")
+		log.Info("Migrated the database in preperation for execution.")
 	},
 }
 

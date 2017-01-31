@@ -1,0 +1,67 @@
+# {{game_title}} base configuration file
+
+name = "{{game_title}}"
+
+# {{game_title}} network configuration.
+[net]
+
+  # Interface is the address you want the server to bind to. By default it's
+  # "localhost" but it can also be set to "0.0.0.0" as well or another IP address
+  # to be accessible from outside the server.
+  interface = "localhost"
+
+  # Change the port that {{game_title}} runs on
+  port = 8080
+
+  # Change the port the server private port runs on. This private port is only
+  # connectable from the machine hosting the server and is the only way to send
+  # 'SERVER' messages to all memebers of the game. Other than this, it's the same
+  # as connecting to the standard port.
+  # TODO: Assess necessity.
+  private_port = 8081
+
+# DragonMUD uses the Argon2i method for encrypting passwords. This is a way to
+# configure the memory size of the encryption and the length of the final
+# output. These values aren't dangerous to keep the same here, but feel free
+# to change them. I highly recommend that you do nothing with them unless you
+# have a strong understanding of the effect it has on security.
+[crypto]
+
+  # password_memory_size = 4096
+  # password_length = 32
+  # min_iterations = 3
+  # max_iterations = 8
+
+# log contains settings specific to the logger for the project such as maximum
+# log level and output targets.
+[log]
+
+  level = "debug"
+
+  # Define log targets
+  # Log type consists of 'terminal' and 'file', the type 'terminal' specifies
+  # that you want to log output to a terminal while 'file' denotes an actual
+  # file is created to store logs.
+  # If you choose 'terminal' as your log type, then the value for target can
+  # be either 'terminal' or 'error' which maps to the OS 'stdout' and 'stderr'
+  # pointers. if you're not familiar with those details it's best to stick with
+  # a type of 'terminal' and a target of 'terminal' here.
+  # If you use the type 'file' then the value for target is the path of the
+  # logfile you wish to log to.
+  [[log.targets]]
+
+    # primary terminal
+    type = "terminal"
+    target = "terminal"
+
+# Configure the connection information to Neo4j. You can use any environment
+# name you want as you can specify which environment to execute when running
+# the server. This connects to the default username and password of Neo4j.
+[database.development]
+
+  authentication = true
+  host = "localhost"
+  port = "7474"
+  username = "neo4j"
+  password = "neo4j"
+  connection_max = 10

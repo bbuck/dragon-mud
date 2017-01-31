@@ -9,3 +9,8 @@ import (
 func OpenTmpl(e *engine.Lua) {
 	e.RegisterModule("tmpl", modules.Tmpl)
 }
+
+// OpenPassword registers the password module with the provided Lua engine.
+func OpenPassword(e *engine.Lua) {
+	e.RegisterModule("password", modules.Password)
+}

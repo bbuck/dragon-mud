@@ -1,4 +1,4 @@
-package tmpl_test
+package modules_test
 
 import (
 	"github.com/bbuck/dragon-mud/scripting"
@@ -20,7 +20,7 @@ var script = `
     end
 `
 
-var _ = Describe("ScriptedTemplates", func() {
+var _ = Describe("tmpl Module", func() {
 	var (
 		e      *engine.Lua
 		result string

@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	config.Load(cli.RootCmd)
+	config.Setup(cli.RootCmd)
 	if err := cli.RootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}

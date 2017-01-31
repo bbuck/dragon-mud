@@ -16,8 +16,9 @@ var (
 All lifecycle scripts will be notified during boot and the configuration
 information will be processed.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			logger.Infof("A %s dragon arrives to serve you today.", getDragonColor())
-			logger.WithField("env", viper.GetString("env")).Info("Configuration loaded")
+			log := logger.LogWithSource("serve cmd")
+			log.Infof("A %s dragon arrives to serve you today.", getDragonColor())
+			log.WithField("env", viper.GetString("env")).Info("Configuration loaded")
 
 			// TODO: Implement serve command
 			server.Run()

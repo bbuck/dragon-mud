@@ -1,4 +1,4 @@
-package logger_test
+package modules_test
 
 import (
 	. "github.com/onsi/ginkgo"
@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestLogger(t *testing.T) {
+func TestModules(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Logger Suite")
+	RunSpecs(t, "Modules Suite")
 }
