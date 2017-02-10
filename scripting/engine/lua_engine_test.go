@@ -39,7 +39,7 @@ var _ = Describe("LuaEngine", func() {
 
 	Context("when loading from a string", func() {
 		BeforeEach(func() {
-			err = engine.LoadString(stringScript)
+			err = engine.DoString(stringScript)
 		})
 
 		It("should not fail", func() {
@@ -76,7 +76,7 @@ var _ = Describe("LuaEngine", func() {
 
 	Context("when loading from a file", func() {
 		BeforeEach(func() {
-			err = engine.LoadFile(fileName)
+			err = engine.DoFile(fileName)
 		})
 
 		It("shoult not fail", func() {
@@ -126,7 +126,7 @@ var _ = Describe("LuaEngine", func() {
 		)
 
 		BeforeEach(func() {
-			engine.LoadString(script)
+			engine.DoString(script)
 			results, err = engine.Call("swap", 2, a, b)
 			if err == nil {
 				aResult = results[0].AsNumber()
@@ -159,7 +159,7 @@ var _ = Describe("LuaEngine", func() {
 
 		BeforeEach(func() {
 			engine.SetGlobal("gbl", "testing")
-			err = engine.LoadString(`
+			err = engine.DoString(`
 			function get_gbl()
 				return gbl
 			end
@@ -190,7 +190,7 @@ var _ = Describe("LuaEngine", func() {
 		)
 
 		BeforeEach(func() {
-			err = engine.LoadString(`
+			err = engine.DoString(`
 				word = "testing"
 			`)
 			if err != nil {
@@ -294,7 +294,7 @@ var _ = Describe("LuaEngine", func() {
 		var obj = TestObject{}
 
 		BeforeEach(func() {
-			engine.LoadString(`
+			engine.DoString(`
 				function call_by_value_fn(obj)
 				  return obj:GetStringFromValue()
 				end
@@ -342,6 +342,111 @@ var _ = Describe("LuaEngine", func() {
 			It("should return the correct value", func() {
 				Ω(len(result)).Should(BeNumerically(">", 0))
 				Ω(result[0].AsString()).Should(Equal("success"))
+			})
+		})
+	})
+
+	Describe("using table generators", func() {
+		var (
+			table          *LuaValue
+			results        []*LuaValue
+			errOne, errTwo error
+			one            *LuaValue
+			two            *LuaValue
+		)
+
+		BeforeEach(func() {
+			engine.DoString(`
+                function getValueAtKey(tbl, key)
+                    return tbl[key]
+                end
+            `)
+		})
+
+		Context("ValueFromMap", func() {
+			m := map[string]interface{}{
+				"one": 2,
+				"two": "too",
+			}
+
+			BeforeEach(func() {
+				table = engine.TableFromMap(m)
+				results, errOne = engine.Call("getValueAtKey", 1, table, "one")
+				if len(results) > 0 {
+					one = results[0]
+				}
+				results, errTwo = engine.Call("getValueAtKey", 1, table, "two")
+				if len(results) > 0 {
+					two = results[0]
+				}
+			})
+
+			It("didn't fail to fetch 'one'", func() {
+				Ω(errOne).Should(BeNil())
+			})
+
+			It("fetched a number", func() {
+				Ω(one.IsNumber()).Should(BeTrue())
+			})
+
+			It("fetch the number 2", func() {
+				Ω(one.AsNumber()).Should(Equal(float64(2)))
+			})
+
+			It("didn't fail to fetch 'two'", func() {
+				Ω(errTwo).Should(BeNil())
+			})
+
+			It("fetched a string", func() {
+				Ω(two.IsString()).Should(BeTrue())
+			})
+
+			It("fetch the string 'too'", func() {
+				Ω(two.AsString()).Should(Equal("too"))
+			})
+		})
+
+		Context("ValueFromSlice", func() {
+			s := []int{1, 2, 3}
+
+			BeforeEach(func() {
+				table = engine.TableFromSlice(s)
+				results, errOne = engine.Call("getValueAtKey", 1, table, 1)
+				if len(results) > 0 {
+					one = results[0]
+				}
+				results, errTwo = engine.Call("getValueAtKey", 1, table, 2)
+				if len(results) > 0 {
+					two = results[0]
+				}
+			})
+
+			It("has 3 values", func() {
+				Ω(table.Len()).Should(Equal(3))
+			})
+
+			It("didn't fail to fetch #1", func() {
+				Ω(errOne).Should(BeNil())
+			})
+
+			It("fetched a number", func() {
+				Ω(one.IsNumber()).Should(BeTrue())
+			})
+
+			It("fetch the number 1", func() {
+				Ω(one.AsNumber()).Should(Equal(float64(1)))
+			})
+
+			It("didn't fail to fetch #2", func() {
+				Ω(errTwo).Should(BeNil())
+			})
+
+			It("fetched a number", func() {
+				Ω(two.IsNumber()).Should(BeTrue())
+			})
+
+			It("fetch the number 2", func() {
+				Ω(two.AsNumber()).Should(Equal(float64(2)))
 			})
 		})
 	})

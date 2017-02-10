@@ -11,10 +11,10 @@ import (
 var script = `
     local tmpl = require("tmpl")
 
-    tmpl.Register("Hello, {{name}}!", "lua_test")
+    tmpl.register("Hello, {{name}}!", "lua_test")
 
     function testTemplate()
-        result, ok = tmpl.Render("lua_test", {name = "World"})
+        result, ok = tmpl.render("lua_test", {name = "World"})
 
 		return result, ok
     end
@@ -31,7 +31,7 @@ var _ = Describe("tmpl Module", func() {
 
 	e = engine.NewLua()
 	scripting.OpenTmpl(e)
-	e.LoadString(script)
+	e.DoString(script)
 
 	BeforeEach(func() {
 		values, err = e.Call("testTemplate", 2)

@@ -11,13 +11,13 @@ var tmplLog = logger.LogWithSource("tmpl module")
 
 // Tmpl is the templating module accessible in scripts. This module consists of
 // two accessible methods:
-//   Register(body: string, name: string)
+//   register(body: string, name: string)
 //     register a template with the given name
-//   Render(name: string, data: table)
+//   render(name: string, data: table)
 //     render the template with the given name using the given data to populate
 //     it
 var Tmpl = map[string]interface{}{
-	"Register": func(contents, name string) bool {
+	"register": func(contents, name string) bool {
 		err := tmpl.Register(contents, name)
 
 		if err != nil {
@@ -32,7 +32,7 @@ var Tmpl = map[string]interface{}{
 
 		return err == nil
 	},
-	"Render": func(engine *engine.Lua) int {
+	"render": func(engine *engine.Lua) int {
 		data := engine.PopTable()
 		name := engine.PopString()
 

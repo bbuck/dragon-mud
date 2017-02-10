@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"reflect"
+
 	"github.com/layeh/gopher-luar"
 	"github.com/yuin/gopher-lua"
 )
@@ -99,13 +101,13 @@ func (e *Lua) OpenLibs() {
 	e.state.OpenLibs()
 }
 
-// LoadFile runs the file through the Lua interpreter.
-func (e *Lua) LoadFile(fn string) error {
+// DoFile runs the file through the Lua interpreter.
+func (e *Lua) DoFile(fn string) error {
 	return e.state.DoFile(fn)
 }
 
-// LoadString runs the given string through the Lua interpreter.
-func (e *Lua) LoadString(src string) error {
+// DoString runs the given string through the Lua interpreter.
+func (e *Lua) DoString(src string) error {
 	return e.state.DoString(src)
 }
 
@@ -163,6 +165,11 @@ func (e *Lua) RegisterModule(name string, fields map[string]interface{}) *LuaVal
 	e.state.PreloadModule(name, loader)
 
 	return table
+}
+
+func (e *Lua) Get(n int) *LuaValue {
+	lv := e.state.Get(1)
+	return e.newValue(lv)
 }
 
 // PopArg returns the top value on the Lua stack.
@@ -333,6 +340,33 @@ func (e *Lua) ValueFor(val interface{}) *LuaValue {
 	}
 
 	return e.newValue(luar.New(e.state, val))
+}
+
+// TableFromMap takes a map of go values and generates a Lua table representing
+// the value.
+func (e *Lua) TableFromMap(i interface{}) *LuaValue {
+	t := e.NewTable()
+	m := reflect.ValueOf(i)
+	if m.Kind() == reflect.Map {
+		for _, k := range m.MapKeys() {
+			t.Set(k.Interface(), m.MapIndex(k).Interface())
+		}
+	}
+
+	return t
+}
+
+// TableFromSlice converts the given slice into a table ready for use in Lua.
+func (e *Lua) TableFromSlice(i interface{}) *LuaValue {
+	t := e.NewTable()
+	s := reflect.ValueOf(i)
+	if s.Kind() == reflect.Slice {
+		for i := 0; i < s.Len(); i++ {
+			t.Append(s.Index(i).Interface())
+		}
+	}
+
+	return t
 }
 
 // newValue constructs a new value from an LValue.

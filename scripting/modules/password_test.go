@@ -21,16 +21,16 @@ var _ = Describe("password Module", func() {
 			local password = require("password")
 
 			function testCrypto()
-				local params, success = password.GetRandomParams()
+				local params, success = password.getRandomParams()
 				if not success then
 					return ""
 				end
-				local hash, success = password.Hash("this is a password", params)
+				local hash, success = password.hash("this is a password", params)
 				if not success then
 					return ""
 				end
-				local match = password.IsValid("this is a password", hash, params)
-				local notMatch = password.IsValid("this isn't a password", hash, params)
+				local match = password.isValid("this is a password", hash, params)
+				local notMatch = password.isValid("this isn't a password", hash, params)
 				return hash, match, notMatch
 			end
 		`
@@ -39,7 +39,7 @@ var _ = Describe("password Module", func() {
 	config.RegisterDefaults()
 	e = engine.NewLua()
 	scripting.OpenPassword(e)
-	e.LoadString(script)
+	e.DoString(script)
 
 	BeforeEach(func() {
 		values, err = e.Call("testCrypto", 3)

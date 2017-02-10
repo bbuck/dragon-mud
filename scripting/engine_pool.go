@@ -6,13 +6,21 @@ import (
 	"github.com/bbuck/dragon-mud/scripting/engine"
 )
 
+// EngineSpawner is a function that builds a Lua scripting engine and returns
+// the built engine. Used by the EnginePool to produce engines specific to
+// the current instance of the EnginePool.
 type EngineSpawner func() *engine.Lua
 
+// PooledEngine wraps a Lua engine. It's purpose is provide a means with which
+// to return the engine to the EnginePool when it's not longer being used.
 type PooledEngine struct {
 	*engine.Lua
 	pool *EnginePool
 }
 
+// Release will push the engine back into the queue for available engines for
+// the current PooledEngine as well as nil out the reference to the engine
+// to prevent continued usage of the engine.
 func (pe *PooledEngine) Release() {
 	if pe.Lua != nil {
 		pe.pool.engines <- pe.Lua
@@ -20,6 +28,8 @@ func (pe *PooledEngine) Release() {
 	}
 }
 
+// EnginePool represents a grouping of predefined/preloaded engines that can be
+// grabbed for use when Lua scripts need to run.
 type EnginePool struct {
 	MaxPoolSize uint8
 	spawnFn     EngineSpawner
@@ -27,15 +37,27 @@ type EnginePool struct {
 	engines     chan *engine.Lua
 }
 
+// NewEnginePool constructs a new pool with the specific maximum size and the
+// engine spawner. It will seed the pool with one engine.
 func NewEnginePool(poolSize uint8, spawner EngineSpawner) *EnginePool {
-	return &EnginePool{
+	if poolSize == 0 {
+		poolSize = 1
+	}
+	ep := &EnginePool{
 		MaxPoolSize: poolSize,
 		spawnFn:     spawner,
-		numEngines:  0,
+		numEngines:  1,
 		engines:     make(chan *engine.Lua),
 	}
+	ep.engines <- spawner()
+
+	return ep
 }
 
+// Get will fetch the next available engine from the EnginePool. If no engines
+// are available and the maximum number of active engines in the pool have been
+// created yet then the spawner will be invoked to spawn a new engine and return
+// that.
 func (ep *EnginePool) Get() *PooledEngine {
 	var engine *engine.Lua
 	if len(ep.engines) > 0 {

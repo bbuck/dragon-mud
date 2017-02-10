@@ -257,4 +257,60 @@ var _ = Describe("LuaValue", func() {
 			})
 		})
 	})
+
+	Describe("ToMap()", func() {
+		var (
+			table *LuaValue
+			m     map[string]interface{}
+		)
+
+		BeforeEach(func() {
+			table = engine.NewTable()
+			table.Set("one", 1)
+			table.Set("two", "two")
+			m = table.ToMap()
+		})
+
+		It("has two keys", func() {
+			Ω(m).Should(HaveLen(2))
+		})
+
+		It("has the number 1 at 'one'", func() {
+			n, ok := m["one"]
+			Ω(ok).Should(BeTrue())
+			Ω(n).Should(Equal(float64(1)))
+		})
+
+		It("has the string 'two' at 'two'", func() {
+			s, ok := m["two"]
+			Ω(ok).Should(BeTrue())
+			Ω(s).Should(Equal("two"))
+		})
+	})
+
+	Describe("ToSlice()", func() {
+		var (
+			table *LuaValue
+			s     []interface{}
+		)
+
+		BeforeEach(func() {
+			table = engine.NewTable()
+			table.Append(2)
+			table.Append(1)
+			s = table.ToSlice()
+		})
+
+		It("has a length of 2", func() {
+			Ω(s).Should(HaveLen(2))
+		})
+
+		It("has the value 2 at index 0", func() {
+			Ω(s[0]).Should(Equal(float64(2)))
+		})
+
+		It("has the value 1 at index 1", func() {
+			Ω(s[1]).Should(Equal(float64(1)))
+		})
+	})
 })

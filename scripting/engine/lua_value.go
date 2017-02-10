@@ -237,35 +237,6 @@ func getLValue(e *Lua, item interface{}) lua.LValue {
 	return lua.LNil
 }
 
-// Call a LuaValue object that is a function.
-func (v *LuaValue) Call(retCount int, argList ...interface{}) ([]*LuaValue, error) {
-	if v.IsFunction() && v.owner != nil {
-		p := lua.P{
-			Fn:      v.lval,
-			NRet:    retCount,
-			Protect: true,
-		}
-		args := make([]lua.LValue, len(argList))
-		for i, iface := range argList {
-			args[i] = getLValue(v.owner, iface)
-		}
-
-		err := v.owner.state.CallByParam(p, args...)
-		if err != nil {
-			return nil, err
-		}
-
-		retVals := make([]*LuaValue, retCount)
-		for i := 0; i < retCount; i++ {
-			retVals[i] = v.owner.ValueFor(v.owner.state.Get(-1))
-		}
-
-		return retVals, nil
-	}
-
-	return make([]*LuaValue, 0), nil
-}
-
 // Get returns the value associated with the key given if the LuaValue wraps
 // a table.
 func (v *LuaValue) Get(key interface{}) *LuaValue {
@@ -324,4 +295,74 @@ func (v *LuaValue) FuncLocalName(regno, pc int) (string, bool) {
 	}
 
 	return "", false
+}
+
+// Call invokes the LuaValue as a function (if it is one) with similar behavior
+// to engine.Call
+func (v *LuaValue) Call(retCount int, argList ...interface{}) ([]*LuaValue, error) {
+	if v.IsFunction() && v.owner != nil {
+		p := lua.P{
+			Fn:      v.lval,
+			NRet:    retCount,
+			Protect: true,
+		}
+		args := make([]lua.LValue, len(argList))
+		for i, iface := range argList {
+			args[i] = getLValue(v.owner, iface)
+		}
+
+		err := v.owner.state.CallByParam(p, args...)
+		if err != nil {
+			return nil, err
+		}
+
+		retVals := make([]*LuaValue, retCount)
+		for i := 0; i < retCount; i++ {
+			retVals[i] = v.owner.ValueFor(v.owner.state.Get(-1))
+		}
+
+		return retVals, nil
+	}
+
+	return make([]*LuaValue, 0), nil
+}
+
+// The following are Lua -> Go advanced transformations
+
+// ToMap will convert the given value (if it's a Lua table) into a
+// map[string]interface{}. It will coerce all keys into strings and attempt
+// to extract the Go value of each value in the table, but will preserve
+// LuaValue references for tables.
+func (v *LuaValue) ToMap() map[string]interface{} {
+	m := make(map[string]interface{})
+	if v.IsTable() {
+		v.ForEach(func(k, lv *LuaValue) {
+			var val interface{} = lv.AsRaw()
+			if lv.IsTable() {
+				val = lv
+			}
+			m[k.AsString()] = val
+		})
+	}
+
+	return m
+}
+
+// ToSlice will convert the Lua table value to a []interface{}, extracting
+// Go values were possible and preserving references to tables.
+func (v *LuaValue) ToSlice() []interface{} {
+	var s []interface{}
+	if v.IsTable() {
+		len := v.Len()
+		for i := 1; i <= len; i++ {
+			lv := v.Get(i)
+			var val interface{} = lv.AsRaw()
+			if lv.IsTable() {
+				val = lv
+			}
+			s = append(s, val)
+		}
+	}
+
+	return s
 }

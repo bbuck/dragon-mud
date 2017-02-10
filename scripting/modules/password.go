@@ -18,8 +18,24 @@ var passwordLog = logger.LogWithSource("lua password")
 
 // Password provides a method to take options to hash a password using the argon2i
 // encryption algorithm.
+//   options table
+//     salt : string
+//       a string value used to differ password hashes
+//     iteration : number
+//       a number value used to determine the number of hash iterations over the
+//       password to produce a hash
+//   getRandomParams()
+// 	   return a table with two keys, 'salt' and 'iterations' that have been
+//     cyrptographically secure randomly generated for use with hash and isValid.
+//   hash(password: string, options: table)
+//     hashes the plain text password using the argon2i algorith with the data
+//     in the provided table. The table must have a 'salt' and 'iterations'
+//     field.
+//   isValid(password: string, hash: string, options: table)
+//     hashes the password using the options given and compares the output hash
+//     to the given hash, true means the given password matches the hash
 var Password = map[string]interface{}{
-	"GetRandomParams": func(engine *engine.Lua) int {
+	"getRandomParams": func(engine *engine.Lua) int {
 		num, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
 		successful := engine.True()
 		if err != nil {
@@ -39,8 +55,8 @@ var Password = map[string]interface{}{
 		iterations := uint32(random.Range(minIterations, maxIterations))
 
 		table := engine.NewTable()
-		table.Set("Salt", salt)
-		table.Set("Iterations", iterations)
+		table.Set("salt", salt)
+		table.Set("iterations", iterations)
 
 		engine.PushValue(table)
 		engine.PushValue(successful)
@@ -48,12 +64,12 @@ var Password = map[string]interface{}{
 		return 2
 	},
 
-	"Hash": func(engine *engine.Lua) int {
+	"hash": func(engine *engine.Lua) int {
 		table := engine.PopTable()
 		password := engine.PopString()
 
-		saltStr := table.Get("Salt").AsString()
-		iterations := uint32(table.Get("Iterations").AsNumber())
+		saltStr := table.Get("salt").AsString()
+		iterations := uint32(table.Get("iterations").AsNumber())
 		hash, err := hashPassword(password, saltStr, iterations)
 		if err != nil {
 			passwordLog.WithField("error", err.Error()).Error("Failed to hash password via Argon2i, CEASE OPERATION IMMEDIATLEY")
@@ -69,13 +85,13 @@ var Password = map[string]interface{}{
 		return 2
 	},
 
-	"IsValid": func(engine *engine.Lua) int {
+	"isValid": func(engine *engine.Lua) int {
 		params := engine.PopTable()
 		hashed := engine.PopString()
 		password := engine.PopString()
 
-		saltStr := params.Get("Salt").AsString()
-		iterations := uint32(params.Get("Iterations").AsNumber())
+		saltStr := params.Get("salt").AsString()
+		iterations := uint32(params.Get("iterations").AsNumber())
 		hash, err := hashPassword(password, saltStr, iterations)
 		if err != nil {
 			passwordLog.WithField("error", err.Error()).Error("Failed to validate password, CEASE OPERATION IMMEDIATLEY")

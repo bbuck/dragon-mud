@@ -14,3 +14,14 @@ func OpenTmpl(e *engine.Lua) {
 func OpenPassword(e *engine.Lua) {
 	e.RegisterModule("password", modules.Password)
 }
+
+// OpenDie opens the die module, allowing the scripts to simulate die rolls.
+func OpenDie(e *engine.Lua) {
+	e.RegisterModule("die", modules.Die)
+}
+
+// OpenRandom opens the random module, allowing the scripts to generate random
+// numbers.
+func OpenRandom(e *engine.Lua) {
+	e.RegisterModule("random", modules.Random)
+}
