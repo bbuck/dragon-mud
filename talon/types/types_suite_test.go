@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Brandon Buck
+// Copyright (c) 2016-2017 Brandon Buck
 
 package types_test
 
