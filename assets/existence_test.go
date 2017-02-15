@@ -11,7 +11,7 @@ var _ = Describe("Existence", func() {
 	Describe("Dragonfile.toml", func() {
 		It("should exist as an asset file", func() {
 			_, err := Asset("Dragonfile.toml")
-			Ω(err).Should(BeNil())
+			Ω(err).To(BeNil())
 		})
 	})
 })

@@ -17,6 +17,13 @@ import (
 // (who received the damage), and then data about the damage itself.
 type Data map[string]interface{}
 
+// NewData returns an empty map[string]interface{} wrapped in the Data type,
+// as an easy way to seen event emissions with empty data (where nil would mean
+// no data).
+func NewData() Data {
+	return Data(make(map[string]interface{}))
+}
+
 // Handler is a type with a Call function that accepts Data, and represents some
 // callable type that wants to perform some action when an event is emitted.
 type Handler interface {
@@ -66,6 +73,11 @@ func (hs *handlers) call(d Data) error {
 	return nil
 }
 
+func (hs *handlers) clear() {
+	hs.persistent = make([]Handler, 0)
+	hs.onceHandlers = make([]Handler, 0)
+}
+
 // Emitter represents a type capable of handling a list of callable actions to
 // act on event data.
 type Emitter struct {
@@ -101,14 +113,6 @@ func (e *Emitter) On(evt string, h Handler) {
 	}
 }
 
-// Off removes a handler from the list of handlers, it searches both one time
-// handlers and persistent handlers.
-func (e *Emitter) Off(evt string, h Handler) {
-	if hs, ok := e.handlers[evt]; ok {
-		hs.off(h)
-	}
-}
-
 // Once resgisters a handler for an event that will fire one time and then
 // drop from the handler list.
 // This is great for one time handlers, things that don't need to happen
@@ -124,6 +128,21 @@ func (e *Emitter) Once(evt string, h Handler) {
 			onceHandlers: []Handler{h},
 		}
 		e.handlers[evt] = hs
+	}
+}
+
+// Off will remove all handlers for the given event, including it's before and
+// after handlers.
+func (e *Emitter) Off(evt string) {
+	e.off("before:" + evt)
+	e.off(evt)
+	e.off("after:" + evt)
+}
+
+// clear handlers for event
+func (e *Emitter) off(evt string) {
+	if hs, ok := e.handlers[evt]; ok {
+		hs.clear()
 	}
 }
 

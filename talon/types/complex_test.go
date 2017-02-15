@@ -24,7 +24,7 @@ var _ = Describe("Complex", func() {
 			)
 
 			It("returns a wrapped complex128", func() {
-				Ω(complex128(c)).Should(Equal(c64to128))
+				Ω(complex128(c)).To(Equal(c64to128))
 			})
 		})
 
@@ -32,7 +32,7 @@ var _ = Describe("Complex", func() {
 			c := NewComplex(c128)
 
 			It("wraps the complex128", func() {
-				Ω(complex128(c)).Should(Equal(c128))
+				Ω(complex128(c)).To(Equal(c128))
 			})
 		})
 
@@ -40,7 +40,7 @@ var _ = Describe("Complex", func() {
 			c := NewComplex("")
 
 			It("returns a zero complex", func() {
-				Ω(complex128(c)).Should(Equal(zero))
+				Ω(complex128(c)).To(Equal(zero))
 			})
 		})
 	})
@@ -62,11 +62,11 @@ var _ = Describe("Complex", func() {
 		})
 
 		It("doesn't fail", func() {
-			Ω(err).Should(BeNil())
+			Ω(err).To(BeNil())
 		})
 
 		It("produces the correct string", func() {
-			Ω(result).Should(Equal(expected))
+			Ω(result).To(Equal(expected))
 		})
 	})
 
@@ -84,11 +84,11 @@ var _ = Describe("Complex", func() {
 		})
 
 		It("doesn't fail", func() {
-			Ω(err).Should(BeNil())
+			Ω(err).To(BeNil())
 		})
 
 		It("produces the correct complex value", func() {
-			Ω(complex128(c)).Should(Equal(expected))
+			Ω(complex128(c)).To(Equal(expected))
 		})
 	})
 })

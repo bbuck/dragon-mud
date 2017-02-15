@@ -19,20 +19,20 @@ func testDie(e *engine.Lua, method string, min, max float64) {
 		}
 
 		It("doesn't fail", func() {
-			Ω(err).Should(BeNil())
+			Ω(err).To(BeNil())
 		})
 
 		It("should be in the correct range", func() {
-			Ω(result).Should(BeNumerically(">=", min))
-			Ω(result).Should(BeNumerically("<=", max))
+			Ω(result).To(BeNumerically(">=", min))
+			Ω(result).To(BeNumerically("<=", max))
 		})
 	})
 }
 
 func validateRange(i interface{}, min, max float64) {
 	It("is in the correct range", func() {
-		Ω(i).Should(BeNumerically(">=", min))
-		Ω(i).Should(BeNumerically("<=", max))
+		Ω(i).To(BeNumerically(">=", min))
+		Ω(i).To(BeNumerically("<=", max))
 	})
 }
 
@@ -67,11 +67,11 @@ var _ = Describe("Die", func() {
 		}
 
 		It("doesn't fail", func() {
-			Ω(err).Should(BeNil())
+			Ω(err).To(BeNil())
 		})
 
 		It("generated 3 values", func() {
-			Ω(results).Should(HaveLen(3))
+			Ω(results).To(HaveLen(3))
 		})
 
 		for _, i := range results {

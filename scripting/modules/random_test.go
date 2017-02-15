@@ -31,12 +31,12 @@ var _ = Describe("Random", func() {
 		}
 
 		It("doesn't fail", func() {
-			Ω(err).Should(BeNil())
+			Ω(err).To(BeNil())
 		})
 
 		It("is in valid range", func() {
-			Ω(result).Should(BeNumerically(">=", 0))
-			Ω(result).Should(BeNumerically("<", 100))
+			Ω(result).To(BeNumerically(">=", 0))
+			Ω(result).To(BeNumerically("<", 100))
 		})
 	})
 
@@ -48,12 +48,12 @@ var _ = Describe("Random", func() {
 		}
 
 		It("doesn't fail", func() {
-			Ω(err).Should(BeNil())
+			Ω(err).To(BeNil())
 		})
 
 		It("is in valid range", func() {
-			Ω(result).Should(BeNumerically(">=", 50))
-			Ω(result).Should(BeNumerically("<", 90))
+			Ω(result).To(BeNumerically(">=", 50))
+			Ω(result).To(BeNumerically("<", 90))
 		})
 	})
 })

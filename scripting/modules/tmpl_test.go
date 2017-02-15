@@ -42,16 +42,16 @@ var _ = Describe("tmpl Module", func() {
 	})
 
 	It("successfully calls the script method", func() {
-		Ω(err).Should(BeNil())
+		Ω(err).To(BeNil())
 	})
 
 	It("doesn't fail", func() {
-		Ω(err).Should(BeNil())
-		Ω(ok).Should(BeTrue())
+		Ω(err).To(BeNil())
+		Ω(ok).To(BeTrue())
 	})
 
 	It("should render correctly", func() {
-		Ω(err).Should(BeNil())
-		Ω(result).Should(Equal("Hello, World!"))
+		Ω(err).To(BeNil())
+		Ω(result).To(Equal("Hello, World!"))
 	})
 })
