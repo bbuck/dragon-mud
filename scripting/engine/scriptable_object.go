@@ -1,3 +1,5 @@
+// Copyright (c) 2016-2017 Brandon Buck
+
 package engine
 
 // ScriptableObject defines an interface that returns an object to represent

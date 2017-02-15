@@ -1,3 +1,5 @@
+// Copyright (c) 2016-2017 Brandon Buck
+
 package scripting
 
 import "github.com/bbuck/dragon-mud/scripting/engine"

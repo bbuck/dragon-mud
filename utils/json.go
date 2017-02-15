@@ -1,3 +1,5 @@
+// Copyright (c) 2016-2017 Brandon Buck
+
 package utils
 
 import (
@@ -14,7 +16,7 @@ func ToJSON(i interface{}) string {
 	buf := new(bytes.Buffer)
 	encoder := json.NewEncoder(buf)
 	if err := encoder.Encode(i); err != nil {
-		logger.WithField("error", err.Error()).Error("Failed to encode object to JSON")
+		logger.LogWithSource("json_util").WithField("error", err.Error()).Error("Failed to encode object to JSON")
 
 		return ""
 	}
