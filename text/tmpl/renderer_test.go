@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var templateWithBraces = "%{this} should have {braces}"
+var templateWithBraces = "{{this}} should have {braces}"
 
 var _ = Describe("Renderer", func() {
 	Describe("Render", func() {
@@ -33,16 +33,16 @@ var _ = Describe("Renderer", func() {
 			})
 
 			It("does not fail", func() {
-				Ω(err1).Should(BeNil())
-				Ω(err2).Should(BeNil())
+				Ω(err1).To(BeNil())
+				Ω(err2).To(BeNil())
 			})
 
 			It("renders to a string", func() {
-				Ω(result1).Should(Equal("Hello, World!"))
+				Ω(result1).To(Equal("Hello, World!"))
 			})
 
 			It("renders with different results", func() {
-				Ω(result2).Should(Equal("Hello, Mundo!"))
+				Ω(result2).To(Equal("Hello, Mundo!"))
 			})
 		})
 
@@ -64,11 +64,11 @@ var _ = Describe("Renderer", func() {
 			})
 
 			It("doesn't fail", func() {
-				Ω(err).Should(BeNil())
+				Ω(err).To(BeNil())
 			})
 
 			It("renders correctly", func() {
-				Ω(result).Should(Equal("This should have {braces}"))
+				Ω(result).To(Equal("This should have {braces}"))
 			})
 		})
 	})

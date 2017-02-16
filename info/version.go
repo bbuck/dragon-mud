@@ -1,3 +1,5 @@
+// Copyright (c) 2016-2017 Brandon Buck
+
 package info
 
 import "fmt"
@@ -14,7 +16,7 @@ func (v version) String() string {
 // Version is the struct that represents the version of DragonMUD in use.
 var Version = version{
 	Major: 0,
-	Minor: 2,
+	Minor: 1,
 	Patch: 0,
 	Flag:  "dev",
 }

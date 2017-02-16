@@ -21,15 +21,15 @@ var _ = Describe("Color", func() {
 		)
 
 		It("performs the same action as ANSI codes", func() {
-			Ω(ColorizeWithCode(code, str)).Should(Equal(result))
+			Ω(ColorizeWithCode(code, str)).To(Equal(result))
 		})
 
 		It("returns the string if an invalid code is given", func() {
-			Ω(ColorizeWithCode("invalid", "testing")).Should(Equal("testing"))
+			Ω(ColorizeWithCode("invalid", "testing")).To(Equal("testing"))
 		})
 
 		It("colorizes xterm codes as well", func() {
-			Ω(ColorizeWithCode(xterm, str)).Should(Equal(xtermResult))
+			Ω(ColorizeWithCode(xterm, str)).To(Equal(xtermResult))
 		})
 	})
 
@@ -40,7 +40,7 @@ var _ = Describe("Color", func() {
 		)
 
 		It("colorizes with fallback values", func() {
-			Ω(ColorizeWithFallbackCode(code, str, true)).Should(Equal(result))
+			Ω(ColorizeWithFallbackCode(code, str, true)).To(Equal(result))
 		})
 	})
 
@@ -58,31 +58,31 @@ var _ = Describe("Color", func() {
 		)
 
 		It("processes all color codes in a string", func() {
-			Ω(Colorize(colored)).Should(Equal(result))
+			Ω(Colorize(colored)).To(Equal(result))
 		})
 
 		It("does nothing for plain strings", func() {
-			Ω(Colorize(str)).Should(Equal(str))
+			Ω(Colorize(str)).To(Equal(str))
 		})
 
 		It("does nothing for pre-colored strings", func() {
-			Ω(Colorize(Colorize(colored))).Should(Equal(result))
+			Ω(Colorize(Colorize(colored))).To(Equal(result))
 		})
 
 		It("does not replace escaped color codes", func() {
-			Ω(Colorize(escaped)).Should(Equal(escapedResult))
+			Ω(Colorize(escaped)).To(Equal(escapedResult))
 		})
 
 		It("colorizes background when putting a '-' before the code", func() {
-			Ω(Colorize(withBackground)).Should(Equal(bgResult))
+			Ω(Colorize(withBackground)).To(Equal(bgResult))
 		})
 
 		It("colorizes xterm 256 color codes", func() {
-			Ω(Colorize(withXterm)).Should(Equal(xtermResult))
+			Ω(Colorize(withXterm)).To(Equal(xtermResult))
 		})
 
 		It("falls back to ASCII from xterm when told to", func() {
-			Ω(ColorizeWithFallback(withXterm, true)).Should(Equal(xtermFallbackResult))
+			Ω(ColorizeWithFallback(withXterm, true)).To(Equal(xtermFallbackResult))
 		})
 	})
 
@@ -95,11 +95,11 @@ var _ = Describe("Color", func() {
 		)
 
 		It("removes all color codes from a string", func() {
-			Ω(Purge(colored)).Should(Equal(result))
+			Ω(Purge(colored)).To(Equal(result))
 		})
 
 		It("does not purge escaped color codes", func() {
-			Ω(Purge(escaped)).Should(Equal(escapedResult))
+			Ω(Purge(escaped)).To(Equal(escapedResult))
 		})
 	})
 
@@ -110,7 +110,7 @@ var _ = Describe("Color", func() {
 		)
 
 		It("escapes the ANSI escape sequence", func() {
-			Ω(Escape(Colorize(str))).Should(Equal(result))
+			Ω(Escape(Colorize(str))).To(Equal(result))
 		})
 	})
 })

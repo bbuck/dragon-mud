@@ -1,3 +1,5 @@
+// Copyright (c) 2016-2017 Brandon Buck
+
 package main
 
 import (
@@ -8,7 +10,7 @@ import (
 )
 
 func main() {
-	config.Load(cli.RootCmd)
+	config.Setup(cli.RootCmd)
 	if err := cli.RootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}

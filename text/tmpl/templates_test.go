@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var testTemplate = "Hello, %{name}!"
+var testTemplate = "Hello, {{name}}!"
 
 var _ = Describe("Templates", func() {
 	Describe("Register", func() {
@@ -22,7 +22,7 @@ var _ = Describe("Templates", func() {
 		})
 
 		It("should not error", func() {
-			Ω(err).Should(BeNil())
+			Ω(err).To(BeNil())
 		})
 	})
 
@@ -43,11 +43,11 @@ var _ = Describe("Templates", func() {
 			})
 
 			It("does not return an error", func() {
-				Ω(err).Should(BeNil())
+				Ω(err).To(BeNil())
 			})
 
 			It("returns an error", func() {
-				Ω(r).ShouldNot(BeNil())
+				Ω(r).ToNot(BeNil())
 			})
 		})
 
@@ -57,11 +57,11 @@ var _ = Describe("Templates", func() {
 			})
 
 			It("does not return an error", func() {
-				Ω(r).Should(BeNil())
+				Ω(r).To(BeNil())
 			})
 
 			It("does return an error", func() {
-				Ω(err).ShouldNot(BeNil())
+				Ω(err).ToNot(BeNil())
 			})
 		})
 	})

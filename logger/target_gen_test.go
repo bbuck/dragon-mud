@@ -33,7 +33,7 @@ var _ = Describe("TargetGen", func() {
 	Context("nil targets", func() {
 		It("should return a console stdout reference", func() {
 			writer := logger.ConfigureTargets(nil)
-			Ω(writer).Should(Equal(output.Stdout()))
+			Ω(writer).To(Equal(output.Stdout()))
 		})
 	})
 
@@ -41,14 +41,14 @@ var _ = Describe("TargetGen", func() {
 		It("should panic", func() {
 			Ω(func() {
 				logger.ConfigureTargets(make(map[string]interface{}))
-			}).Should(Panic())
+			}).To(Panic())
 		})
 	})
 
 	Context("with a single target defined", func() {
 		It("should return a single io.Writer", func() {
 			writer := logger.ConfigureTargets(simpleMap)
-			Ω(writer).Should(Equal(output.Stderr()))
+			Ω(writer).To(Equal(output.Stderr()))
 		})
 	})
 
@@ -60,10 +60,10 @@ var _ = Describe("TargetGen", func() {
 		It("should create the writers", func() {
 			Ω(func() {
 				logger.ConfigureTargets(complexMap)
-			}).ShouldNot(Panic())
+			}).ToNot(Panic())
 			info, err := os.Stat("logger.log")
-			Ω(err).Should(BeNil())
-			Ω(info.Name()).Should(Equal("logger.log"))
+			Ω(err).To(BeNil())
+			Ω(info.Name()).To(Equal("logger.log"))
 		})
 	})
 })

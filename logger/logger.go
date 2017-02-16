@@ -1,3 +1,5 @@
+// Copyright (c) 2016-2017 Brandon Buck
+
 package logger
 
 import (
@@ -28,19 +30,19 @@ var (
 
 // TestLog should never be called in normal code, it's purpose is to bypass the
 // logger generated from configuration settings
-func TestLog() *logrus.Logger {
+func TestLog() *logrus.Entry {
 	log = logrus.New()
 	TestBuffer = new(bytes.Buffer)
 	log.Out = TestBuffer
 	log.Formatter = new(logrus.JSONFormatter)
 	log.Level = logrus.DebugLevel
 
-	return log
+	return logrus.NewEntry(log)
 }
 
 // Log will return an instance of the log utility that should be used for
-// send messages to the user.
-func Log() *logrus.Logger {
+// send messages to the user. PREFER LogWithSource.
+func Log() *logrus.Entry {
 	if !initialized {
 		initialized = true
 		if Testing {
@@ -55,7 +57,15 @@ func Log() *logrus.Logger {
 		log.Level = GetLogLevel(viper.GetString("log.level"))
 	}
 
-	return log
+	return logrus.NewEntry(log)
+}
+
+// LogWithSource returns a log with a predefined "source" field attached to it.
+// This should be the primary method used to fetch a logger for use in other
+// parts fo the code.
+func LogWithSource(source string) *logrus.Entry {
+	log := Log()
+	return log.WithField("source", source)
 }
 
 type logTarget struct {
@@ -97,10 +107,10 @@ func ConfigureTargets(targets interface{}) io.Writer {
 		}
 		for _, target := range logTargets {
 			switch target.Type {
-			case "os":
-				if target.Target == "stdout" {
+			case "terminal":
+				if target.Target == "terminal" {
 					writers = append(writers, output.Stdout())
-				} else if target.Target == "stderr" {
+				} else if target.Target == "error" {
 					writers = append(writers, output.Stderr())
 				}
 			case "file":
@@ -127,106 +137,4 @@ func ConfigureTargets(targets interface{}) io.Writer {
 	}
 
 	return output.Stdout()
-}
-
-// Complete contract with Logrus features
-
-// WithField passes into Log()
-func WithField(name string, value interface{}) *logrus.Entry {
-	return Log().WithField(name, value)
-}
-
-// WithFields passes into Log()
-func WithFields(fields logrus.Fields) *logrus.Entry {
-	return Log().WithFields(fields)
-}
-
-// Info passes into Log()
-func Info(args ...interface{}) {
-	Log().Info(args...)
-}
-
-// Infof passes into Log()
-func Infof(format string, args ...interface{}) {
-	Log().Infof(format, args...)
-}
-
-// Infoln passes into Log()
-func Infoln(args ...interface{}) {
-	Log().Infoln(args...)
-}
-
-// Debug passes into Log()
-func Debug(args ...interface{}) {
-	Log().Debug(args...)
-}
-
-// Debugf passes into Log()
-func Debugf(format string, args ...interface{}) {
-	Log().Debugf(format, args...)
-}
-
-// Debugln passes into Log()
-func Debugln(args ...interface{}) {
-	Log().Debugln(args...)
-}
-
-// Warn passes into Log()
-func Warn(args ...interface{}) {
-	Log().Warn(args...)
-}
-
-// Warnf passes into Log()
-func Warnf(format string, args ...interface{}) {
-	Log().Warnf(format, args...)
-}
-
-// Warnln passes into Log()
-func Warnln(args ...interface{}) {
-	Log().Warnln(args...)
-}
-
-// Error passes into Log()
-func Error(args ...interface{}) {
-	Log().Error(args...)
-}
-
-// Errorf passes into Log()
-func Errorf(format string, args ...interface{}) {
-	Log().Errorf(format, args...)
-}
-
-// Errorln passes into Log()
-func Errorln(args ...interface{}) {
-	Log().Errorln(args...)
-}
-
-// Panic passes into Log()
-func Panic(args ...interface{}) {
-	Log().Panic(args...)
-}
-
-// Panicf passes into Log()
-func Panicf(format string, args ...interface{}) {
-	Log().Panicf(format, args...)
-}
-
-// Panicln passes into Log()
-func Panicln(args ...interface{}) {
-	Log().Panicln(args...)
-}
-
-// Fatal passes into Log()
-func Fatal(args ...interface{}) {
-	Log().Fatal(args...)
-}
-
-// Fatalf passes into Log()
-func Fatalf(format string, args ...interface{}) {
-	Log().Fatalf(format, args...)
-}
-
-// Fatalln passes into Log()
-func Fatalln(args ...interface{}) {
-	Log().Fatalln(args...)
 }
