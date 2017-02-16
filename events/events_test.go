@@ -129,10 +129,33 @@ var _ = Describe("Events", func() {
 			em.Emit("test4", nil)
 			Ω(<-c).To(Equal(true))
 
-			em.Emit("test4", nil)
-			Ω(c).To(HaveLen(0))
+			// close and emit again, a panic from writing to closed channel is
+			// the failure we're looking for.
 			close(c)
+			em.Emit("test4", nil)
+
 			close(done)
 		})
+
+		It("stops execution if an error is returned", func(done Done) {
+			c := make(chan interface{})
+			em.On("test5", HandlerFunc(func(Data) error {
+				c <- 1
+				close(c)
+
+				return ErrHalt
+			}))
+
+			em.On("test5", HandlerFunc(func(Data) error {
+				c <- 2
+
+				return nil
+			}))
+
+			em.Emit("test5", nil)
+			Ω(<-c).To(Equal(1))
+			close(done)
+		})
+
 	})
 })

@@ -3,6 +3,7 @@
 package events
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -10,6 +11,13 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/bbuck/dragon-mud/logger"
 )
+
+// ErrHalt is a simple error used in place of just halting execution. Returning
+// an error from a handlers Call will halt event execution, which may happen
+// if a real error happens, or perhaps for some reason you just want to stop
+// the event trigger. Therefore this error represents no particular error has
+// ocurred but the event execution should be halted.
+var ErrHalt = errors.New("intentional halt of event execution")
 
 // Data is a generic map from strings to any values that can be used as a means
 // to wrap a chunk of dynamic data and pass them to event handlers.
@@ -53,7 +61,12 @@ type handlers struct {
 // and no longer continue calling handlers. One time handlers that get executed
 // before an error alwasy get removed.
 func (hs *handlers) call(d Data) error {
-	for idx, h := range hs.onceHandlers {
+	var (
+		idx int
+		h   Handler
+	)
+
+	for idx, h = range hs.onceHandlers {
 		err := h.Call(d)
 		if err != nil {
 			if idx != len(hs.onceHandlers)-1 {
@@ -65,7 +78,9 @@ func (hs *handlers) call(d Data) error {
 			return err
 		}
 	}
-	for _, h := range hs.persistent {
+	hs.onceHandlers = make([]Handler, 0)
+
+	for _, h = range hs.persistent {
 		err := h.Call(d)
 		if err != nil {
 			return err
@@ -94,7 +109,7 @@ func NewEmitter(name string) *Emitter {
 	return &Emitter{
 		handlers: make(map[string]*handlers),
 		mutex:    new(sync.RWMutex),
-		log:      logger.LogWithSource(fmt.Sprintf("emitter %q", name)),
+		log:      logger.LogWithSource(fmt.Sprintf("emitter(%s)", name)),
 	}
 }
 
@@ -151,8 +166,9 @@ func (e *Emitter) off(evt string) {
 // Emit will call all handlers and once handlers assigned to listen to the event
 // as well as emitting a before:<event> and after:<event> before and after.
 // This method is asyncronous and returns no values directly, failures get
-// logged to the log target(s).
-func (e *Emitter) Emit(evt string, d Data) {
+// logged to the log target(s). Returns a readonly channel of struct{} (emtpy
+// data) That is written two (once) when the emission has completed.
+func (e *Emitter) Emit(evt string, d Data) <-chan struct{} {
 	if strings.HasPrefix(evt, "before:") || strings.HasPrefix(evt, "after:") {
 		e.log.WithFields(logrus.Fields{
 			"event": evt,
@@ -160,6 +176,7 @@ func (e *Emitter) Emit(evt string, d Data) {
 		}).Warn("Cannot emit meta events 'before' or 'after' directly.")
 	}
 
+	done := make(chan struct{}, 1)
 	go func() {
 		err := e.emit("before:"+evt, d)
 		if err == nil {
@@ -170,13 +187,24 @@ func (e *Emitter) Emit(evt string, d Data) {
 		}
 
 		if err != nil {
-			e.log.WithFields(logrus.Fields{
-				"error": err.Error(),
-				"event": evt,
-				"data":  d,
-			}).Error("Failed during execution of event handlers.")
+			if err == ErrHalt {
+				e.log.WithFields(logrus.Fields{
+					"event": evt,
+					"data":  d,
+				}).Debug("Event emission halted.")
+			} else {
+				e.log.WithFields(logrus.Fields{
+					"error": err.Error(),
+					"event": evt,
+					"data":  d,
+				}).Error("Failed during execution of event handlers.")
+			}
 		}
+
+		done <- struct{}{}
 	}()
+
+	return done
 }
 
 // this handles the meat of emitting events, it will iterate over the one time

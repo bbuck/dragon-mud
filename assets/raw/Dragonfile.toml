@@ -1,6 +1,7 @@
 # {{game_title}} base configuration file
 
 name = "{{game_title}}"
+version = "1.0.0"
 
 # {{game_title}} network configuration.
 [net]

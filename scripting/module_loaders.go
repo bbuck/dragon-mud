@@ -27,3 +27,10 @@ func OpenDie(e *engine.Lua) {
 func OpenRandom(e *engine.Lua) {
 	e.RegisterModule("random", modules.Random)
 }
+
+// OpenEvents opens the events module, making it possible for the engine to emit
+// and receive events. This requires the use of a pool though, due to keep
+// emissions and handler execution thread safe.
+func OpenEvents(e *engine.Lua) {
+	e.RegisterModule("events", modules.Events)
+}

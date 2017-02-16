@@ -344,6 +344,24 @@ func (e *Lua) ValueFor(val interface{}) *LuaValue {
 	return e.newValue(luar.New(e.state, val))
 }
 
+// WhitelistFor will mark the given method names whitelisted on the metatable
+// for the given interface{} value.
+func (e *Lua) WhitelistFor(i interface{}, names ...string) {
+	mt := luar.MT(e.state, i)
+	if mt != nil {
+		mt.Whitelist(names...)
+	}
+}
+
+// BlacklistFor will mark the given method names blacklisted on the metatable
+// for the given interface{} value.
+func (e *Lua) BlacklistFor(i interface{}, names ...string) {
+	mt := luar.MT(e.state, i)
+	if mt != nil {
+		mt.Blacklist(names...)
+	}
+}
+
 // TableFromMap takes a map of go values and generates a Lua table representing
 // the value.
 func (e *Lua) TableFromMap(i interface{}) *LuaValue {
