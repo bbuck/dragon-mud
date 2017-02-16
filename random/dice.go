@@ -1,3 +1,5 @@
+// Copyright (c) 2016-2017 Brandon Buck
+
 package random
 
 import (
@@ -14,20 +16,6 @@ var validSides = map[string]func() int{
 	"12":  D12,
 	"20":  D20,
 	"100": D100,
-}
-
-// DiceModule is a module mapping that will be used to add functionality to the
-// scripting engine.
-var DiceModule = map[string]interface{}{
-	"d2":      D2,
-	"d4":      D4,
-	"d6":      D6,
-	"d8":      D8,
-	"d10":     D10,
-	"d12":     D12,
-	"d20":     D20,
-	"d100":    D100,
-	"rollDie": RollDie,
 }
 
 // D2 represents a 2-sided die

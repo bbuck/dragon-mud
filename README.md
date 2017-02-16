@@ -64,11 +64,12 @@ this project matures I will clean up and define these details more and more.
    project
  - [x] Test suites with extensive coverage (protected with Coveralls) -- (not
    'completed' per se, but started)
- - [ ] Database backed server, can choose which database (default SQLite)
-   - [ ] SQLite3
-   - [ ] PostgreSQL
-   - [ ] MySQL
- - [ ] Script engine for loading and executing Lua files.
+ - [ ] Database backed server, can choose which database (Neo4j)
+   - [x] Partial implementation
+   - [ ] Complete implementation
+ - [x] Script engine for loading and executing Lua files.
+ - [ ] Plugin system to allow for creation of whatever game one desires
+ - [ ] Plugin manager (like `go get` but for DragonMUD plugins)
  - [ ] MUD Server
 
 ## Future
@@ -124,7 +125,7 @@ Brandon Buck [@bbuck](https://github.com/bbuck) <lordizuriel@gmail.com>
 
 # License
 
-Copyright 2016 Brandon Buck
+Copyright 2016-2017 Brandon buck
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

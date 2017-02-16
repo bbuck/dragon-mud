@@ -1,7 +1,8 @@
+// Copyright (c) 2016-2017 Brandon Buck
+
 package cli
 
 import (
-	"github.com/bbuck/dragon-mud/data/migrator"
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/random"
 	"github.com/bbuck/dragon-mud/server"
@@ -17,13 +18,9 @@ var (
 All lifecycle scripts will be notified during boot and the configuration
 information will be processed.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			logger.Infof("A %s dragon arrives to serve you today.", getDragonColor())
-			logger.WithField("env", viper.GetString("env")).Info("Configuration loaded")
-
-			err := migrator.MigrateDatabase()
-			if err != nil {
-				logger.WithField("error", err.Error()).Fatal("Failed to configure and setup database")
-			}
+			log := logger.LogWithSource("serve cmd")
+			log.Infof("A %s dragon arrives to serve you today.", getDragonColor())
+			log.WithField("env", viper.GetString("env")).Info("Configuration loaded")
 
 			// TODO: Implement serve command
 			server.Run()

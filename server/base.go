@@ -1,3 +1,5 @@
+// Copyright (c) 2016-2017 Brandon Buck
+
 package server
 
 import (
@@ -9,7 +11,10 @@ import (
 	"github.com/spf13/viper"
 )
 
-var serverRunning = false
+var (
+	serverRunning = false
+	log           = logger.LogWithSource("server")
+)
 
 func Run() {
 	serverRunning = true
@@ -17,10 +22,10 @@ func Run() {
 	port := viper.GetString("net.port")
 	listener, err := net.Listen("tcp", host+":"+port)
 	if err != nil {
-		logger.WithField("error", err.Error()).Fatal("Failed to start TCP server.")
+		log.WithField("error", err.Error()).Fatal("Failed to start TCP server.")
 	}
 
-	logger.WithFields(logrus.Fields{
+	log.WithFields(logrus.Fields{
 		"host": host,
 		"port": port,
 	}).Info("TCP server started")
@@ -33,13 +38,13 @@ func runServer(listener net.Listener) {
 	for serverRunning {
 		conn, err := listener.Accept()
 		if err != nil {
-			logger.WithField("error", err.Error()).Error("Failed to accept connection")
+			log.WithField("error", err.Error()).Error("Failed to accept connection")
 
 			continue
 		}
 
 		addrInfo := strings.Split(conn.RemoteAddr().String(), ":")
-		logger.WithFields(logrus.Fields{
+		log.WithFields(logrus.Fields{
 			"ip":   addrInfo[0],
 			"port": addrInfo[1],
 		}).Debug("Accepted incoming connection.")
