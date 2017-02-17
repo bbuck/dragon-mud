@@ -197,6 +197,11 @@ func (e *Lua) PushValue(val interface{}) {
 	e.state.Push(v.lval)
 }
 
+// StackSize returns the maximum value currently remaining on the stack.
+func (e *Lua) StackSize() int {
+	return e.state.GetTop()
+}
+
 // PopBool returns the top of the stack as an actual Go bool.
 func (e *Lua) PopBool() bool {
 	v := e.PopArg()
@@ -337,11 +342,14 @@ func (e *Lua) RegisterClassWithCtor(name string, typ interface{}, cons interface
 
 // ValueFor takes a Go type and creates a lua equivalent Value for it.
 func (e *Lua) ValueFor(val interface{}) *LuaValue {
-	if v, ok := val.(*LuaValue); ok {
+	switch v := val.(type) {
+	case ScriptableObject:
+		return e.newValue(luar.New(e.state, v.ScriptObject()))
+	case *LuaValue:
 		return v
+	default:
+		return e.newValue(luar.New(e.state, val))
 	}
-
-	return e.newValue(luar.New(e.state, val))
 }
 
 // WhitelistFor will mark the given method names whitelisted on the metatable

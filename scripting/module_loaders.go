@@ -34,3 +34,9 @@ func OpenRandom(e *engine.Lua) {
 func OpenEvents(e *engine.Lua) {
 	e.RegisterModule("events", modules.Events)
 }
+
+// OpenLog will register the log module which will enable server scripts to
+// log information directly to the user specified log targets.
+func OpenLog(e *engine.Lua) {
+	e.RegisterModule("log", modules.Log)
+}
