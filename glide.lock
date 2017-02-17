@@ -1,10 +1,6 @@
 hash: 41079ed6b880a0590b0ff4bff2e7fa70a8645afd93c1a3d5a2e7681f6d1a02aa
 updated: 2017-01-30T00:59:16.502516854-06:00
 imports:
-- name: github.com/bbuck/talon
-  version: 1912ca1843e6cfb60908cc8f502d3cba522a2886
-  subpackages:
-  - types
 - name: github.com/dchest/blake2b
   version: 3c8c640cd7bea3ca78209d812b5854442ab92fed
 - name: github.com/fatih/structs
