@@ -83,7 +83,7 @@ func dragonfileToml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "Dragonfile.toml", size: 2464, mode: os.FileMode(420), modTime: time.Unix(1487200792, 0)}
+	info := bindataFileInfo{name: "Dragonfile.toml", size: 2464, mode: os.FileMode(420), modTime: time.Unix(1487283837, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

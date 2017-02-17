@@ -3,7 +3,7 @@
 package types_test
 
 import (
-	. "github.com/bbuck/talon/types"
+	. "github.com/bbuck/dragon-mud/talon/types"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

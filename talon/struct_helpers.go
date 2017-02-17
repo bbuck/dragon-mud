@@ -5,7 +5,7 @@ package talon
 import (
 	"reflect"
 
-	"github.com/bbuck/talon/types"
+	"github.com/bbuck/dragon-mud/talon/types"
 )
 
 // convert an arbitrary struct into properties

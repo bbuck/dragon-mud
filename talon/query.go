@@ -3,7 +3,7 @@
 package talon
 
 import (
-	"github.com/bbuck/talon/types"
+	"github.com/bbuck/dragon-mud/talon/types"
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 )
 

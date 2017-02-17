@@ -3,9 +3,9 @@
 package talon
 
 import (
-	"github.com/bbuck/talon/types"
-
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
+
+	"github.com/bbuck/dragon-mud/talon/types"
 )
 
 // DB represents a talon connection to a Neo4j database using Neo4j bolt behind

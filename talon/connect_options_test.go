@@ -3,7 +3,7 @@
 package talon_test
 
 import (
-	. "github.com/bbuck/talon"
+	. "github.com/bbuck/dragon-mud/talon"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
