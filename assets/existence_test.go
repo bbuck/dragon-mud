@@ -10,6 +10,6 @@ import (
 var _ = DescribeTable("Existence",
 	func(assetName string) {
 		_, err := Asset(assetName)
-		Ω(err).To(BeNil())
+		Ω(err).Should(BeNil())
 	},
 	Entry("Dragonfile.toml", "Dragonfile.toml"))

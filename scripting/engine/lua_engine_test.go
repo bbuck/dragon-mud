@@ -33,7 +33,7 @@ var _ = Describe("LuaEngine", func() {
 
 		It("no longer functions", func() {
 			_, err := engine.Call("hello", 1, "World")
-			Ω(err).ToNot(BeNil())
+			Ω(err).ShouldNot(BeNil())
 		})
 	})
 
@@ -43,7 +43,7 @@ var _ = Describe("LuaEngine", func() {
 		})
 
 		It("should not fail", func() {
-			Ω(err).To(BeNil())
+			Ω(err).Should(BeNil())
 		})
 
 		Context("when calling a method", func() {
@@ -57,19 +57,19 @@ var _ = Describe("LuaEngine", func() {
 			})
 
 			It("does not return an error", func() {
-				Ω(err).To(BeNil())
+				Ω(err).Should(BeNil())
 			})
 
 			It("returns 1 result", func() {
-				Ω(len(results)).To(Equal(1))
+				Ω(len(results)).Should(Equal(1))
 			})
 
 			It("doesn't return nil", func() {
-				Ω(results[0]).ToNot(Equal(Nil))
+				Ω(results[0]).ShouldNot(Equal(Nil))
 			})
 
 			It("returns the string 'Hello, World!'", func() {
-				Ω(results[0].AsString()).To(Equal("Hello, World!"))
+				Ω(results[0].AsString()).Should(Equal("Hello, World!"))
 			})
 		})
 	})
@@ -80,7 +80,7 @@ var _ = Describe("LuaEngine", func() {
 		})
 
 		It("shoult not fail", func() {
-			Ω(err).To(BeNil())
+			Ω(err).Should(BeNil())
 		})
 
 		Context("when calling a method", func() {
@@ -94,19 +94,19 @@ var _ = Describe("LuaEngine", func() {
 			})
 
 			It("does not return an error", func() {
-				Ω(err).To(BeNil())
+				Ω(err).Should(BeNil())
 			})
 
 			It("return 1 result", func() {
-				Ω(len(results)).To(Equal(1))
+				Ω(len(results)).Should(Equal(1))
 			})
 
 			It("does not return nil", func() {
-				Ω(results[0]).ToNot(Equal(Nil))
+				Ω(results[0]).ShouldNot(Equal(Nil))
 			})
 
 			It("returns the number 1", func() {
-				Ω(results[0].AsNumber()).To(Equal(float64(1)))
+				Ω(results[0].AsNumber()).Should(Equal(float64(1)))
 			})
 		})
 	})
@@ -135,19 +135,19 @@ var _ = Describe("LuaEngine", func() {
 		})
 
 		It("does not return an error", func() {
-			Ω(err).To(BeNil())
+			Ω(err).Should(BeNil())
 		})
 
 		It("returns two results", func() {
-			Ω(len(results)).To(Equal(2))
+			Ω(len(results)).Should(Equal(2))
 		})
 
 		It("returns the second input first", func() {
-			Ω(aResult).To(Equal(b))
+			Ω(aResult).Should(Equal(b))
 		})
 
 		It("returns the first input second", func() {
-			Ω(bResult).To(Equal(a))
+			Ω(bResult).Should(Equal(a))
 		})
 	})
 
@@ -171,15 +171,15 @@ var _ = Describe("LuaEngine", func() {
 		})
 
 		It("does not fail", func() {
-			Ω(err).To(BeNil())
+			Ω(err).Should(BeNil())
 		})
 
 		It("returns one value", func() {
-			Ω(len(results)).To(Equal(1))
+			Ω(len(results)).Should(Equal(1))
 		})
 
 		It("returns the value assigned to the global", func() {
-			Ω(results[0].AsString()).To(Equal("testing"))
+			Ω(results[0].AsString()).Should(Equal("testing"))
 		})
 	})
 
@@ -200,11 +200,11 @@ var _ = Describe("LuaEngine", func() {
 		})
 
 		It("doesn't return nil", func() {
-			Ω(value).ToNot(Equal(Nil))
+			Ω(value).ShouldNot(Equal(Nil))
 		})
 
 		It("returns the correct string", func() {
-			Ω(value.AsString()).To(Equal("testing"))
+			Ω(value.AsString()).Should(Equal("testing"))
 		})
 	})
 
@@ -225,23 +225,23 @@ var _ = Describe("LuaEngine", func() {
 			})
 
 			It("should no fail", func() {
-				Ω(err).To(BeNil())
+				Ω(err).Should(BeNil())
 			})
 
 			It("marks the called variable", func() {
-				Ω(called).To(BeTrue())
+				Ω(called).Should(BeTrue())
 			})
 
 			It("does not return nil", func() {
-				Ω(results[0]).ToNot(Equal(Nil))
+				Ω(results[0]).ShouldNot(Equal(Nil))
 			})
 
 			It("returns 1 value", func() {
-				Ω(len(results)).To(Equal(1))
+				Ω(len(results)).Should(Equal(1))
 			})
 
 			It("returns a value that passed through the Go function", func() {
-				Ω(results[0].AsNumber()).To(Equal(float64(21)))
+				Ω(results[0].AsNumber()).Should(Equal(float64(21)))
 			})
 		})
 
@@ -269,23 +269,23 @@ var _ = Describe("LuaEngine", func() {
 			})
 
 			It("does not fail", func() {
-				Ω(err).To(BeNil())
+				Ω(err).Should(BeNil())
 			})
 
 			It("returns 1 value", func() {
-				Ω(len(results)).To(Equal(1))
+				Ω(len(results)).Should(Equal(1))
 			})
 
 			It("marks the variable called", func() {
-				Ω(called).To(BeTrue())
+				Ω(called).Should(BeTrue())
 			})
 
 			It("does not return nil", func() {
-				Ω(results[0]).ToNot(Equal(Nil))
+				Ω(results[0]).ShouldNot(Equal(Nil))
 			})
 
 			It("returns the correct value", func() {
-				Ω(results[0].AsNumber()).To(Equal(float64(1)))
+				Ω(results[0].AsNumber()).Should(Equal(float64(1)))
 			})
 		})
 	})
@@ -316,12 +316,12 @@ var _ = Describe("LuaEngine", func() {
 			})
 
 			It("should not fail", func() {
-				Ω(cerr).To(BeNil())
+				Ω(cerr).Should(BeNil())
 			})
 
 			It("should return the correct value", func() {
-				Ω(len(result)).To(BeNumerically(">", 0))
-				Ω(result[0].AsString()).To(Equal("success"))
+				Ω(len(result)).Should(BeNumerically(">", 0))
+				Ω(result[0].AsString()).Should(Equal("success"))
 			})
 		})
 
@@ -336,12 +336,12 @@ var _ = Describe("LuaEngine", func() {
 			})
 
 			It("should not fail", func() {
-				Ω(cerr).To(BeNil())
+				Ω(cerr).Should(BeNil())
 			})
 
 			It("should return the correct value", func() {
-				Ω(len(result)).To(BeNumerically(">", 0))
-				Ω(result[0].AsString()).To(Equal("success"))
+				Ω(len(result)).Should(BeNumerically(">", 0))
+				Ω(result[0].AsString()).Should(Equal("success"))
 			})
 		})
 	})
@@ -382,27 +382,27 @@ var _ = Describe("LuaEngine", func() {
 			})
 
 			It("didn't fail to fetch 'one'", func() {
-				Ω(errOne).To(BeNil())
+				Ω(errOne).Should(BeNil())
 			})
 
 			It("fetched a number", func() {
-				Ω(one.IsNumber()).To(BeTrue())
+				Ω(one.IsNumber()).Should(BeTrue())
 			})
 
 			It("fetch the number 2", func() {
-				Ω(one.AsNumber()).To(Equal(float64(2)))
+				Ω(one.AsNumber()).Should(Equal(float64(2)))
 			})
 
 			It("didn't fail to fetch 'two'", func() {
-				Ω(errTwo).To(BeNil())
+				Ω(errTwo).Should(BeNil())
 			})
 
 			It("fetched a string", func() {
-				Ω(two.IsString()).To(BeTrue())
+				Ω(two.IsString()).Should(BeTrue())
 			})
 
 			It("fetch the string 'too'", func() {
-				Ω(two.AsString()).To(Equal("too"))
+				Ω(two.AsString()).Should(Equal("too"))
 			})
 		})
 
@@ -422,31 +422,31 @@ var _ = Describe("LuaEngine", func() {
 			})
 
 			It("has 3 values", func() {
-				Ω(table.Len()).To(Equal(3))
+				Ω(table.Len()).Should(Equal(3))
 			})
 
 			It("didn't fail to fetch #1", func() {
-				Ω(errOne).To(BeNil())
+				Ω(errOne).Should(BeNil())
 			})
 
 			It("fetched a number", func() {
-				Ω(one.IsNumber()).To(BeTrue())
+				Ω(one.IsNumber()).Should(BeTrue())
 			})
 
 			It("fetch the number 1", func() {
-				Ω(one.AsNumber()).To(Equal(float64(1)))
+				Ω(one.AsNumber()).Should(Equal(float64(1)))
 			})
 
 			It("didn't fail to fetch #2", func() {
-				Ω(errTwo).To(BeNil())
+				Ω(errTwo).Should(BeNil())
 			})
 
 			It("fetched a number", func() {
-				Ω(two.IsNumber()).To(BeTrue())
+				Ω(two.IsNumber()).Should(BeTrue())
 			})
 
 			It("fetch the number 2", func() {
-				Ω(two.AsNumber()).To(Equal(float64(2)))
+				Ω(two.AsNumber()).Should(Equal(float64(2)))
 			})
 		})
 	})
@@ -468,12 +468,12 @@ var _ = Describe("LuaEngine", func() {
 
 		It("can call the whitelisted function", func() {
 			_, err := engine.Call("fromPtr", 1)
-			Ω(err).To(BeNil())
+			Ω(err).Should(BeNil())
 		})
 
 		It("can't call the non-whitelisted function", func() {
 			_, err := engine.Call("fromValue", 1)
-			Ω(err).ToNot(BeNil())
+			Ω(err).ShouldNot(BeNil())
 		})
 	})
 
@@ -494,12 +494,12 @@ var _ = Describe("LuaEngine", func() {
 
 		It("can call the non-blacklisted function", func() {
 			_, err := engine.Call("fromPtr", 1)
-			Ω(err).To(BeNil())
+			Ω(err).Should(BeNil())
 		})
 
 		It("can't call the blacklisted function", func() {
 			_, err := engine.Call("fromValue", 1)
-			Ω(err).ToNot(BeNil())
+			Ω(err).ShouldNot(BeNil())
 		})
 	})
 })

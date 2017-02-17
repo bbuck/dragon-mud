@@ -71,10 +71,35 @@ func (v *LuaValue) AsMapStringInterface() map[string]interface{} {
 	if v.IsTable() {
 		result := make(map[string]interface{})
 		v.ForEach(func(key, value *LuaValue) {
-			result[key.AsString()] = value.AsRaw()
+			var val interface{} = value.AsRaw()
+			if value.IsTable() {
+				val = value
+			}
+			result[key.AsString()] = val
 		})
 
 		return result
+	}
+
+	return nil
+}
+
+// AsSliceInterface will convert the Lua table value to a []interface{},
+// extracting Go values were possible and preserving references to tables.
+func (v *LuaValue) AsSliceInterface() []interface{} {
+	if v.IsTable() {
+		var s []interface{}
+		len := v.Len()
+		for i := 1; i <= len; i++ {
+			lv := v.Get(i)
+			var val interface{} = lv.AsRaw()
+			if lv.IsTable() {
+				val = lv
+			}
+			s = append(s, val)
+		}
+
+		return s
 	}
 
 	return nil
@@ -327,44 +352,4 @@ func (v *LuaValue) Call(retCount int, argList ...interface{}) ([]*LuaValue, erro
 	}
 
 	return make([]*LuaValue, 0), nil
-}
-
-// The following are Lua -> Go advanced transformations
-
-// ToMap will convert the given value (if it's a Lua table) into a
-// map[string]interface{}. It will coerce all keys into strings and attempt
-// to extract the Go value of each value in the table, but will preserve
-// LuaValue references for tables.
-func (v *LuaValue) ToMap() map[string]interface{} {
-	m := make(map[string]interface{})
-	if v.IsTable() {
-		v.ForEach(func(k, lv *LuaValue) {
-			var val interface{} = lv.AsRaw()
-			if lv.IsTable() {
-				val = lv
-			}
-			m[k.AsString()] = val
-		})
-	}
-
-	return m
-}
-
-// ToSlice will convert the Lua table value to a []interface{}, extracting
-// Go values were possible and preserving references to tables.
-func (v *LuaValue) ToSlice() []interface{} {
-	var s []interface{}
-	if v.IsTable() {
-		len := v.Len()
-		for i := 1; i <= len; i++ {
-			lv := v.Get(i)
-			var val interface{} = lv.AsRaw()
-			if lv.IsTable() {
-				val = lv
-			}
-			s = append(s, val)
-		}
-	}
-
-	return s
 }

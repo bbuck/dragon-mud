@@ -34,11 +34,11 @@ var _ = Describe("TimeType", func() {
 			})
 
 			It("doesn't fail", func() {
-				Ω(err).To(BeNil())
+				Ω(err).Should(BeNil())
 			})
 
 			It("produces the correct string", func() {
-				Ω(string(bs)).To(Equal(test))
+				Ω(string(bs)).Should(Equal(test))
 			})
 		})
 
@@ -51,11 +51,11 @@ var _ = Describe("TimeType", func() {
 			})
 
 			It("doesn't fail", func() {
-				Ω(err).To(BeNil())
+				Ω(err).Should(BeNil())
 			})
 
 			It("produces the correct string", func() {
-				Ω(string(bs)).To(Equal(test))
+				Ω(string(bs)).Should(Equal(test))
 			})
 		})
 	})
@@ -70,31 +70,31 @@ var _ = Describe("TimeType", func() {
 			})
 
 			It("doesn't fail", func() {
-				Ω(err).To(BeNil())
+				Ω(err).Should(BeNil())
 			})
 
 			It("parsed correct year", func() {
-				Ω(t.Year()).To(Equal(1986))
+				Ω(t.Year()).Should(Equal(1986))
 			})
 
 			It("parsed correct month", func() {
-				Ω(t.Month()).To(Equal(time.November))
+				Ω(t.Month()).Should(Equal(time.November))
 			})
 
 			It("parsed the correct day", func() {
-				Ω(t.Day()).To(Equal(12))
+				Ω(t.Day()).Should(Equal(12))
 			})
 
 			It("parsed the correct hour", func() {
-				Ω(t.Hour()).To(Equal(1))
+				Ω(t.Hour()).Should(Equal(1))
 			})
 
 			It("parsed the correct minute", func() {
-				Ω(t.Minute()).To(Equal(2))
+				Ω(t.Minute()).Should(Equal(2))
 			})
 
 			It("parsed the correct second", func() {
-				Ω(t.Second()).To(Equal(3))
+				Ω(t.Second()).Should(Equal(3))
 			})
 		})
 
@@ -107,31 +107,31 @@ var _ = Describe("TimeType", func() {
 			})
 
 			It("doesn't fail", func() {
-				Ω(err).To(BeNil())
+				Ω(err).Should(BeNil())
 			})
 
 			It("parsed correct year", func() {
-				Ω(t.Year()).To(Equal(1986))
+				Ω(t.Year()).Should(Equal(1986))
 			})
 
 			It("parsed correct month", func() {
-				Ω(t.Month()).To(Equal(time.November))
+				Ω(t.Month()).Should(Equal(time.November))
 			})
 
 			It("parsed the correct day", func() {
-				Ω(t.Day()).To(Equal(12))
+				Ω(t.Day()).Should(Equal(12))
 			})
 
 			It("parsed the correct hour", func() {
-				Ω(t.Hour()).To(Equal(1))
+				Ω(t.Hour()).Should(Equal(1))
 			})
 
 			It("parsed the correct minute", func() {
-				Ω(t.Minute()).To(Equal(2))
+				Ω(t.Minute()).Should(Equal(2))
 			})
 
 			It("parsed the correct second", func() {
-				Ω(t.Second()).To(Equal(3))
+				Ω(t.Second()).Should(Equal(3))
 			})
 		})
 	})
