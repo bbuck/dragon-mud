@@ -39,7 +39,7 @@ var _ = Describe("Console", func() {
 		})
 
 		Context("arbitrary values", func() {
-			It("accpets integers", func() {
+			It("accepts integers", func() {
 				console.Println(10)
 				Ω(buffer.String()).Should(Equal(fmt.Sprintf("%d\n", 10)))
 			})

@@ -7,27 +7,28 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/bbuck/dragon-mud)](https://goreportcard.com/report/github.com/bbuck/dragon-mud)
 
 DragonMUD is a dream of mine, building a new MUD engine for experience and fun
-before building my own game on top of it. The engine will have a very opinionated
-idea of game rules (such as how skills works, etc.) but outside of game rules
-will be entirely customizable through scripts (using Lua) and being open source
-would be open to forks with custom game rules implemented.
+before building my own game on top of it. The engine will be a firm foundation
+for any kind of text based adventure (for now just Telnet, but eventually web
+and websocket versions as well). It will feature a plugin system allowing the
+core of the game to be moldable from the ground up into what you truly desire
+for your game.
 
 ### Why should I use this?
 
 That's really up to you. This project is for me but I believe in sharing. I
-also feel a new "modern" MUD engine may inspire some new games to be created
-in the genre which would be amazing. I'm a huge fan of MUDs and feel that new
+also feel yet another new MUD engine may inspire some new games to be created
+in the genre, which would be amazing. I'm a huge fan of MUDs and feel that new
 entries have kind of become almost non-existent. Perhaps a new game and an
 accessible low-setup MUD server would make it easier for new games to be quickly
 created.
 
 ### What exactly is it?
 
-DragonMUD is a MUD server for text based multi-user games. It will be pretty
-biased on how skills and in game systems works as the core of DragonMUD is to
-power a MUD game that I, myself, have planned. That leads the implementation to
-be driven towards that end. Now, I'm not completely selfish - at any point if I
-can make the the game server configurable I will gladly do that.
+DragonMUD is a server for text based multi-user games. It will be completely
+moldable from the ground up through plugins. Along with the server once they're
+done, the plugins I create to build out my own game will seed the initial plugin
+base to allow you to pull and get started with a game if you don't want to do
+a lot of engineering on your own.
 
 ### What exactly is it not?
 
@@ -99,9 +100,9 @@ cd $GOPATH/src/github.com/myusername/dragon-mud
 glide install
 ```
 
-At this point, you can either rename `/myusername/` to `/bbuck/` or you can
-symlink `$GOPATH/src/github.com/myusername/dragon-mud` to `$GOPATH/src/github.com/bbuck/dragon-mud`
-to avoid having to rewrite import paths.
+At this point, you can symlink `$GOPATH/src/github.com/myusername/dragon-mud` to
+`$GOPATH/src/github.com/bbuck/dragon-mud` to avoid having to rewrite import
+paths.
 
 To build your project:
 
@@ -121,7 +122,7 @@ up and running to use in place of trying to do everything manually.
 
 # Contributors
 
-Brandon Buck [@bbuck](https://github.com/bbuck) <lordizuriel@gmail.com>
+Brandon Buck, [@bbuck](https://github.com/bbuck), <lordizuriel@gmail.com>
 
 # License
 
