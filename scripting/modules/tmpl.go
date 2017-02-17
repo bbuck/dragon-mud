@@ -36,7 +36,7 @@ var Tmpl = map[string]interface{}{
 		data := engine.PopTable()
 		name := engine.PopString()
 
-		log := tmplLog.WithField("name", name)
+		log := tmplLog.WithField("tmpl_name", name)
 
 		t, err := tmpl.Template(name)
 		if err != nil {
@@ -47,12 +47,11 @@ var Tmpl = map[string]interface{}{
 
 			return 2
 		}
-		mapData := data.AsMapStringInterface()
-		result, err := t.Render(mapData)
+		result, err := t.Render(data)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				"error": err.Error(),
-				"data":  mapData,
+				"data":  data.AsMapStringInterface(),
 			}).Error("Failed to render template from requested in script.")
 		}
 

@@ -19,20 +19,20 @@ func testDie(e *engine.Lua, method string, min, max float64) {
 		}
 
 		It("doesn't fail", func() {
-			Ω(err).To(BeNil())
+			Ω(err).Should(BeNil())
 		})
 
 		It("should be in the correct range", func() {
-			Ω(result).To(BeNumerically(">=", min))
-			Ω(result).To(BeNumerically("<=", max))
+			Ω(result).Should(BeNumerically(">=", min))
+			Ω(result).Should(BeNumerically("<=", max))
 		})
 	})
 }
 
 func validateRange(i interface{}, min, max float64) {
 	It("is in the correct range", func() {
-		Ω(i).To(BeNumerically(">=", min))
-		Ω(i).To(BeNumerically("<=", max))
+		Ω(i).Should(BeNumerically(">=", min))
+		Ω(i).Should(BeNumerically("<=", max))
 	})
 }
 
@@ -63,15 +63,15 @@ var _ = Describe("Die", func() {
 		res, err := e.Call("rollDie", 1, "3d8")
 		var results []interface{}
 		if len(res) > 0 {
-			results = res[0].ToSlice()
+			results = res[0].AsSliceInterface()
 		}
 
 		It("doesn't fail", func() {
-			Ω(err).To(BeNil())
+			Ω(err).Should(BeNil())
 		})
 
 		It("generated 3 values", func() {
-			Ω(results).To(HaveLen(3))
+			Ω(results).Should(HaveLen(3))
 		})
 
 		for _, i := range results {

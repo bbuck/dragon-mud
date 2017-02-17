@@ -51,22 +51,22 @@ var _ = Describe("password Module", func() {
 	})
 
 	It("doesn't fail", func() {
-		Ω(err).To(BeNil())
+		Ω(err).Should(BeNil())
 	})
 
 	It("doesn't generate empty strings", func() {
-		Ω(result).ToNot(Equal(""))
+		Ω(result).ShouldNot(Equal(""))
 	})
 
 	It("generates the correct hash length", func() {
-		Ω(result).To(HaveLen(32))
+		Ω(result).Should(HaveLen(32))
 	})
 
 	It("generates the same hash with matching inputs", func() {
-		Ω(valid).To(BeTrue())
+		Ω(valid).Should(BeTrue())
 	})
 
 	It("hashes different passwords, differently", func() {
-		Ω(invalid).To(BeFalse())
+		Ω(invalid).Should(BeFalse())
 	})
 })

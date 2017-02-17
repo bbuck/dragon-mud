@@ -18,7 +18,7 @@ var _ = Describe("ConnectOptions", func() {
 
 		GeneratesCorrectURL := func() {
 			It("generates the correct URL", func() {
-				Ω(co.URL()).To(Equal(expected))
+				Ω(co.URL()).Should(Equal(expected))
 			})
 		}
 

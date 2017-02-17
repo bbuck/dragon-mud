@@ -35,23 +35,23 @@ var _ = Describe("Console", func() {
 		It("accepts an fmt.Stringer", func() {
 			stringer := testStringer("testing")
 			console.Println(stringer)
-			Ω(buffer.String()).To(Equal("testing\n"))
+			Ω(buffer.String()).Should(Equal("testing\n"))
 		})
 
 		Context("arbitrary values", func() {
 			It("accpets integers", func() {
 				console.Println(10)
-				Ω(buffer.String()).To(Equal(fmt.Sprintf("%d\n", 10)))
+				Ω(buffer.String()).Should(Equal(fmt.Sprintf("%d\n", 10)))
 			})
 
 			It("accepts floats", func() {
 				console.Println(float32(1))
-				Ω(buffer.String()).To(Equal(fmt.Sprintf("%f\n", float32(1))))
+				Ω(buffer.String()).Should(Equal(fmt.Sprintf("%f\n", float32(1))))
 			})
 
 			It("accepts arbitrary values", func() {
 				console.Println(complex64(1))
-				Ω(buffer.String()).To(Equal(fmt.Sprintf("%v\n", complex64(1))))
+				Ω(buffer.String()).Should(Equal(fmt.Sprintf("%v\n", complex64(1))))
 			})
 		})
 	})
@@ -73,7 +73,7 @@ var _ = Describe("Console", func() {
 				})
 
 				It("purges color codes", func() {
-					Ω(buffer.String()).To(Equal("this is colored text\n"))
+					Ω(buffer.String()).Should(Equal("this is colored text\n"))
 				})
 			})
 
@@ -84,12 +84,12 @@ var _ = Describe("Console", func() {
 
 				It("processes colors and then prints", func() {
 					console.Println(coloredStr)
-					Ω(buffer.String()).To(Equal(result + "\n"))
+					Ω(buffer.String()).Should(Equal(result + "\n"))
 				})
 
 				It("uses fallback on xterm colors", func() {
 					console.Println(xtermStr)
-					Ω(buffer.String()).To(Equal(fallbackResult + "\n"))
+					Ω(buffer.String()).Should(Equal(fallbackResult + "\n"))
 				})
 			})
 
@@ -100,7 +100,7 @@ var _ = Describe("Console", func() {
 				})
 
 				It("processes colors and then prints", func() {
-					Ω(buffer.String()).To(Equal(xtermResult + "\n"))
+					Ω(buffer.String()).Should(Equal(xtermResult + "\n"))
 				})
 			})
 		})
@@ -113,7 +113,7 @@ var _ = Describe("Console", func() {
 				})
 
 				It("prints the text given to it", func() {
-					Ω(buffer.String()).To(Equal("testing"))
+					Ω(buffer.String()).Should(Equal("testing"))
 				})
 			})
 
@@ -124,12 +124,12 @@ var _ = Describe("Console", func() {
 
 				It("prints the text given to it", func() {
 					console.Printf("%s", coloredStr)
-					Ω(buffer.String()).To(Equal(result))
+					Ω(buffer.String()).Should(Equal(result))
 				})
 
 				It("uses fallback on xterm colors", func() {
 					console.Printf("%s", xtermStr)
-					Ω(buffer.String()).To(Equal(fallbackResult))
+					Ω(buffer.String()).Should(Equal(fallbackResult))
 				})
 			})
 
@@ -140,7 +140,7 @@ var _ = Describe("Console", func() {
 				})
 
 				It("processes colors and then prints", func() {
-					Ω(buffer.String()).To(Equal(xtermResult))
+					Ω(buffer.String()).Should(Equal(xtermResult))
 				})
 			})
 		})
@@ -153,7 +153,7 @@ var _ = Describe("Console", func() {
 				})
 
 				It("writes the text to the buffer without color", func() {
-					Ω(buffer.String()).To(Equal("testing"))
+					Ω(buffer.String()).Should(Equal("testing"))
 				})
 			})
 
@@ -164,12 +164,12 @@ var _ = Describe("Console", func() {
 
 				It("writes the text given to it", func() {
 					console.Printf("%s", coloredStr)
-					Ω(buffer.String()).To(Equal(result))
+					Ω(buffer.String()).Should(Equal(result))
 				})
 
 				It("uses fallback on xterm colors", func() {
 					console.Printf("%s", xtermStr)
-					Ω(buffer.String()).To(Equal(fallbackResult))
+					Ω(buffer.String()).Should(Equal(fallbackResult))
 				})
 			})
 
@@ -180,7 +180,7 @@ var _ = Describe("Console", func() {
 				})
 
 				It("writes the text to the buffer in color", func() {
-					Ω(buffer.String()).To(Equal(xtermResult))
+					Ω(buffer.String()).Should(Equal(xtermResult))
 				})
 			})
 		})
@@ -193,7 +193,7 @@ var _ = Describe("Console", func() {
 			})
 
 			It("prints the text passed to it with a newline", func() {
-				Ω(buffer.String()).To(Equal(str + "\n"))
+				Ω(buffer.String()).Should(Equal(str + "\n"))
 			})
 		})
 
@@ -203,7 +203,7 @@ var _ = Describe("Console", func() {
 			})
 
 			It("prints the text passed to it, based on format", func() {
-				Ω(buffer.String()).To(Equal(str))
+				Ω(buffer.String()).Should(Equal(str))
 			})
 		})
 	})
@@ -231,7 +231,7 @@ var _ = Describe("Console", func() {
 			})
 
 			It("prints to the expected place with color", func() {
-				Ω(buffer.String()).To(Equal(result + "\n"))
+				Ω(buffer.String()).Should(Equal(result + "\n"))
 			})
 
 			AfterEach(func() {
@@ -262,7 +262,7 @@ var _ = Describe("Console", func() {
 			})
 
 			It("prints to the expected place with color", func() {
-				Ω(buffer.String()).To(Equal(result + "\n"))
+				Ω(buffer.String()).Should(Equal(result + "\n"))
 			})
 
 			AfterEach(func() {

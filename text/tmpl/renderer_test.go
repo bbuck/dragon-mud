@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var templateWithBraces = "{{this}} should have {braces}"
+var templateWithBraces = "{{This}} should have {braces}"
 
 var _ = Describe("Renderer", func() {
 	Describe("Render", func() {
@@ -15,10 +15,10 @@ var _ = Describe("Renderer", func() {
 			var (
 				r     Renderer
 				data1 = map[string]interface{}{
-					"name": "World",
+					"Name": "World",
 				}
 				data2 = map[string]interface{}{
-					"name": "Mundo",
+					"Name": "Mundo",
 				}
 				result1, result2 string
 				err1, err2       error
@@ -33,16 +33,16 @@ var _ = Describe("Renderer", func() {
 			})
 
 			It("does not fail", func() {
-				Ω(err1).To(BeNil())
-				Ω(err2).To(BeNil())
+				Ω(err1).Should(BeNil())
+				Ω(err2).Should(BeNil())
 			})
 
 			It("renders to a string", func() {
-				Ω(result1).To(Equal("Hello, World!"))
+				Ω(result1).Should(Equal("Hello, World!"))
 			})
 
 			It("renders with different results", func() {
-				Ω(result2).To(Equal("Hello, Mundo!"))
+				Ω(result2).Should(Equal("Hello, Mundo!"))
 			})
 		})
 
@@ -52,7 +52,7 @@ var _ = Describe("Renderer", func() {
 				result string
 				err    error
 				data   = map[string]interface{}{
-					"this": "This",
+					"This": "This",
 				}
 			)
 
@@ -64,11 +64,38 @@ var _ = Describe("Renderer", func() {
 			})
 
 			It("doesn't fail", func() {
-				Ω(err).To(BeNil())
+				Ω(err).Should(BeNil())
 			})
 
 			It("renders correctly", func() {
-				Ω(result).To(Equal("This should have {braces}"))
+				Ω(result).Should(Equal("This should have {braces}"))
+			})
+		})
+
+		Context("when given a struct instead of a map", func() {
+			var (
+				r      Renderer
+				result string
+				err    error
+				data   = struct {
+					Name string
+				}{
+					Name: "Mundo",
+				}
+			)
+
+			BeforeEach(func() {
+				Register(testTemplate, "test")
+				r, _ = Template("test")
+				result, err = r.Render(data)
+			})
+
+			It("doesn't fail to render", func() {
+				Ω(err).Should(BeNil())
+			})
+
+			It("renders the correct string", func() {
+				Ω(result).Should(Equal("Hello, Mundo!"))
 			})
 		})
 	})

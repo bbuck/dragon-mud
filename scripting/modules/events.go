@@ -22,7 +22,7 @@ var Events = map[string]interface{}{
 
 		var data events.Data
 		if dataVal.IsTable() {
-			data = events.Data(dataVal.ToMap())
+			data = events.Data(dataVal.AsMapStringInterface())
 		}
 
 		lpool := engine.GetGlobal(keys.Pool)
