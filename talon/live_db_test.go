@@ -66,7 +66,7 @@ var _ = Describe("LiveDB", func() {
 		})
 
 		It("doesn't fail", func() {
-			Ω(err).To(BeNil())
+			Ω(err).Should(BeNil())
 		})
 	})
 
@@ -87,7 +87,7 @@ var _ = Describe("LiveDB", func() {
 				})
 
 				It("should not fail", func() {
-					Ω(err).To(BeNil())
+					Ω(err).Should(BeNil())
 				})
 			})
 
@@ -97,46 +97,46 @@ var _ = Describe("LiveDB", func() {
 
 					result, err := db.Cypher(`CREATE (:TalonSingleNodeTest {hello: "world"})`).Exec()
 
-					Ω(err).ToNot(HaveOccurred())
-					Ω(result.Stats.LabelsAdded).To(BeEquivalentTo(1))
-					Ω(result.Stats.NodesCreated).To(BeEquivalentTo(1))
-					Ω(result.Stats.PropertiesSet).To(BeEquivalentTo(1))
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(result.Stats.LabelsAdded).Should(BeEquivalentTo(1))
+					Ω(result.Stats.NodesCreated).Should(BeEquivalentTo(1))
+					Ω(result.Stats.PropertiesSet).Should(BeEquivalentTo(1))
 
 					By("accessing the node")
 
 					rows, err := db.Cypher(`MATCH (n:TalonSingleNodeTest) RETURN n`).Query()
 					defer rows.Close()
 
-					Ω(err).ToNot(HaveOccurred())
-					Ω(rows).ToNot(BeNil())
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(rows).ShouldNot(BeNil())
 
 					row, err := rows.Next()
 
 					// examine rows
-					Ω(err).ToNot(HaveOccurred())
-					Ω(row).To(HaveLen(1))
-					Ω(row[0].Type()).To(Equal(EntityNode))
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(row).Should(HaveLen(1))
+					Ω(row[0].Type()).Should(Equal(EntityNode))
 
 					// examine node
 					node := row[0].(*Node)
-					Ω(node.Labels).To(HaveLen(1))
-					Ω(node.Labels).To(ContainElement("TalonSingleNodeTest"))
-					Ω(node.Properties).To(HaveLen(1))
-					Ω(node.Properties).To(HaveKey("hello"))
-					Ω(node.Properties["hello"]).To(Equal("world"))
+					Ω(node.Labels).Should(HaveLen(1))
+					Ω(node.Labels).Should(ContainElement("TalonSingleNodeTest"))
+					Ω(node.Properties).Should(HaveLen(1))
+					Ω(node.Properties).Should(HaveKey("hello"))
+					Ω(node.Properties["hello"]).Should(Equal("world"))
 
 					row, err = rows.Next()
 
-					Ω(row).To(HaveLen(0))
-					Ω(err).To(MatchError(io.EOF))
+					Ω(row).Should(HaveLen(0))
+					Ω(err).Should(MatchError(io.EOF))
 
 					By("deleting nodes")
 
 					result, err = db.Cypher("MATCH (n:TalonSingleNodeTest) DELETE n").Exec()
 
-					Ω(err).ToNot(HaveOccurred())
-					Ω(result).ToNot(BeNil())
-					Ω(result.Stats.NodesDeleted).To(BeEquivalentTo(1))
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(result).ShouldNot(BeNil())
+					Ω(result.Stats.NodesDeleted).Should(BeEquivalentTo(1))
 				})
 			})
 
@@ -146,51 +146,51 @@ var _ = Describe("LiveDB", func() {
 
 					result, err := db.Cypher("CREATE (a:TalonSingleRelTest {id: 1}), (b:TalonSingleRelTest {id: 2})").Exec()
 
-					Ω(err).ToNot(HaveOccurred())
-					Ω(result.Stats.NodesCreated).To(BeEquivalentTo(2))
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(result.Stats.NodesCreated).Should(BeEquivalentTo(2))
 
 					By("creating relationship")
 
 					result, err = db.Cypher(`MATCH (a:TalonSingleRelTest {id: 1}), (b:TalonSingleRelTest {id: 2}) CREATE (a)-[:TALON_TEST_RELATIONSHIP {hello: "world"}]->(b)`).Exec()
 
-					Ω(err).ToNot(HaveOccurred())
-					Ω(result.Stats.RelationshipsCreated).To(BeEquivalentTo(1))
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(result.Stats.RelationshipsCreated).Should(BeEquivalentTo(1))
 
 					By("fetching the relationship")
 
 					rows, err := db.Cypher("MATCH ()-[r:TALON_TEST_RELATIONSHIP]->() RETURN r").Query()
 					defer rows.Close()
 
-					Ω(err).ToNot(HaveOccurred())
-					Ω(rows).ToNot(BeNil())
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(rows).ShouldNot(BeNil())
 
 					row, err := rows.Next()
 
-					Ω(err).ToNot(HaveOccurred())
-					Ω(row).To(HaveLen(1))
-					Ω(row[0].Type()).To(Equal(EntityRelationship))
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(row).Should(HaveLen(1))
+					Ω(row[0].Type()).Should(Equal(EntityRelationship))
 
 					rel := row[0].(*Relationship)
-					Ω(rel.Name).To(Equal("TALON_TEST_RELATIONSHIP"))
-					Ω(rel.StartNodeID).To(BeNumerically(">", 0))
-					Ω(rel.EndNodeID).To(And(
+					Ω(rel.Name).Should(Equal("TALON_TEST_RELATIONSHIP"))
+					Ω(rel.StartNodeID).Should(BeNumerically(">", 0))
+					Ω(rel.EndNodeID).Should(And(
 						BeNumerically(">", 0),
 						Not(Equal(rel.StartNodeID)),
 					))
-					Ω(rel.Properties).To(HaveKey("hello"))
-					Ω(rel.Properties["hello"]).To(Equal("world"))
+					Ω(rel.Properties).Should(HaveKey("hello"))
+					Ω(rel.Properties["hello"]).Should(Equal("world"))
 
 					row, err = rows.Next()
-					Ω(row).To(HaveLen(0))
-					Ω(err).To(MatchError(io.EOF))
+					Ω(row).Should(HaveLen(0))
+					Ω(err).Should(MatchError(io.EOF))
 
 					By("deleting the relationship")
 
 					result, err = db.Cypher("MATCH (n)-[r:TALON_TEST_RELATIONSHIP]->(n2) DELETE r, n, n2").Exec()
 
-					Ω(err).ToNot(HaveOccurred())
-					Ω(result.Stats.NodesDeleted).To(BeEquivalentTo(2))
-					Ω(result.Stats.RelationshipsDeleted).To(BeEquivalentTo(1))
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(result.Stats.NodesDeleted).Should(BeEquivalentTo(2))
+					Ω(result.Stats.RelationshipsDeleted).Should(BeEquivalentTo(1))
 				})
 			})
 		})

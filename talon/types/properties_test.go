@@ -19,7 +19,7 @@ var _ = Describe("Properties", func() {
 	Describe("QueryString", func() {
 		Context("when the property map is empty", func() {
 			It("is just an empty string", func() {
-				Ω(p.QueryString()).To(Equal(""))
+				Ω(p.QueryString()).Should(Equal(""))
 			})
 		})
 
@@ -29,7 +29,7 @@ var _ = Describe("Properties", func() {
 			})
 
 			It("is a key-insertion pairing", func() {
-				Ω(p.QueryString()).To(Equal(`{one: {one}}`))
+				Ω(p.QueryString()).Should(Equal(`{one: {one}}`))
 			})
 		})
 
@@ -40,7 +40,7 @@ var _ = Describe("Properties", func() {
 			})
 
 			It("is a key-insertion pairing", func() {
-				Ω(p.QueryString()).To(Equal(`{one: {one}, three: {three}}`))
+				Ω(p.QueryString()).Should(Equal(`{one: {one}, three: {three}}`))
 			})
 		})
 
@@ -53,7 +53,7 @@ var _ = Describe("Properties", func() {
 			})
 
 			It("is a key-insertion pairing", func() {
-				Ω(p.QueryString()).To(Equal(`{one: {one}}`))
+				Ω(p.QueryString()).Should(Equal(`{one: {one}}`))
 			})
 		})
 	})

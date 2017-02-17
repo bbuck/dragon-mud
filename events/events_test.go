@@ -21,7 +21,7 @@ var _ = Describe("Events", func() {
 
 			em.Emit("test1", nil)
 
-			Ω(<-c).To(Equal(true))
+			Ω(<-c).Should(Equal(true))
 			close(c)
 			close(done)
 		})
@@ -48,9 +48,9 @@ var _ = Describe("Events", func() {
 
 			em.Emit("test2", nil)
 
-			Ω(<-c).To(Equal(1))
-			Ω(<-c).To(Equal(2))
-			Ω(<-c).To(Equal(3))
+			Ω(<-c).Should(Equal(1))
+			Ω(<-c).Should(Equal(2))
+			Ω(<-c).Should(Equal(3))
 			close(c)
 			close(done)
 		})
@@ -111,9 +111,9 @@ var _ = Describe("Events", func() {
 
 			em.Emit("test3", NewData())
 
-			Ω(<-c).To(Equal(1))
-			Ω(<-c).To(Equal(2))
-			Ω(<-c).To(Equal(3))
+			Ω(<-c).Should(Equal(1))
+			Ω(<-c).Should(Equal(2))
+			Ω(<-c).Should(Equal(3))
 			close(c)
 			close(done)
 		})
@@ -127,7 +127,7 @@ var _ = Describe("Events", func() {
 			}))
 
 			em.Emit("test4", nil)
-			Ω(<-c).To(Equal(true))
+			Ω(<-c).Should(Equal(true))
 
 			// close and emit again, a panic from writing to closed channel is
 			// the failure we're looking for.
@@ -153,7 +153,7 @@ var _ = Describe("Events", func() {
 			}))
 
 			em.Emit("test5", nil)
-			Ω(<-c).To(Equal(1))
+			Ω(<-c).Should(Equal(1))
 			close(done)
 		})
 
