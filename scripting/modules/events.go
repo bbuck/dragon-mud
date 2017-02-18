@@ -6,8 +6,8 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/bbuck/dragon-mud/events"
 	"github.com/bbuck/dragon-mud/logger"
-	"github.com/bbuck/dragon-mud/scripting/engine"
 	"github.com/bbuck/dragon-mud/scripting/keys"
+	"github.com/bbuck/dragon-mud/scripting/lua"
 	"github.com/bbuck/dragon-mud/scripting/pool"
 )
 
@@ -16,9 +16,9 @@ var eventsLog = logger.LogWithSource("lua(events)")
 // Events is a module for emitting and receiving events in Lua.
 var Events = map[string]interface{}{
 	"Halt": events.ErrHalt,
-	"emit": func(engine *engine.Lua) int {
-		dataVal := engine.PopArg()
-		evt := engine.PopArg().AsString()
+	"emit": func(engine *lua.Engine) int {
+		dataVal := engine.PopValue()
+		evt := engine.PopValue().AsString()
 
 		var data events.Data
 		if dataVal.IsTable() {
@@ -38,9 +38,9 @@ var Events = map[string]interface{}{
 
 		return 0
 	},
-	"on": func(engine *engine.Lua) int {
-		fn := engine.PopArg()
-		evt := engine.PopArg().AsString()
+	"on": func(engine *lua.Engine) int {
+		fn := engine.PopValue()
+		evt := engine.PopValue().AsString()
 
 		if evt != "" {
 			emitter := emitterForEngine(engine)
@@ -52,9 +52,9 @@ var Events = map[string]interface{}{
 
 		return 0
 	},
-	"once": func(engine *engine.Lua) int {
-		fn := engine.PopArg()
-		evt := engine.PopArg().AsString()
+	"once": func(engine *lua.Engine) int {
+		fn := engine.PopValue()
+		evt := engine.PopValue().AsString()
 
 		if evt != "" {
 			emitter := emitterForEngine(engine)
@@ -71,14 +71,14 @@ var Events = map[string]interface{}{
 func emitToPool(p *pool.EnginePool, evt string, data events.Data) {
 	eng := p.Get()
 	defer eng.Release()
-	emitter := emitterForEngine(eng.Lua)
+	emitter := emitterForEngine(eng.Engine)
 	done := emitter.Emit(evt, data)
 	<-done
 }
 
 type luaHandler struct {
-	engine *engine.Lua
-	fn     *engine.LuaValue
+	engine *lua.Engine
+	fn     *lua.Value
 }
 
 func (lh *luaHandler) Call(d events.Data) error {
@@ -100,7 +100,7 @@ func (lh *luaHandler) Call(d events.Data) error {
 	return nil
 }
 
-func emitterForEngine(engine *engine.Lua) *events.Emitter {
+func emitterForEngine(engine *lua.Engine) *events.Emitter {
 	lem := engine.GetGlobal(keys.Emitter)
 	if em, ok := lem.Interface().(*events.Emitter); ok {
 		return em
@@ -109,7 +109,7 @@ func emitterForEngine(engine *engine.Lua) *events.Emitter {
 	return newEmitterForEngine(engine)
 }
 
-func newEmitterForEngine(engine *engine.Lua) *events.Emitter {
+func newEmitterForEngine(engine *lua.Engine) *events.Emitter {
 	name := engine.GetGlobal(keys.EngineID).AsString()
 	if name == "" {
 		name = "Unknown Engine"

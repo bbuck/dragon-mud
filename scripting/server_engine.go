@@ -2,10 +2,10 @@
 
 package scripting
 
-import "github.com/bbuck/dragon-mud/scripting/engine"
+import "github.com/bbuck/dragon-mud/scripting/lua"
 
-func newServerEngine() *engine.Lua {
-	engine := engine.NewLua()
+func newServerEngine() *lua.Engine {
+	engine := lua.NewEngine()
 	engine.OpenChannel()
 	engine.OpenCoroutine()
 	engine.OpenMath()

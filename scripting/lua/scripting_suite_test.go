@@ -1,4 +1,4 @@
-package engine_test
+package lua_test
 
 import (
 	"fmt"

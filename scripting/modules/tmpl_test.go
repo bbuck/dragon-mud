@@ -2,7 +2,7 @@ package modules_test
 
 import (
 	"github.com/bbuck/dragon-mud/scripting"
-	"github.com/bbuck/dragon-mud/scripting/engine"
+	"github.com/bbuck/dragon-mud/scripting/lua"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -22,14 +22,14 @@ var script = `
 
 var _ = Describe("tmpl Module", func() {
 	var (
-		e      *engine.Lua
+		e      *lua.Engine
 		result string
-		values []*engine.LuaValue
+		values []*lua.Value
 		ok     bool
 		err    error
 	)
 
-	e = engine.NewLua()
+	e = lua.NewEngine()
 	scripting.OpenTmpl(e)
 	e.DoString(script)
 

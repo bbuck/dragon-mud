@@ -2,14 +2,14 @@ package modules_test
 
 import (
 	"github.com/bbuck/dragon-mud/scripting"
-	"github.com/bbuck/dragon-mud/scripting/engine"
+	"github.com/bbuck/dragon-mud/scripting/lua"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Random", func() {
-	e := engine.NewLua()
+	e := lua.NewEngine()
 	scripting.OpenRandom(e)
 	e.DoString(`
         local random = require("random")

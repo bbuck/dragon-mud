@@ -9,7 +9,7 @@ import (
 
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/random"
-	"github.com/bbuck/dragon-mud/scripting/engine"
+	"github.com/bbuck/dragon-mud/scripting/lua"
 	"github.com/pzduniak/argon2"
 	"github.com/spf13/viper"
 )
@@ -24,18 +24,18 @@ var passwordLog = logger.LogWithSource("lua(password)")
 //     iteration : number
 //       a number value used to determine the number of hash iterations over the
 //       password to produce a hash
-//   getRandomParams()
+//   getRandomParams(): table (see options)
 // 	   return a table with two keys, 'salt' and 'iterations' that have been
 //     cyrptographically secure randomly generated for use with hash and isValid.
-//   hash(password: string, options: table)
+//   hash(password: string, options: table): string
 //     hashes the plain text password using the argon2i algorith with the data
 //     in the provided table. The table must have a 'salt' and 'iterations'
 //     field.
-//   isValid(password: string, hash: string, options: table)
+//   isValid(password: string, hash: string, options: table): string
 //     hashes the password using the options given and compares the output hash
 //     to the given hash, true means the given password matches the hash
 var Password = map[string]interface{}{
-	"getRandomParams": func(engine *engine.Lua) int {
+	"getRandomParams": func(engine *lua.Engine) int {
 		num, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
 		successful := engine.True()
 		if err != nil {
@@ -64,7 +64,7 @@ var Password = map[string]interface{}{
 		return 2
 	},
 
-	"hash": func(engine *engine.Lua) int {
+	"hash": func(engine *lua.Engine) int {
 		table := engine.PopTable()
 		password := engine.PopString()
 
@@ -85,7 +85,7 @@ var Password = map[string]interface{}{
 		return 2
 	},
 
-	"isValid": func(engine *engine.Lua) int {
+	"isValid": func(engine *lua.Engine) int {
 		params := engine.PopTable()
 		hashed := engine.PopString()
 		password := engine.PopString()

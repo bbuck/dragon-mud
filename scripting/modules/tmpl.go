@@ -3,7 +3,7 @@ package modules
 import (
 	"github.com/Sirupsen/logrus"
 	"github.com/bbuck/dragon-mud/logger"
-	"github.com/bbuck/dragon-mud/scripting/engine"
+	"github.com/bbuck/dragon-mud/scripting/lua"
 	"github.com/bbuck/dragon-mud/text/tmpl"
 )
 
@@ -32,7 +32,7 @@ var Tmpl = map[string]interface{}{
 
 		return err == nil
 	},
-	"render": func(engine *engine.Lua) int {
+	"render": func(engine *lua.Engine) int {
 		data := engine.PopTable()
 		name := engine.PopString()
 

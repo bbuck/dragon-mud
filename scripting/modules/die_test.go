@@ -4,13 +4,13 @@ import (
 	"fmt"
 
 	"github.com/bbuck/dragon-mud/scripting"
-	"github.com/bbuck/dragon-mud/scripting/engine"
+	"github.com/bbuck/dragon-mud/scripting/lua"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-func testDie(e *engine.Lua, method string, min, max float64) {
+func testDie(e *lua.Engine, method string, min, max float64) {
 	Describe(fmt.Sprintf("%s()", method), func() {
 		res, err := e.Call("callSimple", 1, method)
 		var result float64
@@ -37,7 +37,7 @@ func validateRange(i interface{}, min, max float64) {
 }
 
 var _ = Describe("Die", func() {
-	e := engine.NewLua()
+	e := lua.NewEngine()
 	scripting.OpenDie(e)
 	e.DoString(`
 		local die = require("die")
