@@ -88,7 +88,7 @@ func (v *Value) AsMapStringInterface() map[string]interface{} {
 // extracting Go values were possible and preserving references to tables.
 func (v *Value) AsSliceInterface() []interface{} {
 	if v.IsTable() {
-		var s []interface{}
+		s := make([]interface{}, 0)
 		len := v.Len()
 		for i := 1; i <= len; i++ {
 			lv := v.Get(i)

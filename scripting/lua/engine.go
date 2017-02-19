@@ -180,9 +180,8 @@ func (e *Engine) Get(n int) *Value {
 // This method will return a Value pointer that can then be converted into
 // an appropriate type.
 func (e *Engine) PopValue() *Value {
-	lv := e.state.Get(-1)
+	val := e.Get(-1)
 	e.state.Pop(1)
-	val := e.newValue(lv)
 	if val.IsTable() {
 		val.owner = e
 	}

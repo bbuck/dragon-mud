@@ -40,3 +40,8 @@ func OpenEvents(e *lua.Engine) {
 func OpenLog(e *lua.Engine) {
 	e.RegisterModule("log", modules.Log)
 }
+
+// OpenSutil registers the string utility library with the engine.
+func OpenSutil(e *lua.Engine) {
+	e.RegisterModule("sutil", modules.Sutil)
+}
