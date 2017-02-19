@@ -1,9 +1,9 @@
-package engine_test
+package lua_test
 
 import (
 	"fmt"
 
-	. "github.com/bbuck/dragon-mud/scripting/engine"
+	. "github.com/bbuck/dragon-mud/scripting/lua"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -12,7 +12,7 @@ import (
 
 var _ = Describe("LuaValue", func() {
 	var (
-		engine *Lua
+		engine *Engine
 		str    = "testing"
 		i      = int(10)
 		i64    = int64(100)
@@ -22,12 +22,12 @@ var _ = Describe("LuaValue", func() {
 			return a + b
 		}
 	)
-	value := func(iface interface{}) *LuaValue {
+	value := func(iface interface{}) *Value {
 		return engine.ValueFor(iface)
 	}
 
 	BeforeEach(func() {
-		engine = NewLua()
+		engine = NewEngine()
 	})
 
 	AfterEach(func() {
@@ -155,7 +155,7 @@ var _ = Describe("LuaValue", func() {
 	)
 
 	Context("with a table as a list", func() {
-		var list *LuaValue
+		var list *Value
 
 		BeforeEach(func() {
 			list = engine.NewTable()
@@ -182,7 +182,7 @@ var _ = Describe("LuaValue", func() {
 
 		Context("when calling functions on the list", func() {
 			var (
-				results []*LuaValue
+				results []*Value
 				err     error
 			)
 
@@ -211,7 +211,7 @@ var _ = Describe("LuaValue", func() {
 			)
 
 			BeforeEach(func() {
-				list.ForEach(func(key, val *LuaValue) {
+				list.ForEach(func(key, val *Value) {
 					i := int(key.AsNumber())
 					switch i {
 					case 1:
@@ -260,7 +260,7 @@ var _ = Describe("LuaValue", func() {
 
 	Describe("AsMapStringInterface()", func() {
 		var (
-			table *LuaValue
+			table *Value
 			m     map[string]interface{}
 		)
 
@@ -290,7 +290,7 @@ var _ = Describe("LuaValue", func() {
 
 	Describe("AsSliceInterface()", func() {
 		var (
-			table *LuaValue
+			table *Value
 			s     []interface{}
 		)
 

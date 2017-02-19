@@ -1,6 +1,6 @@
 // Copyright (c) 2016-2017 Brandon Buck
 
-package engine
+package lua
 
 // ScriptableObject defines an interface that returns an object to represent
 // it in a script. For example, in game scripts should not have access to a full

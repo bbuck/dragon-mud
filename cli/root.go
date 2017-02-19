@@ -5,7 +5,7 @@ package cli
 import "github.com/spf13/cobra"
 
 // RootCmd is the root command for the command line interface. An entry point
-// for the remaind of the CLI.
+// for the remainder of the CLI.
 var RootCmd = &cobra.Command{
 	Use:   "dragon",
 	Short: "DragonMUD is a Go based MUD server library.",

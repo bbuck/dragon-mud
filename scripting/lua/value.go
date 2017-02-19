@@ -1,31 +1,31 @@
 // Copyright (c) 2016-2017 Brandon Buck
 
-package engine
+package lua
 
 import (
 	"github.com/layeh/gopher-luar"
 	"github.com/yuin/gopher-lua"
 )
 
-// LuaValue is a utility wrapper for lua.LValue that provies conveinient methods
+// Value is a utility wrapper for lua.LValue that provies conveinient methods
 // for casting.
-type LuaValue struct {
+type Value struct {
 	lval  lua.LValue
-	owner *Lua
+	owner *Engine
 }
 
 // Nil represents the Lua nil value.
-var Nil = &LuaValue{lval: lua.LNil}
+var Nil = &Value{lval: lua.LNil}
 
 // String makes Value conform to Stringer
-func (v *LuaValue) String() string {
+func (v *Value) String() string {
 	return v.lval.String()
 }
 
 // AsRaw returns the best associated Go type, ingoring functions and any other
 // odd types. Only concerns itself with string, bool, nil, number and user data
 // types. Tables are again, ignored.
-func (v *LuaValue) AsRaw() interface{} {
+func (v *Value) AsRaw() interface{} {
 	switch v.lval.Type() {
 	case lua.LTString:
 		return v.AsString()
@@ -43,34 +43,34 @@ func (v *LuaValue) AsRaw() interface{} {
 }
 
 // AsString returns the LValue as a Go string
-func (v *LuaValue) AsString() string {
+func (v *Value) AsString() string {
 	return lua.LVAsString(v.lval)
 }
 
 // AsFloat returns the LValue as a Go float64.
 // This method will try to convert the Lua value to a number if possible, if
 // not then LuaNumber(0) is returned.
-func (v *LuaValue) AsFloat() float64 {
+func (v *Value) AsFloat() float64 {
 	return float64(lua.LVAsNumber(v.lval))
 }
 
 // AsNumber is an alias for AsFloat (Lua calls them "numbers")
-func (v *LuaValue) AsNumber() float64 {
+func (v *Value) AsNumber() float64 {
 	return v.AsFloat()
 }
 
 // AsBool returns the Lua boolean representation for an object (this works for
 // non bool Values)
-func (v *LuaValue) AsBool() bool {
+func (v *Value) AsBool() bool {
 	return lua.LVAsBool(v.lval)
 }
 
 // AsMapStringInterface will work on a Lua Table to convert it into a go
 // map[string]interface.
-func (v *LuaValue) AsMapStringInterface() map[string]interface{} {
+func (v *Value) AsMapStringInterface() map[string]interface{} {
 	if v.IsTable() {
 		result := make(map[string]interface{})
-		v.ForEach(func(key, value *LuaValue) {
+		v.ForEach(func(key, value *Value) {
 			var val interface{} = value.AsRaw()
 			if value.IsTable() {
 				val = value
@@ -86,9 +86,9 @@ func (v *LuaValue) AsMapStringInterface() map[string]interface{} {
 
 // AsSliceInterface will convert the Lua table value to a []interface{},
 // extracting Go values were possible and preserving references to tables.
-func (v *LuaValue) AsSliceInterface() []interface{} {
+func (v *Value) AsSliceInterface() []interface{} {
 	if v.IsTable() {
-		var s []interface{}
+		s := make([]interface{}, 0)
 		len := v.Len()
 		for i := 1; i <= len; i++ {
 			lv := v.Get(i)
@@ -106,71 +106,71 @@ func (v *LuaValue) AsSliceInterface() []interface{} {
 }
 
 // IsNil will only return true if the Value wraps LNil.
-func (v *LuaValue) IsNil() bool {
+func (v *Value) IsNil() bool {
 	return v.lval.Type() == lua.LTNil
 }
 
 // IsFalse is similar to AsBool except it returns if the Lua value would be
 // considered false in Lua.
-func (v *LuaValue) IsFalse() bool {
+func (v *Value) IsFalse() bool {
 	return lua.LVIsFalse(v.lval)
 }
 
 // IsTrue returns whether or not this is a truthy value or not.
-func (v *LuaValue) IsTrue() bool {
+func (v *Value) IsTrue() bool {
 	return !v.IsFalse()
 }
 
 // The following methods allow for type detection
 
 // IsNumber returns true if the stored value is a numeric value.
-func (v *LuaValue) IsNumber() bool {
+func (v *Value) IsNumber() bool {
 	return v.lval.Type() == lua.LTNumber
 }
 
 // IsBool returns true if the stored value is a boolean value.
-func (v *LuaValue) IsBool() bool {
+func (v *Value) IsBool() bool {
 	return v.lval.Type() == lua.LTBool
 }
 
 // IsFunction returns true if the stored value is a function.
-func (v *LuaValue) IsFunction() bool {
+func (v *Value) IsFunction() bool {
 	return v.lval.Type() == lua.LTFunction
 }
 
 // IsString returns true if the stored value is a string.
-func (v *LuaValue) IsString() bool {
+func (v *Value) IsString() bool {
 	return v.lval.Type() == lua.LTString
 }
 
 // IsTable returns true if the stored value is a table.
-func (v *LuaValue) IsTable() bool {
+func (v *Value) IsTable() bool {
 	return v.lval.Type() == lua.LTTable
 }
 
 // The following methods allow LTable values to be modified through Go.
 
 // asTable converts the Value into an LTable.
-func (v *LuaValue) asTable() (t *lua.LTable) {
+func (v *Value) asTable() (t *lua.LTable) {
 	t, _ = v.lval.(*lua.LTable)
 
 	return
 }
 
 // isUserData returns a bool if the Value is an LUserData
-func (v *LuaValue) isUserData() bool {
+func (v *Value) isUserData() bool {
 	return v.lval.Type() == lua.LTUserData
 }
 
 // asUserData converts the Value into an LUserData
-func (v *LuaValue) asUserData() (t *lua.LUserData) {
+func (v *Value) asUserData() (t *lua.LUserData) {
 	t, _ = v.lval.(*lua.LUserData)
 
 	return
 }
 
 // Append maps to lua.LTable.Append
-func (v *LuaValue) Append(value interface{}) {
+func (v *Value) Append(value interface{}) {
 	if v.IsTable() {
 		val := getLValue(v.owner, value)
 
@@ -180,7 +180,7 @@ func (v *LuaValue) Append(value interface{}) {
 }
 
 // ForEach maps to lua.LTable.ForEach
-func (v *LuaValue) ForEach(cb func(*LuaValue, *LuaValue)) {
+func (v *Value) ForEach(cb func(*Value, *Value)) {
 	if v.IsTable() {
 		actualCb := func(key lua.LValue, val lua.LValue) {
 			cb(v.owner.newValue(key), v.owner.newValue(val))
@@ -191,7 +191,7 @@ func (v *LuaValue) ForEach(cb func(*LuaValue, *LuaValue)) {
 }
 
 // Insert maps to lua.LTable.Insert
-func (v *LuaValue) Insert(i int, value interface{}) {
+func (v *Value) Insert(i int, value interface{}) {
 	if v.IsTable() {
 		val := getLValue(v.owner, value)
 
@@ -201,7 +201,7 @@ func (v *LuaValue) Insert(i int, value interface{}) {
 }
 
 // Len maps to lua.LTable.Len
-func (v *LuaValue) Len() int {
+func (v *Value) Len() int {
 	if v.IsTable() {
 		t := v.asTable()
 
@@ -212,7 +212,7 @@ func (v *LuaValue) Len() int {
 }
 
 // MaxN maps to lua.LTable.MaxN
-func (v *LuaValue) MaxN() int {
+func (v *Value) MaxN() int {
 	if v.IsTable() {
 		t := v.asTable()
 
@@ -223,7 +223,7 @@ func (v *LuaValue) MaxN() int {
 }
 
 // Next maps to lua.LTable.Next
-func (v *LuaValue) Next(key interface{}) (*LuaValue, *LuaValue) {
+func (v *Value) Next(key interface{}) (*Value, *Value) {
 	if v.IsTable() {
 		val := getLValue(v.owner, key)
 
@@ -237,7 +237,7 @@ func (v *LuaValue) Next(key interface{}) (*LuaValue, *LuaValue) {
 }
 
 // Remove maps to lua.LTable.Remove
-func (v *LuaValue) Remove(pos int) *LuaValue {
+func (v *Value) Remove(pos int) *Value {
 	if v.IsTable() {
 		t := v.asTable()
 		ret := t.Remove(pos)
@@ -249,9 +249,9 @@ func (v *LuaValue) Remove(pos int) *LuaValue {
 }
 
 // Helper method for Set and RawSet
-func getLValue(e *Lua, item interface{}) lua.LValue {
+func getLValue(e *Engine, item interface{}) lua.LValue {
 	switch val := item.(type) {
-	case (*LuaValue):
+	case (*Value):
 		return val.lval
 	case lua.LValue:
 		return val
@@ -266,7 +266,7 @@ func getLValue(e *Lua, item interface{}) lua.LValue {
 
 // Get returns the value associated with the key given if the LuaValue wraps
 // a table.
-func (v *LuaValue) Get(key interface{}) *LuaValue {
+func (v *Value) Get(key interface{}) *Value {
 	if v.IsTable() {
 		k := getLValue(v.owner, key)
 		val := v.owner.state.GetTable(v.lval, k)
@@ -279,7 +279,7 @@ func (v *LuaValue) Get(key interface{}) *LuaValue {
 
 // Set sets the value of a given key on the table, this method checks for
 // validity of array keys and handles them accordingly.
-func (v *LuaValue) Set(goKey interface{}, val interface{}) {
+func (v *Value) Set(goKey interface{}, val interface{}) {
 	if v.IsTable() {
 		key := getLValue(v.owner, goKey)
 		lval := getLValue(v.owner, val)
@@ -290,7 +290,7 @@ func (v *LuaValue) Set(goKey interface{}, val interface{}) {
 
 // RawSet bypasses any checks for key existence and sets the value onto the
 // table with the given key.
-func (v *LuaValue) RawSet(goKey interface{}, val interface{}) {
+func (v *Value) RawSet(goKey interface{}, val interface{}) {
 	if v.IsTable() {
 		key := getLValue(v.owner, goKey)
 		lval := getLValue(v.owner, val)
@@ -302,7 +302,7 @@ func (v *LuaValue) RawSet(goKey interface{}, val interface{}) {
 // The following provde methods for LUserData
 
 // Interface returns the value of the LUserData
-func (v *LuaValue) Interface() interface{} {
+func (v *Value) Interface() interface{} {
 	if v.isUserData() {
 		t := v.asUserData()
 
@@ -316,7 +316,7 @@ func (v *LuaValue) Interface() interface{} {
 
 // FuncLocalName is a function that returns the local name of a LFunction type
 // if this Value objects holds an LFunction.
-func (v *LuaValue) FuncLocalName(regno, pc int) (string, bool) {
+func (v *Value) FuncLocalName(regno, pc int) (string, bool) {
 	if f, ok := v.lval.(*lua.LFunction); ok {
 		return f.LocalName(regno, pc)
 	}
@@ -326,7 +326,7 @@ func (v *LuaValue) FuncLocalName(regno, pc int) (string, bool) {
 
 // Call invokes the LuaValue as a function (if it is one) with similar behavior
 // to engine.Call
-func (v *LuaValue) Call(retCount int, argList ...interface{}) ([]*LuaValue, error) {
+func (v *Value) Call(retCount int, argList ...interface{}) ([]*Value, error) {
 	if v.IsFunction() && v.owner != nil {
 		p := lua.P{
 			Fn:      v.lval,
@@ -343,7 +343,7 @@ func (v *LuaValue) Call(retCount int, argList ...interface{}) ([]*LuaValue, erro
 			return nil, err
 		}
 
-		retVals := make([]*LuaValue, retCount)
+		retVals := make([]*Value, retCount)
 		for i := 0; i < retCount; i++ {
 			retVals[i] = v.owner.ValueFor(v.owner.state.Get(-1))
 		}
@@ -351,5 +351,5 @@ func (v *LuaValue) Call(retCount int, argList ...interface{}) ([]*LuaValue, erro
 		return retVals, nil
 	}
 
-	return make([]*LuaValue, 0), nil
+	return make([]*Value, 0), nil
 }

@@ -2,7 +2,7 @@ package modules_test
 
 import (
 	"github.com/bbuck/dragon-mud/scripting"
-	"github.com/bbuck/dragon-mud/scripting/engine"
+	"github.com/bbuck/dragon-mud/scripting/lua"
 	"github.com/bbuck/dragon-mud/scripting/keys"
 
 	. "github.com/onsi/ginkgo"
@@ -10,7 +10,7 @@ import (
 )
 
 var _ = Describe("Log", func() {
-	e := engine.NewLua()
+	e := lua.NewEngine()
 	e.SetGlobal(keys.EngineID, "test engine")
 	scripting.OpenLog(e)
 	e.DoString(`log = require("log")`)

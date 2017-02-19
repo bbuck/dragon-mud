@@ -3,34 +3,42 @@ package modules
 import (
 	"github.com/Sirupsen/logrus"
 	"github.com/bbuck/dragon-mud/logger"
-	"github.com/bbuck/dragon-mud/scripting/engine"
 	"github.com/bbuck/dragon-mud/scripting/keys"
+	"github.com/bbuck/dragon-mud/scripting/lua"
 )
 
 // Log is the definition of the Lua logging module.
+//   error(msg: string[, data: table])
+//     log message with data on the error level, data can be omitted or nil
+//   warn(msg: string[, data: table])
+//     log message with data on the warn level, data can be omitted or nil
+//   info(msg: string[, data: table])
+//     log message with data on the info level, data can be omitted or nil
+//   debug(msg: string[, data: table])
+//     log message with data on the debug level, data can be omitted or nil
 var Log = map[string]interface{}{
-	"error": func(eng *engine.Lua) int {
+	"error": func(eng *lua.Engine) int {
 		performLog(eng, func(l *logrus.Entry, msg string) {
 			l.Error(msg)
 		})
 
 		return 0
 	},
-	"warn": func(eng *engine.Lua) int {
+	"warn": func(eng *lua.Engine) int {
 		performLog(eng, func(l *logrus.Entry, msg string) {
 			l.Warn(msg)
 		})
 
 		return 0
 	},
-	"info": func(eng *engine.Lua) int {
+	"info": func(eng *lua.Engine) int {
 		performLog(eng, func(l *logrus.Entry, msg string) {
 			l.Info(msg)
 		})
 
 		return 0
 	},
-	"debug": func(eng *engine.Lua) int {
+	"debug": func(eng *lua.Engine) int {
 		performLog(eng, func(l *logrus.Entry, msg string) {
 			l.Debug(msg)
 		})
@@ -39,7 +47,7 @@ var Log = map[string]interface{}{
 	},
 }
 
-func loggerForEngine(eng *engine.Lua) *logrus.Entry {
+func loggerForEngine(eng *lua.Engine) *logrus.Entry {
 	llog := eng.GetGlobal(keys.Logger)
 	if log, ok := llog.Interface().(*logrus.Entry); ok {
 		return log
@@ -57,9 +65,9 @@ func loggerForEngine(eng *engine.Lua) *logrus.Entry {
 	return log
 }
 
-func performLog(eng *engine.Lua, fn func(*logrus.Entry, string)) {
+func performLog(eng *lua.Engine, fn func(*logrus.Entry, string)) {
 	data := eng.Nil()
-	if eng.StackSize() == 2 {
+	if eng.StackSize() >= 2 {
 		data = eng.PopTable()
 	}
 	msg := eng.PopString()

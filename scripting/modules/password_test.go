@@ -3,7 +3,7 @@ package modules_test
 import (
 	"github.com/bbuck/dragon-mud/config"
 	"github.com/bbuck/dragon-mud/scripting"
-	"github.com/bbuck/dragon-mud/scripting/engine"
+	"github.com/bbuck/dragon-mud/scripting/lua"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -11,8 +11,8 @@ import (
 
 var _ = Describe("password Module", func() {
 	var (
-		e       *engine.Lua
-		values  []*engine.LuaValue
+		e       *lua.Engine
+		values  []*lua.Value
 		result  string
 		valid   bool
 		invalid bool
@@ -37,7 +37,7 @@ var _ = Describe("password Module", func() {
 	)
 
 	config.RegisterDefaults()
-	e = engine.NewLua()
+	e = lua.NewEngine()
 	scripting.OpenPassword(e)
 	e.DoString(script)
 

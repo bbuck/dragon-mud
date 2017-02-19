@@ -6,7 +6,7 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/bbuck/dragon-mud/scripting/engine"
+	"github.com/bbuck/dragon-mud/scripting/lua"
 	"github.com/fatih/structs"
 	"github.com/valyala/fasttemplate"
 )
@@ -42,7 +42,7 @@ func ifaceToMap(i interface{}) map[string]interface{} {
 		return st.Map()
 	}
 
-	if lv, ok := i.(*engine.LuaValue); ok {
+	if lv, ok := i.(*lua.Value); ok {
 		if lv.IsTable() {
 			return lv.AsMapStringInterface()
 		}

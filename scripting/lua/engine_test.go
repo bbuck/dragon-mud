@@ -1,7 +1,7 @@
-package engine_test
+package lua_test
 
 import (
-	. "github.com/bbuck/dragon-mud/scripting/engine"
+	. "github.com/bbuck/dragon-mud/scripting/lua"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -10,7 +10,7 @@ import (
 var _ = Describe("LuaEngine", func() {
 	var (
 		err          error
-		engine       *Lua
+		engine       *Engine
 		stringScript = `
 			function hello(name)
 				return "Hello, " .. name .. "!"
@@ -19,7 +19,7 @@ var _ = Describe("LuaEngine", func() {
 	)
 
 	BeforeEach(func() {
-		engine = NewLua()
+		engine = NewEngine()
 	})
 
 	AfterEach(func() {
@@ -48,7 +48,7 @@ var _ = Describe("LuaEngine", func() {
 
 		Context("when calling a method", func() {
 			var (
-				results []*LuaValue
+				results []*Value
 				err     error
 			)
 
@@ -85,7 +85,7 @@ var _ = Describe("LuaEngine", func() {
 
 		Context("when calling a method", func() {
 			var (
-				results []*LuaValue
+				results []*Value
 				err     error
 			)
 
@@ -113,7 +113,7 @@ var _ = Describe("LuaEngine", func() {
 
 	Describe("Call()", func() {
 		var (
-			results []*LuaValue
+			results []*Value
 			err     error
 			script  = `
 				function swap(a, b)
@@ -153,7 +153,7 @@ var _ = Describe("LuaEngine", func() {
 
 	Describe("SetGlobal()", func() {
 		var (
-			results []*LuaValue
+			results []*Value
 			err     error
 		)
 
@@ -185,7 +185,7 @@ var _ = Describe("LuaEngine", func() {
 
 	Describe("GetGlobal()", func() {
 		var (
-			value *LuaValue
+			value *Value
 			err   error
 		)
 
@@ -211,7 +211,7 @@ var _ = Describe("LuaEngine", func() {
 	Describe("RegisterFunc()", func() {
 		Context("when registering a raw Go function", func() {
 			var (
-				results []*LuaValue
+				results []*Value
 				err     error
 				called  bool
 			)
@@ -247,13 +247,13 @@ var _ = Describe("LuaEngine", func() {
 
 		Context("when registering a lua specific function", func() {
 			var (
-				results []*LuaValue
+				results []*Value
 				err     error
 				called  bool
 			)
 
 			BeforeEach(func() {
-				engine.RegisterFunc("sub", func(e *Lua) int {
+				engine.RegisterFunc("sub", func(e *Engine) int {
 					second := e.PopInt64()
 					first := e.PopInt64()
 
@@ -307,7 +307,7 @@ var _ = Describe("LuaEngine", func() {
 
 		Context("calling methods by value", func() {
 			var (
-				result []*LuaValue
+				result []*Value
 				cerr   error
 			)
 
@@ -327,7 +327,7 @@ var _ = Describe("LuaEngine", func() {
 
 		Context("calling methods by pointer", func() {
 			var (
-				result []*LuaValue
+				result []*Value
 				cerr   error
 			)
 
@@ -348,11 +348,11 @@ var _ = Describe("LuaEngine", func() {
 
 	Describe("using table generators", func() {
 		var (
-			table          *LuaValue
-			results        []*LuaValue
+			table          *Value
+			results        []*Value
 			errOne, errTwo error
-			one            *LuaValue
-			two            *LuaValue
+			one            *Value
+			two            *Value
 		)
 
 		BeforeEach(func() {

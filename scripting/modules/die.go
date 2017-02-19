@@ -2,26 +2,26 @@ package modules
 
 import (
 	"github.com/bbuck/dragon-mud/random"
-	"github.com/bbuck/dragon-mud/scripting/engine"
+	"github.com/bbuck/dragon-mud/scripting/lua"
 )
 
 // Die is a module mapping that provides simulated die rolling methods to the
 // the scripting engine.
-//   d2()
+//   d2(): number
 //     simulate rolling 1d2
-//   d4()
+//   d4(): number
 //     simulate rolling 1d4
-//   d6()
+//   d6(): number
 //     simulate rolling 1d6
-//   d8()
+//   d8(): number
 //     simulate rolling 1d8
-//   d10()
+//   d10(): number
 //     simulate rolling 1d10
-//   d12()
+//   d12(): number
 //     simulate rolling 1d12
-//   d20()
+//   d20(): number
 //     simulate rolling 1d20
-//   d100()
+//   d100(): number
 //     simulate rolling 1d100
 //   roll(die: string)
 //     parse die input and roll the specified number of sided die, for example
@@ -36,7 +36,7 @@ var Die = map[string]interface{}{
 	"d12":  random.D12,
 	"d20":  random.D20,
 	"d100": random.D100,
-	"roll": func(e *engine.Lua) int {
+	"roll": func(e *lua.Engine) int {
 		str := e.PopString()
 		rolls := random.RollDie(str)
 		e.PushValue(e.TableFromSlice(rolls))

@@ -6,19 +6,19 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/bbuck/dragon-mud/scripting/engine"
 	"github.com/bbuck/dragon-mud/scripting/keys"
+	"github.com/bbuck/dragon-mud/scripting/lua"
 )
 
 // EngineMutator will modify an Engine before it goes into the pool. This can
 // run any number of scripts as necessary such as registring libraries,
 // executing code, etc...
-type EngineMutator func(*engine.Lua)
+type EngineMutator func(*lua.Engine)
 
 // PooledEngine wraps a Lua engine. It's purpose is provide a means with which
 // to return the engine to the EnginePool when it's not longer being used.
 type PooledEngine struct {
-	*engine.Lua
+	*lua.Engine
 	pool *EnginePool
 }
 
@@ -26,9 +26,9 @@ type PooledEngine struct {
 // the current PooledEngine as well as nil out the reference to the engine
 // to prevent continued usage of the engine.
 func (pe *PooledEngine) Release() {
-	if pe.Lua != nil {
-		pe.pool.engines <- pe.Lua
-		pe.Lua = nil
+	if pe.Engine != nil {
+		pe.pool.engines <- pe.Engine
+		pe.Engine = nil
 	}
 }
 
@@ -38,7 +38,7 @@ type EnginePool struct {
 	MaxPoolSize uint8
 	mutatorFn   EngineMutator
 	numEngines  uint8
-	engines     chan *engine.Lua
+	engines     chan *lua.Engine
 	mutex       *sync.Mutex
 }
 
@@ -52,7 +52,7 @@ func NewEnginePool(poolSize uint8, mutator EngineMutator) *EnginePool {
 		MaxPoolSize: poolSize,
 		mutatorFn:   mutator,
 		numEngines:  1,
-		engines:     make(chan *engine.Lua, poolSize),
+		engines:     make(chan *lua.Engine, poolSize),
 		mutex:       new(sync.Mutex),
 	}
 	ep.engines <- ep.generateEngine()
@@ -65,7 +65,7 @@ func NewEnginePool(poolSize uint8, mutator EngineMutator) *EnginePool {
 // created yet then the spawner will be invoked to spawn a new engine and return
 // that.
 func (ep *EnginePool) Get() *PooledEngine {
-	var engine *engine.Lua
+	var engine *lua.Engine
 	if len(ep.engines) > 0 {
 		engine = <-ep.engines
 	} else if ep.numEngines < ep.MaxPoolSize {
@@ -78,8 +78,8 @@ func (ep *EnginePool) Get() *PooledEngine {
 	}
 
 	pe := &PooledEngine{
-		Lua:  engine,
-		pool: ep,
+		Engine: engine,
+		pool:   ep,
 	}
 	// NOTE: precaution to prevent leaks for long running servers, not a perfect
 	//       solution. BE DILIGENT AND RELEASE YOUR ENGINES!!
@@ -88,8 +88,8 @@ func (ep *EnginePool) Get() *PooledEngine {
 	return pe
 }
 
-func (ep *EnginePool) generateEngine() *engine.Lua {
-	eng := engine.NewLua()
+func (ep *EnginePool) generateEngine() *lua.Engine {
+	eng := lua.NewEngine()
 	eng.SetGlobal(keys.Pool, ep)
 	eng.WhitelistFor(ep)
 
