@@ -24,6 +24,8 @@ var regexpCache = make(map[string]*regexp.Regexp)
 //     determines if the string ends with the given substring
 //   contains(haystack: string, needle: string): boolean
 //     determines if substring is present in the given string
+//   matches(needle: string, haystack: string): table
+//     a list of strings that match the needle (regexp)
 var Sutil = map[string]interface{}{
 	"split": func(eng *lua.Engine) int {
 		sep := eng.PopString()
