@@ -8,6 +8,14 @@ import (
 )
 
 // Log is the definition of the Lua logging module.
+//   error(msg: string[, data: table])
+//     log message with data on the error level, data can be omitted or nil
+//   warn(msg: string[, data: table])
+//     log message with data on the warn level, data can be omitted or nil
+//   info(msg: string[, data: table])
+//     log message with data on the info level, data can be omitted or nil
+//   debug(msg: string[, data: table])
+//     log message with data on the debug level, data can be omitted or nil
 var Log = map[string]interface{}{
 	"error": func(eng *lua.Engine) int {
 		performLog(eng, func(l *logrus.Entry, msg string) {
@@ -59,7 +67,7 @@ func loggerForEngine(eng *lua.Engine) *logrus.Entry {
 
 func performLog(eng *lua.Engine, fn func(*logrus.Entry, string)) {
 	data := eng.Nil()
-	if eng.StackSize() == 2 {
+	if eng.StackSize() >= 2 {
 		data = eng.PopTable()
 	}
 	msg := eng.PopString()

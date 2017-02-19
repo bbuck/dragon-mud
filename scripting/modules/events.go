@@ -14,10 +14,21 @@ import (
 var eventsLog = logger.LogWithSource("lua(events)")
 
 // Events is a module for emitting and receiving events in Lua.
+//   Halt: (go error)
+//     used to halt event exuction, bypassing failure logs
+//   emit(event: string[, data: table])
+//     emits the given event with the data, which can be nil or omitted
+//   on(event: string, handler: function)
+//     registers the given function to handle the given event
+//   once(event: string, handler: function)
+//     registers the given function to handle the given event only one time
 var Events = map[string]interface{}{
 	"Halt": events.ErrHalt,
 	"emit": func(engine *lua.Engine) int {
-		dataVal := engine.PopValue()
+		dataVal := engine.Nil()
+		if engine.StackSize() >= 2 {
+			dataVal = engine.PopValue()
+		}
 		evt := engine.PopValue().AsString()
 
 		var data events.Data
