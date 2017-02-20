@@ -157,5 +157,42 @@ var _ = Describe("Events", func() {
 			close(done)
 		})
 
+		Context("when passing nil event data", func() {
+			It("provides an empty data value", func(done Done) {
+				c := make(chan interface{})
+				em.On("test6", HandlerFunc(func(d Data) error {
+					c <- (d != nil)
+
+					return nil
+				}))
+
+				em.Emit("test6", nil)
+				Ω(<-c).Should(BeTrue())
+				close(c)
+				close(done)
+			})
+
+			It("still passes data from one handler to another", func(done Done) {
+				c := make(chan interface{})
+				em.On("test7", HandlerFunc(func(d Data) error {
+					d["set"] = 1
+
+					return nil
+				}))
+
+				em.On("test7", HandlerFunc(func(d Data) error {
+					if i, ok := d["set"]; ok {
+						c <- i
+					}
+
+					return nil
+				}))
+
+				em.Emit("test7", nil)
+				Ω(<-c).Should(Equal(1))
+				close(c)
+				close(done)
+			})
+		})
 	})
 })
