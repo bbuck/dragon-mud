@@ -90,6 +90,7 @@ func (hs *handlers) call(d Data) error {
 	return nil
 }
 
+// remove all handlers
 func (hs *handlers) clear() {
 	hs.persistent = make([]Handler, 0)
 	hs.onceHandlers = make([]Handler, 0)
@@ -174,6 +175,10 @@ func (e *Emitter) Emit(evt string, d Data) <-chan struct{} {
 			"event": evt,
 			"data":  d,
 		}).Warn("Cannot emit meta events 'before' or 'after' directly.")
+	}
+
+	if d == nil {
+		d = NewData()
 	}
 
 	done := make(chan struct{}, 1)
