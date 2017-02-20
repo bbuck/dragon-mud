@@ -99,18 +99,20 @@ func (hs *handlers) clear() {
 // Emitter represents a type capable of handling a list of callable actions to
 // act on event data.
 type Emitter struct {
-	handlers map[string]*handlers
-	mutex    *sync.RWMutex
-	log      *logrus.Entry
+	handlers         map[string]*handlers
+	mutex            *sync.RWMutex
+	log              *logrus.Entry
+	oneTimeEmissions map[string]Data
 }
 
 // NewEmitter generates a new event emitter with the given name used for logging
 // purposes.
 func NewEmitter(name string) *Emitter {
 	return &Emitter{
-		handlers: make(map[string]*handlers),
-		mutex:    new(sync.RWMutex),
-		log:      logger.LogWithSource(fmt.Sprintf("emitter(%s)", name)),
+		handlers:         make(map[string]*handlers),
+		mutex:            new(sync.RWMutex),
+		log:              logger.LogWithSource(fmt.Sprintf("emitter(%s)", name)),
+		oneTimeEmissions: make(map[string]Data),
 	}
 }
 
@@ -129,6 +131,10 @@ func (e *Emitter) On(evt string, h Handler) {
 		}
 		e.handlers[evt] = hs
 	}
+
+	if data, ok := e.oneTimeEmissions[evt]; ok {
+		h.Call(data)
+	}
 }
 
 // Once resgisters a handler for an event that will fire one time and then
@@ -138,6 +144,13 @@ func (e *Emitter) On(evt string, h Handler) {
 func (e *Emitter) Once(evt string, h Handler) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
+
+	if data, ok := e.oneTimeEmissions[evt]; ok {
+		h.Call(data)
+
+		return
+	}
+
 	if hs, ok := e.handlers[evt]; ok {
 		hs.onceHandlers = append(hs.onceHandlers, h)
 	} else {
@@ -208,6 +221,20 @@ func (e *Emitter) Emit(evt string, d Data) <-chan struct{} {
 
 		done <- struct{}{}
 	}()
+
+	return done
+}
+
+// EmitOnce is similar to emit except it's designed to handle events intended
+// that are only intended to be fired one time during the lifetime of the
+// application. Any new handlers that are added for the one time emission are
+// immediatley triggered with the data from the `EmitOnce` call.
+func (e *Emitter) EmitOnce(evt string, d Data) <-chan struct{} {
+	e.oneTimeEmissions["before:"+evt] = d
+	e.oneTimeEmissions[evt] = d
+	e.oneTimeEmissions["after:"+evt] = d
+
+	done := e.Emit(evt, d)
 
 	return done
 }

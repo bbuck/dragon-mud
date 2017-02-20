@@ -1,6 +1,8 @@
 package events_test
 
 import (
+	"time"
+
 	. "github.com/bbuck/dragon-mud/events"
 
 	. "github.com/onsi/ginkgo"
@@ -173,7 +175,7 @@ var _ = Describe("Events", func() {
 			})
 
 			It("still passes data from one handler to another", func(done Done) {
-				c := make(chan interface{})
+				c := make(chan interface{}, 1)
 				em.On("test7", HandlerFunc(func(d Data) error {
 					d["set"] = 1
 
@@ -193,6 +195,21 @@ var _ = Describe("Events", func() {
 				close(c)
 				close(done)
 			})
+		})
+
+		It("calls handler immediatley for emit once events", func(done Done) {
+			c := make(chan interface{}, 1)
+			em.EmitOnce("test8", nil)
+			time.Sleep(time.Millisecond * 500)
+			em.On("test8", HandlerFunc(func(d Data) error {
+				c <- 1
+
+				return nil
+			}))
+
+			Ω(<-c).Should(Equal(1))
+			close(c)
+			close(done)
 		})
 	})
 })
