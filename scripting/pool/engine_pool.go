@@ -90,8 +90,7 @@ func (ep *EnginePool) Get() *PooledEngine {
 
 func (ep *EnginePool) generateEngine() *lua.Engine {
 	eng := lua.NewEngine()
-	eng.SetGlobal(keys.Pool, ep)
-	eng.WhitelistFor(ep)
+	eng.Meta[keys.Pool] = ep
 
 	ep.mutatorFn(eng)
 

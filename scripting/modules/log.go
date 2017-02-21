@@ -48,19 +48,17 @@ var Log = map[string]interface{}{
 }
 
 func loggerForEngine(eng *lua.Engine) *logrus.Entry {
-	llog := eng.GetGlobal(keys.Logger)
-	if log, ok := llog.Interface().(*logrus.Entry); ok {
+	if log, ok := eng.Meta[keys.Logger].(*logrus.Entry); ok {
 		return log
 	}
 
-	name := eng.GetGlobal(keys.EngineID).AsString()
-	if name == "" {
-		name = "Unknown Engine"
+	name := "Unknown Engine"
+	if n, ok := eng.Meta[keys.EngineID].(string); ok {
+		name = n
 	}
 
 	log := logger.LogWithSource(name)
-	eng.SetGlobal(keys.Logger, log)
-	eng.WhitelistFor(log)
+	eng.Meta[keys.Logger] = log
 
 	return log
 }

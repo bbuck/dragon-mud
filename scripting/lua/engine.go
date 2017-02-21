@@ -12,6 +12,7 @@ import (
 // Engine struct stores a pointer to a gluaLState providing a simplified API.
 type Engine struct {
 	state *lua.LState
+	Meta  map[string]interface{}
 }
 
 // ScriptFunction is a type alias for a function that receives an Engine and
@@ -29,6 +30,7 @@ func NewEngine() *Engine {
 			SkipOpenLibs:        true,
 			IncludeGoStackTrace: true,
 		}),
+		Meta: make(map[string]interface{}),
 	}
 	eng.OpenBase()
 	eng.OpenPackage()
@@ -416,8 +418,6 @@ func (e *Engine) NewTable() *Value {
 // wrapScriptFunction turns a ScriptFunction into a lua.LGFunction
 func (e *Engine) wrapScriptFunction(fn ScriptFunction) lua.LGFunction {
 	return func(l *lua.LState) int {
-		e := &Engine{state: l}
-
 		return fn(e)
 	}
 }
