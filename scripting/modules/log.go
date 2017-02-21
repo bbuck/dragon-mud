@@ -1,7 +1,6 @@
 package modules
 
 import (
-	"github.com/bbuck/dragon-mud/events"
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/scripting/keys"
 	"github.com/bbuck/dragon-mud/scripting/lua"
@@ -50,10 +49,6 @@ var Log = map[string]interface{}{
 func loggerForEngine(eng *lua.Engine) logger.Log {
 	if log, ok := eng.Meta[keys.Logger].(logger.Log); ok {
 		return log
-	}
-
-	if em, ok := eng.Meta[keys.Emitter].(*events.Emitter); ok {
-		return em.Log
 	}
 
 	name := "Unknown Engine"

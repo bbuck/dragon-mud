@@ -99,7 +99,7 @@ func (hs *handlers) clear() {
 type Emitter struct {
 	handlers         map[string]*handlers
 	mutex            *sync.RWMutex
-	Log              logger.Log
+	log              logger.Log
 	oneTimeEmissions map[string]Data
 }
 
@@ -109,7 +109,7 @@ func NewEmitter(l logger.Log) *Emitter {
 	return &Emitter{
 		handlers:         make(map[string]*handlers),
 		mutex:            new(sync.RWMutex),
-		Log:              l,
+		log:              l,
 		oneTimeEmissions: make(map[string]Data),
 	}
 }
@@ -182,8 +182,8 @@ func (e *Emitter) off(evt string) {
 // data) That is written two (once) when the emission has completed.
 func (e *Emitter) Emit(evt string, d Data) <-chan struct{} {
 	if strings.HasPrefix(evt, "before:") || strings.HasPrefix(evt, "after:") {
-		if e.Log != nil {
-			e.Log.WithFields(logger.Fields{
+		if e.log != nil {
+			e.log.WithFields(logger.Fields{
 				"event": evt,
 				"data":  d,
 			}).Warn("Cannot emit meta events 'before' or 'after' directly.")
@@ -206,15 +206,15 @@ func (e *Emitter) Emit(evt string, d Data) <-chan struct{} {
 
 		if err != nil {
 			if err == ErrHalt {
-				if e.Log != nil {
-					e.Log.WithFields(logger.Fields{
+				if e.log != nil {
+					e.log.WithFields(logger.Fields{
 						"event": evt,
 						"data":  d,
 					}).Debug("Event emission halted.")
 				}
 			} else {
-				if e.Log != nil {
-					e.Log.WithFields(logger.Fields{
+				if e.log != nil {
+					e.log.WithFields(logger.Fields{
 						"error": err.Error(),
 						"event": evt,
 						"data":  d,
