@@ -16,7 +16,7 @@ func (v version) String() string {
 // Version is the struct that represents the version of DragonMUD in use.
 var Version = version{
 	Major: 0,
-	Minor: 1,
-	Patch: 0,
+	Minor: 0,
+	Patch: 1,
 	Flag:  "dev",
 }
