@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"github.com/bbuck/dragon-mud/events"
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/scripting/keys"
 	"github.com/bbuck/dragon-mud/scripting/lua"
@@ -51,7 +52,19 @@ func loggerForEngine(eng *lua.Engine) logger.Log {
 		return log
 	}
 
-	return nil
+	if em, ok := eng.Meta[keys.Emitter].(*events.Emitter); ok {
+		return em.Log
+	}
+
+	name := "Unknown Engine"
+	if n, ok := eng.Meta[keys.EngineID].(string); ok {
+		name = n
+	}
+
+	l := logger.LogWithSource(name)
+	eng.Meta[keys.Logger] = l
+
+	return l
 }
 
 func performLog(eng *lua.Engine, fn func(logger.Log, string)) {
@@ -62,10 +75,6 @@ func performLog(eng *lua.Engine, fn func(logger.Log, string)) {
 	msg := eng.PopString()
 
 	log := loggerForEngine(eng)
-
-	if log == nil {
-		return
-	}
 
 	if !data.IsNil() && data.IsTable() {
 		m := data.AsMapStringInterface()
