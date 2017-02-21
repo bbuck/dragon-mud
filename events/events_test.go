@@ -15,7 +15,7 @@ var _ = Describe("Events", func() {
 		em := NewEmitter(logger.TestLog())
 
 		It("receives emitted events", func(done Done) {
-			c := make(chan interface{})
+			c := make(chan interface{}, 1)
 			em.On("test1", HandlerFunc(func(Data) error {
 				c <- true
 
@@ -30,7 +30,7 @@ var _ = Describe("Events", func() {
 		})
 
 		It("receives before and after emitted events", func(done Done) {
-			c := make(chan interface{})
+			c := make(chan interface{}, 3)
 			em.On("before:test2", HandlerFunc(func(Data) error {
 				c <- 1
 
@@ -59,7 +59,7 @@ var _ = Describe("Events", func() {
 		})
 
 		It("transfers altered data", func(done Done) {
-			c := make(chan interface{})
+			c := make(chan interface{}, 3)
 			em.On("before:test3", HandlerFunc(func(d Data) error {
 				d["one"] = int(1)
 
@@ -122,7 +122,7 @@ var _ = Describe("Events", func() {
 		})
 
 		It("only fires once handlers one time", func(done Done) {
-			c := make(chan interface{})
+			c := make(chan interface{}, 1)
 			em.Once("test4", HandlerFunc(func(Data) error {
 				c <- true
 
@@ -141,7 +141,7 @@ var _ = Describe("Events", func() {
 		})
 
 		It("stops execution if an error is returned", func(done Done) {
-			c := make(chan interface{})
+			c := make(chan interface{}, 1)
 			em.On("test5", HandlerFunc(func(Data) error {
 				c <- 1
 				close(c)
@@ -162,7 +162,7 @@ var _ = Describe("Events", func() {
 
 		Context("when passing nil event data", func() {
 			It("provides an empty data value", func(done Done) {
-				c := make(chan interface{})
+				c := make(chan interface{}, 1)
 				em.On("test6", HandlerFunc(func(d Data) error {
 					c <- (d != nil)
 
