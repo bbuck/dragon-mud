@@ -3,12 +3,13 @@ package modules
 import (
 	"errors"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/bbuck/dragon-mud/events"
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/scripting/keys"
 	"github.com/bbuck/dragon-mud/scripting/lua"
 	"github.com/bbuck/dragon-mud/scripting/pool"
+
+	"github.com/Sirupsen/logrus"
 )
 
 var eventsLog = logger.LogWithSource("lua(events)")
@@ -36,8 +37,7 @@ var Events = map[string]interface{}{
 			data = events.Data(dataVal.AsMapStringInterface())
 		}
 
-		lpool := engine.GetGlobal(keys.Pool)
-		if p, ok := lpool.Interface().(*pool.EnginePool); ok {
+		if p, ok := engine.Meta[keys.Pool].(*pool.EnginePool); ok {
 			go emitToPool(p, evt, data)
 		} else {
 			eventsLog.WithFields(logrus.Fields{
@@ -112,8 +112,7 @@ func (lh *luaHandler) Call(d events.Data) error {
 }
 
 func emitterForEngine(engine *lua.Engine) *events.Emitter {
-	lem := engine.GetGlobal(keys.Emitter)
-	if em, ok := lem.Interface().(*events.Emitter); ok {
+	if em, ok := engine.Meta[keys.Emitter].(*events.Emitter); ok {
 		return em
 	}
 
@@ -121,14 +120,13 @@ func emitterForEngine(engine *lua.Engine) *events.Emitter {
 }
 
 func newEmitterForEngine(engine *lua.Engine) *events.Emitter {
-	name := engine.GetGlobal(keys.EngineID).AsString()
-	if name == "" {
-		name = "Unknown Engine"
+	name := "Unknown Engine"
+	if n, ok := engine.Meta[keys.EngineID].(string); ok {
+		name = n
 	}
 
 	em := events.NewEmitter(name)
-	engine.SetGlobal(keys.Emitter, em)
-	engine.WhitelistFor(em)
+	engine.Meta[keys.Emitter] = em
 
 	return em
 }
