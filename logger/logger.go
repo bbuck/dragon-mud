@@ -56,10 +56,10 @@ func NewLog() Log {
 	return log
 }
 
-// LogWithSource returns a log with a predefined "source" field attached to it.
+// NewLogWithSource returns a log with a predefined "source" field attached to it.
 // This should be the primary method used to fetch a logger for use in other
 // parts fo the code.
-func LogWithSource(source string) Log {
+func NewLogWithSource(source string) Log {
 	log := NewLog()
 
 	return log.WithField("source", source)

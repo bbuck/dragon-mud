@@ -10,7 +10,7 @@ import (
 	"github.com/bbuck/dragon-mud/scripting/pool"
 )
 
-var eventsLog = logger.LogWithSource("lua(events)")
+var eventsLog = logger.NewLogWithSource("lua(events)")
 
 // Events is a module for emitting and receiving events in Lua.
 //   Halt: (go error)

@@ -61,7 +61,7 @@ func loggerForEngine(eng *lua.Engine) logger.Log {
 		name = n
 	}
 
-	l := logger.LogWithSource(name)
+	l := logger.NewLogWithSource(name)
 	eng.Meta[keys.Logger] = l
 
 	return l

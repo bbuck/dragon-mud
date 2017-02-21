@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var passwordLog = logger.LogWithSource("lua(password)")
+var passwordLog = logger.NewLogWithSource("lua(password)")
 
 // Password provides a method to take options to hash a password using the argon2i
 // encryption algorithm.

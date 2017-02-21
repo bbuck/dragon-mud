@@ -12,7 +12,7 @@ import (
 
 var (
 	serverRunning = false
-	log           = logger.LogWithSource("server")
+	log           = logger.NewLogWithSource("server")
 )
 
 func Run() {

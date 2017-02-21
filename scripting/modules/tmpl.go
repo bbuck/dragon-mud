@@ -6,7 +6,7 @@ import (
 	"github.com/bbuck/dragon-mud/text/tmpl"
 )
 
-var tmplLog = logger.LogWithSource("lua(tmpl)")
+var tmplLog = logger.NewLogWithSource("lua(tmpl)")
 
 // Tmpl is the templating module accessible in scripts. This module consists of
 // two accessible methods:
