@@ -49,51 +49,6 @@ func (hf HandlerFunc) Call(d Data) error {
 	return hf(d)
 }
 
-// handlers is a helper type to manage handlers, both calling and adding them.
-type handlers struct {
-	persistent   []Handler
-	onceHandlers []Handler
-}
-
-// Iterate over handlers, taking error values from them. On error we break out
-// and no longer continue calling handlers. One time handlers that get executed
-// before an error alwasy get removed.
-func (hs *handlers) call(d Data) error {
-	var (
-		idx int
-		h   Handler
-	)
-
-	for idx, h = range hs.onceHandlers {
-		err := h.Call(d)
-		if err != nil {
-			if idx != len(hs.onceHandlers)-1 {
-				hs.onceHandlers = hs.onceHandlers[idx+1:]
-			} else {
-				hs.onceHandlers = make([]Handler, 0)
-			}
-
-			return err
-		}
-	}
-	hs.onceHandlers = make([]Handler, 0)
-
-	for _, h = range hs.persistent {
-		err := h.Call(d)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// remove all handlers
-func (hs *handlers) clear() {
-	hs.persistent = make([]Handler, 0)
-	hs.onceHandlers = make([]Handler, 0)
-}
-
 // Emitter represents a type capable of handling a list of callable actions to
 // act on event data.
 type Emitter struct {
@@ -118,20 +73,27 @@ func NewEmitter(l logger.Log) *Emitter {
 // Events registered in this manner will be called every time this event is
 // emitted.
 func (e *Emitter) On(evt string, h Handler) {
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
-	if hs, ok := e.handlers[evt]; ok {
-		hs.persistent = append(hs.persistent, h)
-	} else {
-		hs := &handlers{
-			persistent:   []Handler{h},
-			onceHandlers: make([]Handler, 0),
-		}
-		e.handlers[evt] = hs
-	}
+	var (
+		hs *handlers
+		ok bool
+	)
 
+	e.mutex.RLock()
+	if hs, ok = e.handlers[evt]; ok {
+		e.mutex.RUnlock()
+	} else {
+		e.mutex.RUnlock()
+		e.mutex.Lock()
+		hs = newHandlers()
+		e.handlers[evt] = hs
+		e.mutex.Unlock()
+	}
+	hs.add(h)
+
+	e.mutex.RLock()
+	defer e.mutex.RUnlock()
 	if data, ok := e.oneTimeEmissions[evt]; ok {
-		h.Call(data)
+		h.Call(copyData(data))
 	}
 }
 
@@ -140,24 +102,28 @@ func (e *Emitter) On(evt string, h Handler) {
 // This is great for one time handlers, things that don't need to happen
 // everytime the event is emitted.
 func (e *Emitter) Once(evt string, h Handler) {
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
-
+	e.mutex.RLock()
 	if data, ok := e.oneTimeEmissions[evt]; ok {
-		h.Call(data)
+		h.Call(copyData(data))
+		e.mutex.RUnlock()
 
 		return
 	}
 
-	if hs, ok := e.handlers[evt]; ok {
-		hs.onceHandlers = append(hs.onceHandlers, h)
+	var (
+		hs *handlers
+		ok bool
+	)
+	if hs, ok = e.handlers[evt]; ok {
+		e.mutex.RUnlock()
 	} else {
-		hs := &handlers{
-			persistent:   make([]Handler, 0),
-			onceHandlers: []Handler{h},
-		}
+		e.mutex.RUnlock()
+		e.mutex.Lock()
+		hs = newHandlers()
 		e.handlers[evt] = hs
+		e.mutex.Unlock()
 	}
+	hs.addOnce(h)
 }
 
 // Off will remove all handlers for the given event, including it's before and
@@ -170,6 +136,8 @@ func (e *Emitter) Off(evt string) {
 
 // clear handlers for event
 func (e *Emitter) off(evt string) {
+	e.mutex.RLock()
+	defer e.mutex.RUnlock()
 	if hs, ok := e.handlers[evt]; ok {
 		hs.clear()
 	}
@@ -192,6 +160,8 @@ func (e *Emitter) Emit(evt string, d Data) <-chan struct{} {
 
 	if d == nil {
 		d = NewData()
+	} else {
+		d = copyData(d)
 	}
 
 	done := make(chan struct{}, 1)
@@ -234,6 +204,9 @@ func (e *Emitter) Emit(evt string, d Data) <-chan struct{} {
 // application. Any new handlers that are added for the one time emission are
 // immediatley triggered with the data from the `EmitOnce` call.
 func (e *Emitter) EmitOnce(evt string, d Data) <-chan struct{} {
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	d = copyData(d)
 	e.oneTimeEmissions["before:"+evt] = d
 	e.oneTimeEmissions[evt] = d
 	e.oneTimeEmissions["after:"+evt] = d
@@ -254,4 +227,20 @@ func (e *Emitter) emit(evt string, d Data) error {
 	}
 
 	return nil
+}
+
+func copyData(d Data) Data {
+	nd := make(Data)
+	for k, v := range d {
+		switch t := v.(type) {
+		case Data:
+			nd[k] = copyData(d)
+		case map[string]interface{}:
+			nd[k] = copyData(Data(t))
+		default:
+			nd[k] = v
+		}
+	}
+
+	return nd
 }
