@@ -8,8 +8,6 @@ import (
 	"github.com/bbuck/dragon-mud/scripting/keys"
 	"github.com/bbuck/dragon-mud/scripting/lua"
 	"github.com/bbuck/dragon-mud/scripting/pool"
-
-	"github.com/Sirupsen/logrus"
 )
 
 var eventsLog = logger.LogWithSource("lua(events)")
@@ -40,7 +38,7 @@ var Events = map[string]interface{}{
 		if p, ok := engine.Meta[keys.Pool].(*pool.EnginePool); ok {
 			go emitToPool(p, evt, data)
 		} else {
-			eventsLog.WithFields(logrus.Fields{
+			eventsLog.WithFields(logger.Fields{
 				"event":  evt,
 				"data":   data,
 				"engine": engine,
@@ -120,12 +118,12 @@ func emitterForEngine(engine *lua.Engine) *events.Emitter {
 }
 
 func newEmitterForEngine(engine *lua.Engine) *events.Emitter {
-	name := "Unknown Engine"
-	if n, ok := engine.Meta[keys.EngineID].(string); ok {
-		name = n
+	var log logger.Log
+	if l, ok := engine.Meta[keys.Logger].(logger.Log); ok {
+		log = l
 	}
 
-	em := events.NewEmitter(name)
+	em := events.NewEmitter(log)
 	engine.Meta[keys.Emitter] = em
 
 	return em

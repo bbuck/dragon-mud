@@ -4,6 +4,7 @@ import (
 	"time"
 
 	. "github.com/bbuck/dragon-mud/events"
+	"github.com/bbuck/dragon-mud/logger"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -11,7 +12,7 @@ import (
 
 var _ = Describe("Events", func() {
 	Describe("Emitter", func() {
-		em := NewEmitter("testing")
+		em := NewEmitter(logger.TestLog())
 
 		It("receives emitted events", func(done Done) {
 			c := make(chan interface{})

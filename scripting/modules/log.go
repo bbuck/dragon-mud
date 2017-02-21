@@ -1,7 +1,6 @@
 package modules
 
 import (
-	"github.com/Sirupsen/logrus"
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/scripting/keys"
 	"github.com/bbuck/dragon-mud/scripting/lua"
@@ -18,28 +17,28 @@ import (
 //     log message with data on the debug level, data can be omitted or nil
 var Log = map[string]interface{}{
 	"error": func(eng *lua.Engine) int {
-		performLog(eng, func(l *logrus.Entry, msg string) {
+		performLog(eng, func(l logger.Log, msg string) {
 			l.Error(msg)
 		})
 
 		return 0
 	},
 	"warn": func(eng *lua.Engine) int {
-		performLog(eng, func(l *logrus.Entry, msg string) {
+		performLog(eng, func(l logger.Log, msg string) {
 			l.Warn(msg)
 		})
 
 		return 0
 	},
 	"info": func(eng *lua.Engine) int {
-		performLog(eng, func(l *logrus.Entry, msg string) {
+		performLog(eng, func(l logger.Log, msg string) {
 			l.Info(msg)
 		})
 
 		return 0
 	},
 	"debug": func(eng *lua.Engine) int {
-		performLog(eng, func(l *logrus.Entry, msg string) {
+		performLog(eng, func(l logger.Log, msg string) {
 			l.Debug(msg)
 		})
 
@@ -47,23 +46,15 @@ var Log = map[string]interface{}{
 	},
 }
 
-func loggerForEngine(eng *lua.Engine) *logrus.Entry {
-	if log, ok := eng.Meta[keys.Logger].(*logrus.Entry); ok {
+func loggerForEngine(eng *lua.Engine) logger.Log {
+	if log, ok := eng.Meta[keys.Logger].(logger.Log); ok {
 		return log
 	}
 
-	name := "Unknown Engine"
-	if n, ok := eng.Meta[keys.EngineID].(string); ok {
-		name = n
-	}
-
-	log := logger.LogWithSource(name)
-	eng.Meta[keys.Logger] = log
-
-	return log
+	return nil
 }
 
-func performLog(eng *lua.Engine, fn func(*logrus.Entry, string)) {
+func performLog(eng *lua.Engine, fn func(logger.Log, string)) {
 	data := eng.Nil()
 	if eng.StackSize() >= 2 {
 		data = eng.PopTable()
@@ -72,9 +63,13 @@ func performLog(eng *lua.Engine, fn func(*logrus.Entry, string)) {
 
 	log := loggerForEngine(eng)
 
+	if log == nil {
+		return
+	}
+
 	if !data.IsNil() && data.IsTable() {
 		m := data.AsMapStringInterface()
-		log = log.WithFields(logrus.Fields(m))
+		log = log.WithFields(logger.Fields(m))
 	}
 
 	fn(log, msg)

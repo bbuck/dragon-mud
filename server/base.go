@@ -6,7 +6,6 @@ import (
 	"net"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/spf13/viper"
 )
@@ -25,7 +24,7 @@ func Run() {
 		log.WithField("error", err.Error()).Fatal("Failed to start TCP server.")
 	}
 
-	log.WithFields(logrus.Fields{
+	log.WithFields(logger.Fields{
 		"host": host,
 		"port": port,
 	}).Info("TCP server started")
@@ -44,7 +43,7 @@ func runServer(listener net.Listener) {
 		}
 
 		addrInfo := strings.Split(conn.RemoteAddr().String(), ":")
-		log.WithFields(logrus.Fields{
+		log.WithFields(logger.Fields{
 			"ip":   addrInfo[0],
 			"port": addrInfo[1],
 		}).Debug("Accepted incoming connection.")

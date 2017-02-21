@@ -4,11 +4,9 @@ package events
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/bbuck/dragon-mud/logger"
 )
 
@@ -101,17 +99,17 @@ func (hs *handlers) clear() {
 type Emitter struct {
 	handlers         map[string]*handlers
 	mutex            *sync.RWMutex
-	log              *logrus.Entry
+	log              logger.Log
 	oneTimeEmissions map[string]Data
 }
 
 // NewEmitter generates a new event emitter with the given name used for logging
 // purposes.
-func NewEmitter(name string) *Emitter {
+func NewEmitter(l logger.Log) *Emitter {
 	return &Emitter{
 		handlers:         make(map[string]*handlers),
 		mutex:            new(sync.RWMutex),
-		log:              logger.LogWithSource(fmt.Sprintf("emitter(%s)", name)),
+		log:              l,
 		oneTimeEmissions: make(map[string]Data),
 	}
 }
@@ -184,10 +182,12 @@ func (e *Emitter) off(evt string) {
 // data) That is written two (once) when the emission has completed.
 func (e *Emitter) Emit(evt string, d Data) <-chan struct{} {
 	if strings.HasPrefix(evt, "before:") || strings.HasPrefix(evt, "after:") {
-		e.log.WithFields(logrus.Fields{
-			"event": evt,
-			"data":  d,
-		}).Warn("Cannot emit meta events 'before' or 'after' directly.")
+		if e.log != nil {
+			e.log.WithFields(logger.Fields{
+				"event": evt,
+				"data":  d,
+			}).Warn("Cannot emit meta events 'before' or 'after' directly.")
+		}
 	}
 
 	if d == nil {
@@ -206,16 +206,20 @@ func (e *Emitter) Emit(evt string, d Data) <-chan struct{} {
 
 		if err != nil {
 			if err == ErrHalt {
-				e.log.WithFields(logrus.Fields{
-					"event": evt,
-					"data":  d,
-				}).Debug("Event emission halted.")
+				if e.log != nil {
+					e.log.WithFields(logger.Fields{
+						"event": evt,
+						"data":  d,
+					}).Debug("Event emission halted.")
+				}
 			} else {
-				e.log.WithFields(logrus.Fields{
-					"error": err.Error(),
-					"event": evt,
-					"data":  d,
-				}).Error("Failed during execution of event handlers.")
+				if e.log != nil {
+					e.log.WithFields(logger.Fields{
+						"error": err.Error(),
+						"event": evt,
+						"data":  d,
+					}).Error("Failed during execution of event handlers.")
+				}
 			}
 		}
 
