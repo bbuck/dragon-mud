@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	log         *logrus.Logger
+	log         Log
 	initialized = false
 )
 
@@ -30,41 +30,38 @@ var (
 
 // TestLog should never be called in normal code, it's purpose is to bypass the
 // logger generated from configuration settings
-func TestLog() *logrus.Entry {
-	log = logrus.New()
+func TestLog() Log {
+	log = newLogrus(new(logrus.JSONFormatter))
 	TestBuffer = new(bytes.Buffer)
-	log.Out = TestBuffer
-	log.Formatter = new(logrus.JSONFormatter)
-	log.Level = logrus.DebugLevel
+	log.SetOut(TestBuffer)
+	log.SetLevel(DebugLevel)
 
-	return logrus.NewEntry(log)
+	return log
 }
 
-// Log will return an instance of the log utility that should be used for
+// NewLog will return an instance of the log utility that should be used for
 // send messages to the user. PREFER LogWithSource.
-func Log() *logrus.Entry {
+func NewLog() Log {
 	if !initialized {
 		initialized = true
 		if Testing {
 			return TestLog()
 		}
 
-		log = logrus.New()
-
-		log.Formatter = &prefixed.TextFormatter{DisableTimestamp: false}
-		log.Out = ConfigureTargets(viper.Get("log.targets"))
-		// TODO: Set logging level
-		log.Level = GetLogLevel(viper.GetString("log.level"))
+		log = newLogrus(&prefixed.TextFormatter{DisableTimestamp: false})
+		log.SetOut(ConfigureTargets(viper.Get("log.targets")))
+		log.SetLevel(GetLogLevel(viper.GetString("log.level")))
 	}
 
-	return logrus.NewEntry(log)
+	return log
 }
 
-// LogWithSource returns a log with a predefined "source" field attached to it.
+// NewLogWithSource returns a log with a predefined "source" field attached to it.
 // This should be the primary method used to fetch a logger for use in other
 // parts fo the code.
-func LogWithSource(source string) *logrus.Entry {
-	log := Log()
+func NewLogWithSource(source string) Log {
+	log := NewLog()
+
 	return log.WithField("source", source)
 }
 
@@ -74,22 +71,22 @@ type logTarget struct {
 
 // GetLogLevel converts a string value to a logrus.Level value for use in
 // providing configuration for the logger from the Gamefile.
-func GetLogLevel(level string) logrus.Level {
+func GetLogLevel(level string) LogLevel {
 	switch strings.ToLower(level) {
 	case "info":
-		return logrus.InfoLevel
+		return InfoLevel
 	case "warn", "warning":
-		return logrus.WarnLevel
+		return WarnLevel
 	case "error":
-		return logrus.ErrorLevel
+		return ErrorLevel
 	case "panic":
-		return logrus.PanicLevel
+		return PanicLevel
 	case "fatal":
-		return logrus.FatalLevel
+		return FatalLevel
 	case "debug":
 		fallthrough
 	default:
-		return logrus.DebugLevel
+		return DebugLevel
 	}
 }
 

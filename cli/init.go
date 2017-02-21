@@ -55,7 +55,7 @@ func writeStructure(basePath string, structure dir, tmplData map[string]interfac
 }
 
 func writeFile(name string, f file, tmplData map[string]interface{}) {
-	flog := logger.Log().WithField("filename", name)
+	flog := logger.NewLog().WithField("filename", name)
 
 	assetName := string(f)
 	fdata := assets.MustAsset(assetName)
@@ -81,7 +81,7 @@ func writeFile(name string, f file, tmplData map[string]interface{}) {
 }
 
 func writeDir(name string, d dir, tmplData map[string]interface{}) {
-	dlog := logger.Log().WithField("dirname", name)
+	dlog := logger.NewLog().WithField("dirname", name)
 
 	dlog.Info("Creating directory")
 	err := os.Mkdir(name, os.ModePerm)

@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	log = logger.LogWithSource("tmpl")
+	log = logger.NewLogWithSource("tmpl")
 )
 
 const (

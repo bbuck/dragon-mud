@@ -1,13 +1,12 @@
 package modules
 
 import (
-	"github.com/Sirupsen/logrus"
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/scripting/lua"
 	"github.com/bbuck/dragon-mud/text/tmpl"
 )
 
-var tmplLog = logger.LogWithSource("lua(tmpl)")
+var tmplLog = logger.NewLogWithSource("lua(tmpl)")
 
 // Tmpl is the templating module accessible in scripts. This module consists of
 // two accessible methods:
@@ -21,7 +20,7 @@ var Tmpl = map[string]interface{}{
 		err := tmpl.Register(contents, name)
 
 		if err != nil {
-			fields := logrus.Fields{
+			fields := logger.Fields{
 				"error": err.Error(),
 			}
 			if len(contents) < 255 {
@@ -49,7 +48,7 @@ var Tmpl = map[string]interface{}{
 		}
 		result, err := t.Render(data)
 		if err != nil {
-			log.WithFields(logrus.Fields{
+			log.WithFields(logger.Fields{
 				"error": err.Error(),
 				"data":  data.AsMapStringInterface(),
 			}).Error("Failed to render template from requested in script.")
