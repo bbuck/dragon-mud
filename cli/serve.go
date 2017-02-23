@@ -3,9 +3,10 @@
 package cli
 
 import (
+	"github.com/bbuck/dragon-mud/config"
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/random"
-	"github.com/bbuck/dragon-mud/server"
+	"github.com/bbuck/dragon-mud/telnet/server"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -18,8 +19,11 @@ var (
 All lifecycle scripts will be notified during boot and the configuration
 information will be processed.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			log := logger.NewLogWithSource("serve cmd")
+			log := logger.NewWithSource("serve cmd")
 			log.Infof("A %s dragon arrives to serve you today.", getDragonColor())
+			if !config.Loaded {
+				log.Fatal("No configuration file detected. Make sure you run {W}dragon init{x} first.")
+			}
 			log.WithField("env", viper.GetString("env")).Info("Configuration loaded")
 
 			// TODO: Implement serve command

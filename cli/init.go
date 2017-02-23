@@ -55,7 +55,7 @@ func writeStructure(basePath string, structure dir, tmplData map[string]interfac
 }
 
 func writeFile(name string, f file, tmplData map[string]interface{}) {
-	flog := logger.NewLog().WithField("filename", name)
+	flog := logger.New().WithField("filename", name)
 
 	assetName := string(f)
 	fdata := assets.MustAsset(assetName)
@@ -64,7 +64,7 @@ func writeFile(name string, f file, tmplData map[string]interface{}) {
 	flog.Info("Creating file     ")
 	file, err := os.Create(name)
 	if err != nil && !os.IsExist(err) {
-		flog.WithField("error", err.Error()).Fatal("Failed to create file in the current directory.")
+		flog.WithError(err).Fatal("Failed to create file in the current directory.")
 
 		return
 	}
@@ -73,7 +73,7 @@ func writeFile(name string, f file, tmplData map[string]interface{}) {
 	if err == nil {
 		n, werr := file.Write(fdata)
 		if werr != nil {
-			flog.WithField("error", werr.Error()).Fatal("Failed to write a default file.")
+			flog.WithError(werr).Fatal("Failed to write a default file.")
 		} else if n != len(fdata) {
 			flog.WithField("percentage", (float64(n) / float64(len(fdata)) * 100.0)).Fatal("Failed to write the entire file.")
 		}
@@ -81,12 +81,12 @@ func writeFile(name string, f file, tmplData map[string]interface{}) {
 }
 
 func writeDir(name string, d dir, tmplData map[string]interface{}) {
-	dlog := logger.NewLog().WithField("dirname", name)
+	dlog := logger.New().WithField("dirname", name)
 
 	dlog.Info("Creating directory")
 	err := os.Mkdir(name, os.ModePerm)
 	if err != nil {
-		dlog.WithField("error", err.Error()).Fatal("Failed to create directory.")
+		dlog.WithError(err).Fatal("Failed to create directory.")
 	}
 
 	writeStructure(name, d, tmplData)

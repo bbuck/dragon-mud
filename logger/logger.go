@@ -39,9 +39,9 @@ func TestLog() Log {
 	return log
 }
 
-// NewLog will return an instance of the log utility that should be used for
+// New will return an instance of the log utility that should be used for
 // send messages to the user. PREFER LogWithSource.
-func NewLog() Log {
+func New() Log {
 	if !initialized {
 		initialized = true
 		if Testing {
@@ -56,11 +56,11 @@ func NewLog() Log {
 	return log
 }
 
-// NewLogWithSource returns a log with a predefined "source" field attached to it.
+// NewWithSource returns a log with a predefined "source" field attached to it.
 // This should be the primary method used to fetch a logger for use in other
 // parts fo the code.
-func NewLogWithSource(source string) Log {
-	log := NewLog()
+func NewWithSource(source string) Log {
+	log := New()
 
 	return log.WithField("source", source)
 }
@@ -116,10 +116,12 @@ func ConfigureTargets(targets interface{}) io.Writer {
 					if os.IsNotExist(err) {
 						file, err = os.Create(target.Target)
 						if err != nil {
-							panic(fmt.Errorf("Failed creating a file log target: %s", err))
+							fmt.Fprintf(os.Stderr, "ERROR: Failed creating a file log target: %s", err)
+							os.Exit(1)
 						}
 					} else {
-						panic(err)
+						fmt.Fprintf(os.Stderr, "ERROR: %s", err.Error())
+						os.Exit(1)
 					}
 				}
 				writers = append(writers, file)

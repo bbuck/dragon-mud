@@ -1,10 +1,10 @@
 # {{game_title}} base configuration file
 
 name = "{{game_title}}"
-version = "1.0.0"
+version = "0.0.0"
 
 # {{game_title}} network configuration.
-[net]
+[telnet]
 
   # Interface is the address you want the server to bind to. By default it's
   # "localhost" but it can also be set to "0.0.0.0" as well or another IP address
@@ -20,6 +20,22 @@ version = "1.0.0"
   # as connecting to the standard port.
   # TODO: Assess necessity.
   private_port = 8081
+
+# Settings specific to the scripting side of the execution of the program.
+[scripting]
+
+  # This section contains settins relevant to server-side script execution.
+  # Changing values here can have drastic runtime effects so be careful when
+  # modifying from the defaults.
+  [server]
+
+    # This determines how many total server engines there are going to be.
+    # It's hard to balance, so be careful. Too many engines would be wasteful,
+    # and to little will result in parts of the system queuing up and waiting.
+    # The default value was selected as a sane default based on testing during
+    # development. But feel free to adjust it for your needs.
+    # NOTE: Right now this value is in flux
+    engine_pool_size = 10
 
 # DragonMUD uses the Argon2i method for encrypting passwords. This is a way to
 # configure the memory size of the encryption and the length of the final

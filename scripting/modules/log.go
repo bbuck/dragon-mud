@@ -51,12 +51,12 @@ func loggerForEngine(eng *lua.Engine) logger.Log {
 		return log
 	}
 
-	name := "Unknown Engine"
+	name := "engine(unknown)"
 	if n, ok := eng.Meta[keys.EngineID].(string); ok {
 		name = n
 	}
 
-	l := logger.NewLogWithSource(name)
+	l := logger.NewWithSource(name)
 	eng.Meta[keys.Logger] = l
 
 	return l

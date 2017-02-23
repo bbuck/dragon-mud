@@ -3,7 +3,7 @@ package events_test
 import (
 	"time"
 
-	. "github.com/bbuck/dragon-mud/events"
+	"github.com/bbuck/dragon-mud/events"
 	"github.com/bbuck/dragon-mud/logger"
 
 	. "github.com/onsi/ginkgo"
@@ -12,11 +12,11 @@ import (
 
 var _ = Describe("Events", func() {
 	Describe("Emitter", func() {
-		em := NewEmitter(logger.TestLog())
+		em := events.NewEmitter(logger.TestLog())
 
 		It("receives emitted events", func(done Done) {
 			c := make(chan interface{}, 1)
-			em.On("test1", HandlerFunc(func(Data) error {
+			em.On("test1", events.HandlerFunc(func(events.Data) error {
 				c <- true
 
 				return nil
@@ -31,19 +31,19 @@ var _ = Describe("Events", func() {
 
 		It("receives before and after emitted events", func(done Done) {
 			c := make(chan interface{}, 3)
-			em.On("before:test2", HandlerFunc(func(Data) error {
+			em.On("before:test2", events.HandlerFunc(func(events.Data) error {
 				c <- 1
 
 				return nil
 			}))
 
-			em.On("test2", HandlerFunc(func(Data) error {
+			em.On("test2", events.HandlerFunc(func(events.Data) error {
 				c <- 2
 
 				return nil
 			}))
 
-			em.On("after:test2", HandlerFunc(func(Data) error {
+			em.On("after:test2", events.HandlerFunc(func(events.Data) error {
 				c <- 3
 
 				return nil
@@ -60,13 +60,13 @@ var _ = Describe("Events", func() {
 
 		It("transfers altered data", func(done Done) {
 			c := make(chan interface{}, 3)
-			em.On("before:test3", HandlerFunc(func(d Data) error {
+			em.On("before:test3", events.HandlerFunc(func(d events.Data) error {
 				d["one"] = int(1)
 
 				return nil
 			}))
 
-			em.On("test3", HandlerFunc(func(d Data) error {
+			em.On("test3", events.HandlerFunc(func(d events.Data) error {
 				if val, ok := d["one"]; ok {
 					if num, ok := val.(int); ok {
 						c <- num
@@ -82,7 +82,7 @@ var _ = Describe("Events", func() {
 				return nil
 			}))
 
-			em.On("test3", HandlerFunc(func(d Data) error {
+			em.On("test3", events.HandlerFunc(func(d events.Data) error {
 				if val, ok := d["two"]; ok {
 					if num, ok := val.(int); ok {
 						c <- num
@@ -98,7 +98,7 @@ var _ = Describe("Events", func() {
 				return nil
 			}))
 
-			em.On("after:test3", HandlerFunc(func(d Data) error {
+			em.On("after:test3", events.HandlerFunc(func(d events.Data) error {
 				if val, ok := d["three"]; ok {
 					if num, ok := val.(int); ok {
 						c <- num
@@ -112,7 +112,7 @@ var _ = Describe("Events", func() {
 				return nil
 			}))
 
-			em.Emit("test3", NewData())
+			em.Emit("test3", events.NewData())
 
 			Ω(<-c).Should(Equal(1))
 			Ω(<-c).Should(Equal(2))
@@ -123,7 +123,7 @@ var _ = Describe("Events", func() {
 
 		It("only fires once handlers one time", func(done Done) {
 			c := make(chan interface{}, 1)
-			em.Once("test4", HandlerFunc(func(Data) error {
+			em.Once("test4", events.HandlerFunc(func(events.Data) error {
 				c <- true
 
 				return nil
@@ -142,14 +142,14 @@ var _ = Describe("Events", func() {
 
 		It("stops execution if an error is returned", func(done Done) {
 			c := make(chan interface{}, 1)
-			em.On("test5", HandlerFunc(func(Data) error {
+			em.On("test5", events.HandlerFunc(func(events.Data) error {
 				c <- 1
 				close(c)
 
-				return ErrHalt
+				return events.ErrHalt
 			}))
 
-			em.On("test5", HandlerFunc(func(Data) error {
+			em.On("test5", events.HandlerFunc(func(events.Data) error {
 				c <- 2
 
 				return nil
@@ -163,7 +163,7 @@ var _ = Describe("Events", func() {
 		Context("when passing nil event data", func() {
 			It("provides an empty data value", func(done Done) {
 				c := make(chan interface{}, 1)
-				em.On("test6", HandlerFunc(func(d Data) error {
+				em.On("test6", events.HandlerFunc(func(d events.Data) error {
 					c <- (d != nil)
 
 					return nil
@@ -177,13 +177,13 @@ var _ = Describe("Events", func() {
 
 			It("still passes data from one handler to another", func(done Done) {
 				c := make(chan interface{}, 1)
-				em.On("test7", HandlerFunc(func(d Data) error {
+				em.On("test7", events.HandlerFunc(func(d events.Data) error {
 					d["set"] = 1
 
 					return nil
 				}))
 
-				em.On("test7", HandlerFunc(func(d Data) error {
+				em.On("test7", events.HandlerFunc(func(d events.Data) error {
 					if i, ok := d["set"]; ok {
 						c <- i
 					}
@@ -202,7 +202,7 @@ var _ = Describe("Events", func() {
 			c := make(chan interface{}, 1)
 			em.EmitOnce("test8", nil)
 			time.Sleep(time.Millisecond * 500)
-			em.On("test8", HandlerFunc(func(d Data) error {
+			em.On("test8", events.HandlerFunc(func(d events.Data) error {
 				c <- 1
 
 				return nil

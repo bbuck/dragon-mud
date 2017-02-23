@@ -7,14 +7,11 @@ import (
 	"math/big"
 	"runtime"
 
-	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/random"
 	"github.com/bbuck/dragon-mud/scripting/lua"
 	"github.com/pzduniak/argon2"
 	"github.com/spf13/viper"
 )
-
-var passwordLog = logger.NewLogWithSource("lua(password)")
 
 // Password provides a method to take options to hash a password using the argon2i
 // encryption algorithm.
@@ -39,7 +36,7 @@ var Password = map[string]interface{}{
 		num, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
 		successful := engine.True()
 		if err != nil {
-			passwordLog.WithField("error", err.Error()).Error("Failed to generate secure salt, CEASE OPERATION IMMEDIATELY")
+			log("password").WithError(err).Error("Failed to generate secure salt, CEASE OPERATION IMMEDIATELY")
 			successful = engine.False()
 			num = big.NewInt(0)
 		}
@@ -72,7 +69,7 @@ var Password = map[string]interface{}{
 		iterations := uint32(table.Get("iterations").AsNumber())
 		hash, err := hashPassword(password, saltStr, iterations)
 		if err != nil {
-			passwordLog.WithField("error", err.Error()).Error("Failed to hash password via Argon2i, CEASE OPERATION IMMEDIATLEY")
+			log("password").WithError(err).Error("Failed to hash password via Argon2i, CEASE OPERATION IMMEDIATLEY")
 			engine.PushValue("")
 			engine.PushValue(engine.False())
 
@@ -94,7 +91,7 @@ var Password = map[string]interface{}{
 		iterations := uint32(params.Get("iterations").AsNumber())
 		hash, err := hashPassword(password, saltStr, iterations)
 		if err != nil {
-			passwordLog.WithField("error", err.Error()).Error("Failed to validate password, CEASE OPERATION IMMEDIATLEY")
+			log("password").WithError(err).Error("Failed to validate password, CEASE OPERATION IMMEDIATLEY")
 			engine.PushValue(engine.False())
 
 			return 1

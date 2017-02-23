@@ -2,6 +2,7 @@ package modules
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/bbuck/dragon-mud/events"
 	"github.com/bbuck/dragon-mud/logger"
@@ -9,8 +10,6 @@ import (
 	"github.com/bbuck/dragon-mud/scripting/lua"
 	"github.com/bbuck/dragon-mud/scripting/pool"
 )
-
-var eventsLog = logger.NewLogWithSource("lua(events)")
 
 // Events is a module for emitting and receiving events in Lua.
 //   Halt: (go error)
@@ -38,7 +37,7 @@ var Events = map[string]interface{}{
 		if p, ok := engine.Meta[keys.Pool].(*pool.EnginePool); ok {
 			go emitToPool(p, evt, data)
 		} else {
-			eventsLog.WithFields(logger.Fields{
+			log("events").WithFields(logger.Fields{
 				"event":  evt,
 				"data":   data,
 				"engine": engine,
@@ -118,11 +117,12 @@ func emitterForEngine(engine *lua.Engine) *events.Emitter {
 }
 
 func newEmitterForEngine(engine *lua.Engine) *events.Emitter {
-	var log logger.Log
-	if l, ok := engine.Meta[keys.Logger].(logger.Log); ok {
-		log = l
+	name := "emitter(engine(unknown))"
+	if n, ok := engine.Meta[keys.EngineID].(string); ok {
+		name = fmt.Sprintf("emitter(%s)", n)
 	}
 
+	log := logger.NewWithSource(name)
 	em := events.NewEmitter(log)
 	engine.Meta[keys.Emitter] = em
 

@@ -6,8 +6,6 @@ import (
 	"github.com/bbuck/dragon-mud/text/tmpl"
 )
 
-var tmplLog = logger.NewLogWithSource("lua(tmpl)")
-
 // Tmpl is the templating module accessible in scripts. This module consists of
 // two accessible methods:
 //   register(body: string, name: string)
@@ -24,9 +22,9 @@ var Tmpl = map[string]interface{}{
 				"error": err.Error(),
 			}
 			if len(contents) < 255 {
-				fields["tempalte"] = contents
+				fields["template"] = contents
 			}
-			tmplLog.WithFields(fields).Error("Register failed from script with error")
+			log("tmpl").WithFields(fields).Error("Register failed from script with error")
 		}
 
 		return err == nil
@@ -35,11 +33,11 @@ var Tmpl = map[string]interface{}{
 		data := engine.PopTable()
 		name := engine.PopString()
 
-		log := tmplLog.WithField("tmpl_name", name)
+		log := log("tmpl").WithField("tmpl_name", name)
 
 		t, err := tmpl.Template(name)
 		if err != nil {
-			log.WithField("error", err.Error()).Error("Failed to fetch template name.")
+			log.WithError(err).Error("Failed to fetch template name.")
 
 			engine.PushValue("")
 			engine.PushValue(false)
