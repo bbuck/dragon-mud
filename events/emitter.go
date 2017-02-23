@@ -17,6 +17,10 @@ import (
 // ocurred but the event execution should be halted.
 var ErrHalt = errors.New("intentional halt of event execution")
 
+// Done is a channel designed to be closed when a task is finished. Data is
+// never pushed over it.
+type Done chan struct{}
+
 // Data is a generic map from strings to any values that can be used as a means
 // to wrap a chunk of dynamic data and pass them to event handlers.
 // Event data should contain data specific to the event being fired that would
@@ -148,7 +152,7 @@ func (e *Emitter) off(evt string) {
 // This method is asyncronous and returns no values directly, failures get
 // logged to the log target(s). Returns a readonly channel of struct{} (emtpy
 // data) That is written two (once) when the emission has completed.
-func (e *Emitter) Emit(evt string, d Data) <-chan struct{} {
+func (e *Emitter) Emit(evt string, d Data) Done {
 	if strings.HasPrefix(evt, "before:") || strings.HasPrefix(evt, "after:") {
 		if e.log != nil {
 			e.log.WithFields(logger.Fields{
@@ -164,7 +168,7 @@ func (e *Emitter) Emit(evt string, d Data) <-chan struct{} {
 		d = copyData(d)
 	}
 
-	done := make(chan struct{}, 1)
+	done := make(Done)
 	go func() {
 		err := e.emit("before:"+evt, d)
 		if err == nil {
@@ -193,7 +197,7 @@ func (e *Emitter) Emit(evt string, d Data) <-chan struct{} {
 			}
 		}
 
-		done <- struct{}{}
+		close(done)
 	}()
 
 	return done

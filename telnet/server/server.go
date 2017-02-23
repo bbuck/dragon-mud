@@ -12,16 +12,27 @@ import (
 
 var (
 	serverRunning = false
-	log           = logger.NewLogWithSource("server")
+	log           logger.Log
 )
 
+// Run prepars the telnet server and begins running it.
 func Run() {
+	if serverRunning {
+		return
+	}
+
+	log = logger.NewWithSource("server(telnet)")
 	serverRunning = true
-	host := viper.GetString("net.interface")
-	port := viper.GetString("net.port")
+	host := viper.GetString("telnet.interface")
+	port := viper.GetString("telnet.port")
+
+	initialize()
+	done := Emit("server:init", nil)
+	<-done
+
 	listener, err := net.Listen("tcp", host+":"+port)
 	if err != nil {
-		log.WithField("error", err.Error()).Fatal("Failed to start TCP server.")
+		log.WithError(err).Fatal("Failed to start TCP server.")
 	}
 
 	log.WithFields(logger.Fields{
@@ -37,7 +48,7 @@ func runServer(listener net.Listener) {
 	for serverRunning {
 		conn, err := listener.Accept()
 		if err != nil {
-			log.WithField("error", err.Error()).Error("Failed to accept connection")
+			log.WithError(err).Error("Failed to accept connection")
 
 			continue
 		}

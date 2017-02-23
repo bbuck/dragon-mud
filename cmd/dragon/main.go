@@ -11,6 +11,7 @@ import (
 
 func main() {
 	config.Setup(cli.RootCmd)
+	config.Load()
 	if err := cli.RootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}

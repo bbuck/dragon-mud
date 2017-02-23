@@ -3,14 +3,15 @@
 package config
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-var successfulRead = false
+var (
+	Loaded = false
+
+	successfulRead = false
+)
 
 // Setup configures Viper and prepares all the default settings. Setting up
 // the configuration to load from the environment and from flags.
@@ -27,17 +28,14 @@ func Setup(rootCmd *cobra.Command) {
 // Load will initiate the loading of the configuration file for use by the
 // application. Reading settings from the config file into the configuration
 // manager.
-func Load() bool {
+func Load() {
 	if err := viper.ReadInConfig(); err != nil {
-		if !os.IsNotExist(err) {
-			fmt.Fprintf(os.Stderr, "ERROR: Error loading configuration: %s\n", err)
-			os.Exit(1)
-		}
+		Loaded = false
 
-		return false
+		return
 	}
 
-	return true
+	Loaded = true
 }
 
 // RegisterDefaults will load the defualt values in for the keys into Viper.

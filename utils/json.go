@@ -16,7 +16,7 @@ func ToJSON(i interface{}) string {
 	buf := new(bytes.Buffer)
 	encoder := json.NewEncoder(buf)
 	if err := encoder.Encode(i); err != nil {
-		logger.NewLogWithSource("json_util").WithField("error", err.Error()).Error("Failed to encode object to JSON")
+		logger.NewWithSource("json_util").WithError(err).Error("Failed to encode object to JSON")
 
 		return ""
 	}
