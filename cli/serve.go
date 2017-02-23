@@ -22,7 +22,7 @@ information will be processed.`,
 			log := logger.NewWithSource("serve cmd")
 			log.Infof("A %s dragon arrives to serve you today.", getDragonColor())
 			if !config.Loaded {
-				log.Fatal("No configuration file detected. Make sure you run {w,b}dragon init{x} first.")
+				log.Fatal("No configuration file detected. Make sure you run {W}dragon init{x} first.")
 			}
 			log.WithField("env", viper.GetString("env")).Info("Configuration loaded")
 
