@@ -15,7 +15,7 @@ var _ = Describe("Log", func() {
 	e := lua.NewEngine()
 	e.Meta[keys.EngineID] = "test engine"
 	e.Meta[keys.Logger] = logger.TestLog()
-	scripting.OpenLog(e)
+	scripting.OpenLibs(e, "log")
 	e.DoString(`log = require("log")`)
 
 	DescribeTable("log module",

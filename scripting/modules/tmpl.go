@@ -13,7 +13,7 @@ import (
 //   render(name: string, data: table)
 //     render the template with the given name using the given data to populate
 //     it
-var Tmpl = map[string]interface{}{
+var Tmpl = lua.TableMap{
 	"register": func(contents, name string) bool {
 		err := tmpl.Register(contents, name)
 

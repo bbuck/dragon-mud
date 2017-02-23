@@ -6,4 +6,5 @@ const (
 	Emitter  = "events emitter"
 	Pool     = "engine pool"
 	Logger   = "logger"
+	RootCmd  = "root command"
 )

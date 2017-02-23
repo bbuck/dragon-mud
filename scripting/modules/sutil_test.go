@@ -14,7 +14,7 @@ import (
 
 var _ = Describe("Sutil", func() {
 	p := pool.NewEnginePool(4, func(eng *lua.Engine) {
-		scripting.OpenSutil(eng)
+		scripting.OpenLibs(eng, "sutil")
 		eng.DoString(`sutil = require("sutil")`)
 	})
 

@@ -10,7 +10,7 @@ import (
 
 var _ = Describe("Random", func() {
 	e := lua.NewEngine()
-	scripting.OpenRandom(e)
+	scripting.OpenLibs(e, "random")
 	e.DoString(`
         local random = require("random")
 

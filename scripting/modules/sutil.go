@@ -26,7 +26,7 @@ var regexpCache = make(map[string]*regexp.Regexp)
 //     determines if substring is present in the given string
 //   matches(needle: string, haystack: string): table
 //     a list of strings that match the needle (regexp)
-var Sutil = map[string]interface{}{
+var Sutil = lua.TableMap{
 	"split": func(eng *lua.Engine) int {
 		sep := eng.PopString()
 		str := eng.PopString()

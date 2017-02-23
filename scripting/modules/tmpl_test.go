@@ -30,7 +30,7 @@ var _ = Describe("tmpl Module", func() {
 	)
 
 	e = lua.NewEngine()
-	scripting.OpenTmpl(e)
+	scripting.OpenLibs(e, "tmpl")
 	e.DoString(script)
 
 	BeforeEach(func() {

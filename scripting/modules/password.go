@@ -31,7 +31,7 @@ import (
 //   isValid(password: string, hash: string, options: table): string
 //     hashes the password using the options given and compares the output hash
 //     to the given hash, true means the given password matches the hash
-var Password = map[string]interface{}{
+var Password = lua.TableMap{
 	"getRandomParams": func(engine *lua.Engine) int {
 		num, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
 		successful := engine.True()

@@ -15,7 +15,7 @@ import (
 //     log message with data on the info level, data can be omitted or nil
 //   debug(msg: string[, data: table])
 //     log message with data on the debug level, data can be omitted or nil
-var Log = map[string]interface{}{
+var Log = lua.TableMap{
 	"error": func(eng *lua.Engine) int {
 		performLog(eng, func(l logger.Log, msg string) {
 			l.Error(msg)

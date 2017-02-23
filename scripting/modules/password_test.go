@@ -38,7 +38,7 @@ var _ = Describe("password Module", func() {
 
 	config.RegisterDefaults()
 	e = lua.NewEngine()
-	scripting.OpenPassword(e)
+	scripting.OpenLibs(e, "password")
 	e.DoString(script)
 
 	BeforeEach(func() {

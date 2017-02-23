@@ -12,4 +12,6 @@ var _ = DescribeTable("Existence",
 		_, err := Asset(assetName)
 		Ω(err).Should(BeNil())
 	},
-	Entry("Dragonfile.toml", "Dragonfile.toml"))
+	Entry("Dragonfile.toml", "Dragonfile.toml"),
+	Entry("DragonInfo.toml", "DragonInfo.toml"),
+	Entry("test.toml", "test.toml"))
