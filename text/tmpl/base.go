@@ -56,7 +56,7 @@ func Unregister(name string) {
 
 // RenderOnce bypasses storing the saved templates. Tihs should only be used
 // if the template is only ever going to be compiled and rendered _one time_.
-func RenderOnce(contents string, data map[string]interface{}) (string, error) {
+func RenderOnce(contents string, data interface{}) (string, error) {
 	r, err := getRenderer(contents)
 	if err != nil {
 		return "", err
@@ -68,7 +68,7 @@ func RenderOnce(contents string, data map[string]interface{}) (string, error) {
 
 // MustRenderOnce performs a RenderOnce and will exit the program when an error
 // occurs.
-func MustRenderOnce(contents string, data map[string]interface{}) string {
+func MustRenderOnce(contents string, data interface{}) string {
 	result, err := RenderOnce(contents, data)
 	if err != nil {
 		logger.NewWithSource("tmpl").WithError(err).Fatal("Failed to render template once.")

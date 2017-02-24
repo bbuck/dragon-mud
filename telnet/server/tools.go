@@ -62,11 +62,6 @@ func newServerEngine(eng *lua.Engine) {
 	eng.OpenMath()
 	eng.OpenString()
 	eng.OpenTable()
-	scripting.OpenEvents(eng)
-	scripting.OpenRandom(eng)
-	scripting.OpenDie(eng)
-	scripting.OpenLog(eng)
-	scripting.OpenPassword(eng)
-	scripting.OpenSutil(eng)
-	scripting.OpenTmpl(eng)
+	scripting.OpenLibs(eng, "events", "random", "die", "log", "password",
+		"sutil", "tmpl")
 }

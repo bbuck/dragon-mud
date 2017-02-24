@@ -18,7 +18,7 @@ var _ = Describe("Events Lua Module", func() {
 
 	p = pool.NewEnginePool(2, func(e *lua.Engine) {
 		e.OpenChannel()
-		scripting.OpenEvents(e)
+		scripting.OpenLibs(e, "events")
 
 		e.SetGlobal("c", c)
 		e.SetGlobal("d", d)

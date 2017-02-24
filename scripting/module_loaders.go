@@ -7,41 +7,23 @@ import (
 	"github.com/bbuck/dragon-mud/scripting/modules"
 )
 
-// OpenTmpl registers the tmpl module with the provided Lua engine.
-func OpenTmpl(e *lua.Engine) {
-	e.RegisterModule("tmpl", modules.Tmpl)
+var moduleMap = map[string]lua.TableMap{
+	"tmpl":     modules.Tmpl,
+	"password": modules.Password,
+	"die":      modules.Die,
+	"random":   modules.Random,
+	"events":   modules.Events,
+	"log":      modules.Log,
+	"sutil":    modules.Sutil,
+	"cli":      modules.Cli,
 }
 
-// OpenPassword registers the password module with the provided Lua engine.
-func OpenPassword(e *lua.Engine) {
-	e.RegisterModule("password", modules.Password)
-}
-
-// OpenDie opens the die module, allowing the scripts to simulate die rolls.
-func OpenDie(e *lua.Engine) {
-	e.RegisterModule("die", modules.Die)
-}
-
-// OpenRandom opens the random module, allowing the scripts to generate random
-// numbers.
-func OpenRandom(e *lua.Engine) {
-	e.RegisterModule("random", modules.Random)
-}
-
-// OpenEvents opens the events module, making it possible for the engine to emit
-// and receive events. This requires the use of a pool though, due to keep
-// emissions and handler execution thread safe.
-func OpenEvents(e *lua.Engine) {
-	e.RegisterModule("events", modules.Events)
-}
-
-// OpenLog will register the log module which will enable server scripts to
-// log information directly to the user specified log targets.
-func OpenLog(e *lua.Engine) {
-	e.RegisterModule("log", modules.Log)
-}
-
-// OpenSutil registers the string utility library with the engine.
-func OpenSutil(e *lua.Engine) {
-	e.RegisterModule("sutil", modules.Sutil)
+// OpenLibs will open all modules given to the function as defined in the
+// scripting/modules directory.
+func OpenLibs(e *lua.Engine, modules ...string) {
+	for _, mname := range modules {
+		if m, ok := moduleMap[mname]; ok {
+			e.RegisterModule(mname, m)
+		}
+	}
 }

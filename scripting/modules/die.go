@@ -27,7 +27,7 @@ import (
 //     parse die input and roll the specified number of sided die, for example
 //     die.roll("3d8") will simulate rolling 3 8-sided die, and return the values
 //     as a table.
-var Die = map[string]interface{}{
+var Die = lua.TableMap{
 	"d2":   random.D2,
 	"d4":   random.D4,
 	"d6":   random.D6,

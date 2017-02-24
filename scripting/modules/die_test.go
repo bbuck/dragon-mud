@@ -38,7 +38,7 @@ func validateRange(i interface{}, min, max float64) {
 
 var _ = Describe("Die", func() {
 	e := lua.NewEngine()
-	scripting.OpenDie(e)
+	scripting.OpenLibs(e, "die")
 	e.DoString(`
 		local die = require("die")
 		function callSimple(name)

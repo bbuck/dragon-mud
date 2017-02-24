@@ -1,0 +1,34 @@
+# {{plugin_name}} configuration file
+
+name = "{{plugin_name}}"
+version = "0.0.0"
+description = "Describe {{plugin_name}} here."
+
+# This section details requirements that should be met for this plugin to work.
+# Such as required minimum DragonMUD version, or dependencies, or other
+# supported requirements.
+[requirements]
+
+  # This field defines the minimum version of DraognMUD this plugin is compatible
+  # with.
+  # NOTE: for the time being, the only valid value here is *
+  dragon_mud = "*"
+
+# Define the events your plugin emits and recieves. Useful for documentation
+# purposes. And event has a name and description field. This section should
+# consit of [[emitted]] (events your plugin emits) and [[received]] (events
+# that your plugin is expected something else to emit.
+[events]
+
+  # example
+  # [[emitted]]
+  #   name = "example:first"
+  #   description = "This is the first example emitted event."
+  #
+  # [[emitted]]
+  #   name = "example:second"
+  #   description = "Yet another example emitted event."
+
+  # [[received]]
+  #   name = "awesome:event"
+  #   description = "An event that is awesome, and comes from somewhere else."

@@ -20,7 +20,7 @@ import (
 //     registers the given function to handle the given event
 //   once(event: string, handler: function)
 //     registers the given function to handle the given event only one time
-var Events = map[string]interface{}{
+var Events = lua.TableMap{
 	"Halt": events.ErrHalt,
 	"emit": func(engine *lua.Engine) int {
 		dataVal := engine.Nil()

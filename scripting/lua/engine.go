@@ -171,6 +171,21 @@ func (e *Engine) RegisterModule(name string, fields map[string]interface{}) *Val
 	return table
 }
 
+// GetEnviron returns the Environment core table from Lua.
+func (e *Engine) GetEnviron() *Value {
+	return e.Get(lua.EnvironIndex)
+}
+
+// GetRegistry retursn the Registry core table from Lua.
+func (e *Engine) GetRegistry() *Value {
+	return e.Get(lua.RegistryIndex)
+}
+
+// GetGlobals returns the global core table from Lua.
+func (e *Engine) GetGlobals() *Value {
+	return e.Get(lua.GlobalsIndex)
+}
+
 // Get returns the value at the specified location on the Lua stack.
 func (e *Engine) Get(n int) *Value {
 	lv := e.state.Get(n)

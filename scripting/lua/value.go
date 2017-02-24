@@ -37,6 +37,12 @@ func (v *Value) AsRaw() interface{} {
 		return v.AsNumber()
 	case lua.LTUserData:
 		return v.Interface()
+	case lua.LTTable:
+		if v.Len() > 0 {
+			return v.AsSliceInterface()
+		}
+
+		return v.AsMapStringInterface()
 	}
 
 	return nil
