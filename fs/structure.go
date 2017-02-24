@@ -14,35 +14,19 @@ import (
 var ProjectStructure = Dir{
 	"Dragonfile.toml": File{},
 	"plugins":         Dir{},
-	"commands": Dir{
-		"views": Dir{},
-		"src":   Dir{},
-	},
-	"server": Dir{
-		"views": Dir{},
-		"src":   Dir{},
-	},
-	"client": Dir{
-		"views": Dir{},
-		"src":   Dir{},
-	},
+	"commands":        Dir{},
+	"server":          Dir{},
+	"client":          Dir{},
+	"views":           Dir{},
 }
 
 // PluginStructure represents what a plugin is intended to look like.
 var PluginStructure = Dir{
 	"DragonInfo.toml": File{},
-	"commands": Dir{
-		"views": Dir{},
-		"src":   Dir{},
-	},
-	"server": Dir{
-		"views": Dir{},
-		"src":   Dir{},
-	},
-	"client": Dir{
-		"views": Dir{},
-		"src":   Dir{},
-	},
+	"commands":        Dir{},
+	"server":          Dir{},
+	"client":          Dir{},
+	"views":           Dir{},
 }
 
 // CreateStructureParams makes it easier and more meaningful to call

@@ -19,7 +19,7 @@ var (
 All lifecycle scripts will be notified during boot and the configuration
 information will be processed.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			log := logger.NewWithSource("serve cmd")
+			log := logger.NewWithSource("cmd(serve)")
 			log.Infof("A %s dragon arrives to serve you today.", getDragonColor())
 			if !config.Loaded {
 				log.Fatal("No configuration file detected. Make sure you run {W}dragon init{x} first.")
