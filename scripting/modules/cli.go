@@ -83,7 +83,8 @@ var Cli = lua.TableMap{
 
 		cmdFlags := cmdTbl.Get("flags")
 		if !cmdFlags.IsNil() {
-			cmdFlags.ForEach(func(key *lua.Value, finfo *lua.Value) {
+			for i := 1; i <= cmdFlags.Len(); i++ {
+				finfo := cmdFlags.RawGet(i)
 				name := finfo.Get("name").AsString()
 				short := finfo.Get("short").AsString()
 				typ := finfo.Get("type").AsString()
@@ -98,7 +99,7 @@ var Cli = lua.TableMap{
 						"description": desc,
 					}).Warn("name, short, type and description are required for flags to be defined")
 
-					return
+					continue
 				}
 
 				switch typ {
@@ -117,7 +118,7 @@ var Cli = lua.TableMap{
 				default:
 					log("cli").WithField("type", typ).Warn("Type value is not valid.")
 				}
-			})
+			}
 		}
 
 		rootCmd := eng.Meta[keys.RootCmd].(*cobra.Command)

@@ -301,8 +301,20 @@ func (v *Value) RawSet(goKey interface{}, val interface{}) {
 		key := getLValue(v.owner, goKey)
 		lval := getLValue(v.owner, val)
 
-		v.asTable().RawSetH(key, lval)
+		v.asTable().RawSet(key, lval)
 	}
+}
+
+// RawGet fetches data from a table, bypassing __index metamethod.
+func (v *Value) RawGet(goKey interface{}) *Value {
+	if v.IsTable() {
+		key := getLValue(v.owner, goKey)
+		ret := v.asTable().RawGet(key)
+
+		return v.owner.ValueFor(ret)
+	}
+
+	return v.owner.Nil()
 }
 
 // The following provde methods for LUserData
