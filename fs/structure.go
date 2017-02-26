@@ -14,19 +14,31 @@ import (
 var ProjectStructure = Dir{
 	"Dragonfile.toml": File{},
 	"plugins":         Dir{},
-	"commands":        Dir{},
-	"server":          Dir{},
-	"client":          Dir{},
-	"views":           Dir{},
+	"commands": Dir{
+		"init.lua": File{},
+	},
+	"server": Dir{
+		"init.lua": File{},
+	},
+	"client": Dir{
+		"init.lua": File{},
+	},
+	"views": Dir{},
 }
 
 // PluginStructure represents what a plugin is intended to look like.
 var PluginStructure = Dir{
 	"DragonInfo.toml": File{},
-	"commands":        Dir{},
-	"server":          Dir{},
-	"client":          Dir{},
-	"views":           Dir{},
+	"commands": Dir{
+		"init.lua": File{},
+	},
+	"server": Dir{
+		"init.lua": File{},
+	},
+	"client": Dir{
+		"init.lua": File{},
+	},
+	"views": Dir{},
 }
 
 // CreateStructureParams makes it easier and more meaningful to call

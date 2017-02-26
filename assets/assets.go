@@ -2,6 +2,7 @@
 // sources:
 // assets/raw/DragonInfo.toml
 // assets/raw/Dragonfile.toml
+// assets/raw/init.lua
 // assets/raw/test.toml
 // DO NOT EDIT!
 
@@ -85,7 +86,7 @@ func dragoninfoToml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "DragonInfo.toml", size: 1143, mode: os.FileMode(420), modTime: time.Unix(1487823077, 0)}
+	info := bindataFileInfo{name: "DragonInfo.toml", size: 1143, mode: os.FileMode(420), modTime: time.Unix(1488130523, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -110,6 +111,26 @@ func dragonfileToml() (*asset, error) {
 	return a, nil
 }
 
+var _initLua = []byte("\x1f\x8b\x08\x00\x00\x09\x6e\x88\x00\xff\xd2\xd5\x55\x48\xcd\x2b\x29\xaa\x54\x28\xc8\xcf\xcc\x2b\x51\x48\xcb\x2f\x52\xa8\xcc\x2f\x2d\x52\x28\xc8\x29\x4d\xcf\xcc\x53\x48\xce\xcf\x2d\xc8\xcf\x03\xaa\xd0\xe3\x02\x04\x00\x00\xff\xff\xc3\x8f\x57\xf3\x2a\x00\x00\x00")
+
+func initLuaBytes() ([]byte, error) {
+	return bindataRead(
+		_initLua,
+		"init.lua",
+	)
+}
+
+func initLua() (*asset, error) {
+	bytes, err := initLuaBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "init.lua", size: 42, mode: os.FileMode(420), modTime: time.Unix(1488144265, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
 var _testToml = []byte("\x1f\x8b\x08\x00\x00\x09\x6e\x88\x00\xff\x52\x56\x28\xc9\xc8\x2c\x56\x00\xa2\x44\x85\x92\xd4\xe2\x12\x85\xb4\xcc\x9c\x54\x2e\x40\x00\x00\x00\xff\xff\xab\x7a\x46\x4b\x16\x00\x00\x00")
 
 func testTomlBytes() ([]byte, error) {
@@ -125,7 +146,7 @@ func testToml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "test.toml", size: 22, mode: os.FileMode(420), modTime: time.Unix(1487825017, 0)}
+	info := bindataFileInfo{name: "test.toml", size: 22, mode: os.FileMode(420), modTime: time.Unix(1488130523, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -184,6 +205,7 @@ func AssetNames() []string {
 var _bindata = map[string]func() (*asset, error){
 	"DragonInfo.toml": dragoninfoToml,
 	"Dragonfile.toml": dragonfileToml,
+	"init.lua": initLua,
 	"test.toml": testToml,
 }
 
@@ -229,6 +251,7 @@ type bintree struct {
 var _bintree = &bintree{nil, map[string]*bintree{
 	"DragonInfo.toml": &bintree{dragoninfoToml, map[string]*bintree{}},
 	"Dragonfile.toml": &bintree{dragonfileToml, map[string]*bintree{}},
+	"init.lua": &bintree{initLua, map[string]*bintree{}},
 	"test.toml": &bintree{testToml, map[string]*bintree{}},
 }}
 
