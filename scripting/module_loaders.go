@@ -16,6 +16,7 @@ var moduleMap = map[string]lua.TableMap{
 	"log":      modules.Log,
 	"sutil":    modules.Sutil,
 	"cli":      modules.Cli,
+	"config":   modules.Config,
 }
 
 // OpenLibs will open all modules given to the function as defined in the
