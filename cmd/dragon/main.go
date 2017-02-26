@@ -30,7 +30,7 @@ func getCommandEngine() *lua.Engine {
 	eng := lua.NewEngine()
 	eng.OpenLibs()
 	scripting.OpenLibs(eng, "tmpl", "password", "die", "random", "log",
-		"sutil", "cli")
+		"sutil", "cli", "config")
 	eng.Meta[keys.RootCmd] = cli.RootCmd
 
 	plugins.RegisterLoadPaths(eng)

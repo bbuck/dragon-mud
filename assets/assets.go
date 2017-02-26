@@ -85,7 +85,7 @@ func dragoninfoToml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "DragonInfo.toml", size: 1143, mode: os.FileMode(420), modTime: time.Unix(1487823077, 0)}
+	info := bindataFileInfo{name: "DragonInfo.toml", size: 1143, mode: os.FileMode(420), modTime: time.Unix(1488130523, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -125,7 +125,7 @@ func testToml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "test.toml", size: 22, mode: os.FileMode(420), modTime: time.Unix(1487825017, 0)}
+	info := bindataFileInfo{name: "test.toml", size: 22, mode: os.FileMode(420), modTime: time.Unix(1488130523, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
