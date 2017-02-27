@@ -16,6 +16,9 @@ type Query struct {
 	properties types.Properties
 }
 
+// ToCypher converts a query object into a Cypher query string.
+// NOTE: For the time being raw queries (strings with property injection)
+//       are the only types of queries supported.
 func (q *Query) ToCypher() string {
 	if q.rawCypher != "" {
 		return q.rawCypher
@@ -62,6 +65,9 @@ func (q *Query) Query2() (bolt.Rows, error) {
 // Exec runs a query that doesn't expect rows to be returned.
 func (q *Query) Exec() (*Result, error) {
 	_, stmt, err := q.getStatement()
+	if err != nil {
+		return nil, err
+	}
 
 	result, err := stmt.ExecNeo(q.propsForQuery())
 	if err != nil {

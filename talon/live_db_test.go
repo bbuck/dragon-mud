@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	. "github.com/bbuck/dragon-mud/talon"
+	"github.com/bbuck/dragon-mud/talon/types"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -124,6 +125,57 @@ var _ = Describe("LiveDB", func() {
 					Ω(node.Properties).Should(HaveLen(1))
 					Ω(node.Properties).Should(HaveKey("hello"))
 					Ω(node.Properties["hello"]).Should(Equal("world"))
+
+					row, err = rows.Next()
+
+					Ω(row).Should(HaveLen(0))
+					Ω(err).Should(MatchError(io.EOF))
+
+					By("deleting nodes")
+
+					result, err = db.Cypher("MATCH (n:TalonSingleNodeTest) DELETE n").Exec()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(result).ShouldNot(BeNil())
+					Ω(result.Stats.NodesDeleted).Should(BeEquivalentTo(1))
+				})
+			})
+
+			Context("single node with properties", func() {
+				It("allows creating, accessing and deleting", func() {
+					str := "world"
+
+					By("creating a node")
+
+					result, err := db.CypherP(`CREATE (:TalonSingleNodeTest {hello: {str}})`, types.Properties{"str": str}).Exec()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(result.Stats.LabelsAdded).Should(BeEquivalentTo(1))
+					Ω(result.Stats.NodesCreated).Should(BeEquivalentTo(1))
+					Ω(result.Stats.PropertiesSet).Should(BeEquivalentTo(1))
+
+					By("accessing the node")
+
+					rows, err := db.Cypher(`MATCH (n:TalonSingleNodeTest) RETURN n`).Query()
+					defer rows.Close()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(rows).ShouldNot(BeNil())
+
+					row, err := rows.Next()
+
+					// examine rows
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(row).Should(HaveLen(1))
+					Ω(row[0].Type()).Should(Equal(EntityNode))
+
+					// examine node
+					node := row[0].(*Node)
+					Ω(node.Labels).Should(HaveLen(1))
+					Ω(node.Labels).Should(ContainElement("TalonSingleNodeTest"))
+					Ω(node.Properties).Should(HaveLen(1))
+					Ω(node.Properties).Should(HaveKey("hello"))
+					Ω(node.Properties["hello"]).Should(Equal(str))
 
 					row, err = rows.Next()
 

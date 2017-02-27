@@ -3,7 +3,7 @@
 package talon
 
 import (
-	"errors"
+	"fmt"
 
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 	boltGraph "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
@@ -40,15 +40,19 @@ func metadataFromBoltRows(rows bolt.Rows) *Metadata {
 	}
 }
 
+// Row represents a list of graph entities.
 type Row []Entity
 
+// Rows represents a group of rows fetched from a Cypher query.
 type Rows struct {
 	Metadata *Metadata
 	Columns  []string
 
+	closed   bool
 	boltRows bolt.Rows
 }
 
+// create a talon.Rows object from a bolt.Rows object.
 func wrapBoltRows(rs bolt.Rows) *Rows {
 	return &Rows{
 		Metadata: metadataFromBoltRows(rs),
@@ -56,27 +60,54 @@ func wrapBoltRows(rs bolt.Rows) *Rows {
 	}
 }
 
+// Close will close the incoming stream of graph entities.
 func (r *Rows) Close() {
-	r.boltRows.Close()
+	if !r.closed {
+		r.closed = true
+		r.boltRows.Close()
+	}
 }
 
+// Next fetches the next row in the resultset.
 func (r *Rows) Next() (Row, error) {
 	boltRow, _, err := r.boltRows.NextNeo()
 	row := make(Row, len(boltRow))
-	for i := 0; i < len(row); i++ {
-		if node, ok := boltRow[i].(boltGraph.Node); ok {
-			row[i] = wrapBoltNode(node)
-		} else if rel, ok := boltRow[i].(boltGraph.Relationship); ok {
-			row[i] = wrapBoltRelationship(rel)
-		} else {
-			// TODO: Remove
-			panic(errors.New("this doesn't happen!!!"))
-		}
+	for i, boltEnt := range boltRow {
+		row[i] = boltToTalonEntity(boltEnt)
 	}
 
 	return row, err
 }
 
-func (r *Rows) All() ([][]interface{}, map[string]interface{}, error) {
-	return r.boltRows.All()
+// All returns all the rows up front instead of using the streaming API.
+func (r *Rows) All() ([]Row, error) {
+	all, _, err := r.boltRows.All()
+	if err != nil {
+		return nil, err
+	}
+	results := make([]Row, 0)
+	for _, boltRow := range all {
+		row := make(Row, len(boltRow))
+		for i, boltEnt := range boltRow {
+			row[i] = boltToTalonEntity(boltEnt)
+		}
+		results = append(results, row)
+	}
+	r.Close()
+
+	return results, nil
+}
+
+// bolt type to talon type
+func boltToTalonEntity(i interface{}) Entity {
+	switch e := i.(type) {
+	case boltGraph.Node:
+		return wrapBoltNode(e)
+	case boltGraph.Relationship:
+		return wrapBoltRelationship(e)
+	default:
+		panic(fmt.Errorf("found %T value, didn't expect it", i))
+	}
+
+	return nil
 }
