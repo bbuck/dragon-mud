@@ -6,7 +6,7 @@ import:
 - package: github.com/johnnadratowski/golang-neo4j-bolt-driver
   subpackages:
   - structures/graph
-- package: github.com/layeh/gopher-luar
+- package: layeh.com/gopher-luar
 - package: github.com/mitchellh/mapstructure
 - package: github.com/pzduniak/argon2
 - package: github.com/satori/go.uuid
