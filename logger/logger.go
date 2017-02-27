@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/bbuck/dragon-mud/errs"
 	"github.com/bbuck/dragon-mud/output"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
@@ -117,11 +118,11 @@ func ConfigureTargets(targets interface{}) io.Writer {
 						file, err = os.Create(target.Target)
 						if err != nil {
 							fmt.Fprintf(os.Stderr, "ERROR: Failed creating a file log target: %s", err)
-							os.Exit(1)
+							os.Exit(errs.ErrLoggerFileOpen)
 						}
 					} else {
 						fmt.Fprintf(os.Stderr, "ERROR: %s", err.Error())
-						os.Exit(1)
+						os.Exit(errs.ErrLoggerLoad)
 					}
 				}
 				writers = append(writers, file)

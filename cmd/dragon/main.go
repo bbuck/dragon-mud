@@ -7,6 +7,7 @@ import (
 
 	"github.com/bbuck/dragon-mud/cli"
 	"github.com/bbuck/dragon-mud/config"
+	"github.com/bbuck/dragon-mud/errs"
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/plugins"
 	"github.com/bbuck/dragon-mud/scripting"
@@ -22,7 +23,7 @@ func main() {
 	defer cmdEngine.Close()
 
 	if err := cli.RootCmd.Execute(); err != nil {
-		os.Exit(1)
+		os.Exit(errs.ErrGeneral)
 	}
 }
 
