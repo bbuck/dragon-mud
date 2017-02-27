@@ -126,7 +126,7 @@ func initLua() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init.lua", size: 42, mode: os.FileMode(420), modTime: time.Unix(1488144265, 0)}
+	info := bindataFileInfo{name: "init.lua", size: 42, mode: os.FileMode(420), modTime: time.Unix(1488145726, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
