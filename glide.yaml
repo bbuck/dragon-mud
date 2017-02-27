@@ -1,12 +1,12 @@
 package: github.com/bbuck/dragon-mud
 import:
 - package: github.com/Sirupsen/logrus
-  version: ^0.11.0
+  version: 0.11.0
 - package: github.com/fatih/structs
 - package: github.com/johnnadratowski/golang-neo4j-bolt-driver
   subpackages:
   - structures/graph
-- package: github.com/layeh/gopher-luar
+- package: layeh.com/gopher-luar
 - package: github.com/mitchellh/mapstructure
 - package: github.com/pzduniak/argon2
 - package: github.com/satori/go.uuid
@@ -15,6 +15,7 @@ import:
 - package: github.com/spf13/viper
 - package: github.com/valyala/fasttemplate
 - package: github.com/x-cray/logrus-prefixed-formatter
+  version: 0.3.1
 - package: github.com/yuin/gopher-lua
 testImport:
 - package: github.com/jinzhu/gorm

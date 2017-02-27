@@ -3,8 +3,8 @@
 package lua
 
 import (
-	"github.com/layeh/gopher-luar"
 	"github.com/yuin/gopher-lua"
+	luar "layeh.com/gopher-luar"
 )
 
 // Value is a utility wrapper for lua.LValue that provies conveinient methods

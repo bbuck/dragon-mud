@@ -5,8 +5,8 @@ package lua
 import (
 	"reflect"
 
-	"github.com/layeh/gopher-luar"
 	"github.com/yuin/gopher-lua"
+	luar "layeh.com/gopher-luar"
 )
 
 // Engine struct stores a pointer to a gluaLState providing a simplified API.

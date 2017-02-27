@@ -62,7 +62,7 @@ func New() Log {
 func NewWithSource(source string) Log {
 	log := New()
 
-	return log.WithField("source", source)
+	return log.WithField("prefix", source)
 }
 
 type logTarget struct {
