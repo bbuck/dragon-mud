@@ -1,5 +1,5 @@
-hash: 853aff578b8adfa60f54cf54ef52b89b87b35e915834a1b585f917d13b894578
-updated: 2017-02-26T23:08:31.01675055-06:00
+hash: 23ad1bd5cb44248d08a5652b6b7dd8ca3b2a43af15cf412828a473878fa677a5
+updated: 2017-02-27T01:35:25.954542491-06:00
 imports:
 - name: github.com/dchest/blake2b
   version: 3c8c640cd7bea3ca78209d812b5854442ab92fed
@@ -44,7 +44,7 @@ imports:
 - name: github.com/satori/go.uuid
   version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: github.com/Sirupsen/logrus
-  version: c078b1e43f58d563c74cebe63c85789e76ddb627
+  version: d26492970760ca5d33129d2d799e34be5c4782eb
 - name: github.com/spf13/afero
   version: 72b31426848c6ef12a7a8e216708cb0d1530f074
   subpackages:
