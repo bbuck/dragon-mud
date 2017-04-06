@@ -147,7 +147,7 @@ var _ = Describe("LiveDB", func() {
 
 					By("creating a node")
 
-					result, err := db.CypherP(`CREATE (:TalonSingleNodeTest {hello: {str}})`, types.Properties{"str": str}).Exec()
+					result, err := db.MustCypherP(`CREATE (:TalonSingleNodeTest {hello: {str}})`, types.Properties{"str": str}).Exec()
 
 					Ω(err).ShouldNot(HaveOccurred())
 					Ω(result.Stats.LabelsAdded).Should(BeEquivalentTo(1))

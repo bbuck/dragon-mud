@@ -3,6 +3,7 @@
 package types_test
 
 import (
+	"fmt"
 	"time"
 
 	. "github.com/bbuck/dragon-mud/talon/types"
@@ -26,7 +27,7 @@ var _ = Describe("TimeType", func() {
 
 	Describe("MarshalTalon", func() {
 		Context("with default format", func() {
-			var test = date.Format(DefaultTimeFormat)
+			var test = fmt.Sprintf("T!%s", date.Format(DefaultTimeFormat))
 
 			BeforeEach(func() {
 				t = NewTime(date)
@@ -43,7 +44,7 @@ var _ = Describe("TimeType", func() {
 		})
 
 		Context("with a non-default format", func() {
-			var test = date.Format(time.ANSIC)
+			var test = fmt.Sprintf("T!%s", date.Format(time.ANSIC))
 
 			BeforeEach(func() {
 				t = NewTimeWithFormat(date, time.ANSIC)
@@ -62,7 +63,7 @@ var _ = Describe("TimeType", func() {
 
 	Describe("UnmarshalTalon", func() {
 		Context("with default format", func() {
-			var test = date.Format(DefaultTimeFormat)
+			var test = fmt.Sprintf("T!%s", date.Format(DefaultTimeFormat))
 
 			BeforeEach(func() {
 				t = EmptyTime()
@@ -99,7 +100,7 @@ var _ = Describe("TimeType", func() {
 		})
 
 		Context("with a non-default format", func() {
-			var test = date.Format(time.ANSIC)
+			var test = fmt.Sprintf("T!%s", date.Format(time.ANSIC))
 
 			BeforeEach(func() {
 				t = EmptyTimeWithFormat(time.ANSIC)

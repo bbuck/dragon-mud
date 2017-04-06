@@ -46,22 +46,6 @@ func (q *Query) Query() (*Rows, error) {
 	return r, nil
 }
 
-func (q *Query) Query2() (bolt.Rows, error) {
-	conn, stmt, err := q.getStatement()
-	if err != nil {
-		return nil, err
-	}
-
-	rows, err := stmt.QueryNeo(q.propsForQuery())
-	if err != nil {
-		conn.Close()
-
-		return nil, err
-	}
-
-	return rows, nil
-}
-
 // Exec runs a query that doesn't expect rows to be returned.
 func (q *Query) Exec() (*Result, error) {
 	_, stmt, err := q.getStatement()
@@ -75,17 +59,6 @@ func (q *Query) Exec() (*Result, error) {
 	}
 
 	return wrapBoltResult(result), nil
-}
-
-func (q *Query) Exec2() (interface{}, error) {
-	_, stmt, err := q.getStatement()
-
-	result, err := stmt.ExecNeo(q.propsForQuery())
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
 }
 
 func (q *Query) getStatement() (bolt.Conn, bolt.Stmt, error) {

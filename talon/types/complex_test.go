@@ -3,9 +3,12 @@
 package types_test
 
 import (
+	"fmt"
+
 	. "github.com/bbuck/dragon-mud/talon/types"
 
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 )
 
@@ -58,7 +61,7 @@ var _ = Describe("Complex", func() {
 			c = Complex(1 + 2i)
 			bs, err = c.MarshalTalon()
 			result = string(bs)
-			expected = "1.000000 + 2.000000i"
+			expected = fmt.Sprintf("C!%g + %gi", 1.0, 2.0)
 		})
 
 		It("doesn't fail", func() {
@@ -70,25 +73,27 @@ var _ = Describe("Complex", func() {
 		})
 	})
 
-	Describe("UnmarshalTalon", func() {
-		var (
-			c        Complex
-			input    = []byte("1.000000 + 2.000000i")
-			err      error
-			expected complex128 = 1 + 2i
-		)
+	DescribeTable("UnmarshalTalon",
+		func(input []byte, expected complex128, toError bool) {
+			var (
+				c   Complex
+				err error
+			)
 
-		BeforeEach(func() {
-			c = Complex(1 + 2i)
+			c = NewComplex(nil)
 			err = c.UnmarshalTalon(input)
-		})
 
-		It("doesn't fail", func() {
+			if toError {
+				Ω(err).ShouldNot(BeNil())
+
+				return
+			}
+
 			Ω(err).Should(BeNil())
-		})
-
-		It("produces the correct complex value", func() {
 			Ω(complex128(c)).Should(Equal(expected))
-		})
-	})
+		},
+		Entry("simple values", []byte("C!1 + 2i"), complex128(1+2i), false),
+		Entry("decimal values", []byte("C!1.2345 + 2.3456i"), complex128(1.2345+2.3456i), false),
+		Entry("exponent values", []byte("C!1.23e-10 + 2.34e+10i"), complex128(1.23e-10+2.34e+10i), false),
+		Entry("invalid format", []byte("1 + 2i"), complex128(0i), true))
 })

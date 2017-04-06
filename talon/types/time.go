@@ -2,12 +2,23 @@
 
 package types
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // DefaultTimeFormat is set to RFC3339 (predefined format) for use in storing
 // retreiving dates. This is a profile of IOS 8601 date transfer formats and
 // should be a widely supported format.
 const DefaultTimeFormat = time.RFC3339
+
+// TimeParseError represents an issue parsing time values.
+type TimeParseError string
+
+// Error implements the error interface for TimeParseError
+func (t TimeParseError) Error() string {
+	return string(t)
+}
 
 // Time wraps the standard lib time.Time to provide marshaling capability with
 // the Talon ORM. This includes a format string for the time.
@@ -50,7 +61,7 @@ func NewTimeWithFormat(t time.Time, f string) Time {
 
 // MarshalTalon allows Time to implement the Talon Marshaler interface.
 func (t Time) MarshalTalon() ([]byte, error) {
-	tstr := t.Format(t.OutputFormat)
+	tstr := fmt.Sprintf("T!%s", t.Format(t.OutputFormat))
 
 	return []byte(tstr), nil
 }
@@ -58,9 +69,15 @@ func (t Time) MarshalTalon() ([]byte, error) {
 // UnmarshalTalon allows Time to implement the Talan Unmarshaler interface.
 func (t *Time) UnmarshalTalon(bs []byte) error {
 	str := string(bs)
-	pt, err := time.Parse(t.OutputFormat, str)
+	if len(str) < 2 {
+		return TimeParseError("time string is too short")
+	}
+
+	pt, err := time.Parse(t.OutputFormat, str[2:])
 	if err == nil {
 		t.Time = pt
+	} else {
+		err = TimeParseError(err.Error())
 	}
 
 	return err
