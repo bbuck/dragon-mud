@@ -4,11 +4,20 @@ package types
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
 	"time"
 )
+
+// GenUnmarshaler is a function that takes an interface value and returns a type
+// that can unmarshal a string.
+type GenUnmarshaler func() Unmarshaler
+
+// Unmarshalers is a map of type keys to GenUnmarshaler functions for fetching
+// types that convert strings into useful values for use.
+var Unmarshalers = make(map[string]GenUnmarshaler)
 
 // Properties is a map[string]interface{} wrapper with a special string function
 // designed to produce properties for Neo4j.
@@ -73,38 +82,70 @@ func (p Properties) Merge(other Properties) Properties {
 	return props
 }
 
-func marshalTalonValue(i interface{}) (interface{}, error) {
-	if tm, ok := i.(Marshaler); ok {
-		bs, err := tm.MarshalTalon()
-		if err != nil {
-			return nil, err
+// MarshaledProperties will attempt to TalonMarshal all property values that
+// can be marshaled.
+func (p Properties) MarshaledProperties() (Properties, error) {
+	mp := make(Properties)
+	for k, v := range p {
+		switch t := v.(type) {
+		case Marshaler:
+			bs, err := t.MarshalTalon()
+			if err != nil {
+				return mp, err
+			}
+			mp[k] = string(bs)
+		case complex128, complex64:
+			bs, err := NewComplex(t).MarshalTalon()
+			if err != nil {
+				return nil, err
+			}
+			mp[k] = string(bs)
+		case time.Time:
+			bs, err := NewTime(t).MarshalTalon()
+			if err != nil {
+				return nil, err
+			}
+			mp[k] = string(bs)
+		case Properties:
+			return nil, errors.New("cannot embed properties within properties")
 		}
 
-		return string(bs), nil
-	}
-
-	val := reflect.ValueOf(i)
-	switch val.Kind() {
-	case reflect.Complex64, reflect.Complex128:
-		c128 := val.Complex()
-		c := Complex(c128)
-		bs, err := c.MarshalTalon()
-		if err != nil {
-			return nil, err
+		if kind := reflect.TypeOf(v).Kind(); kind == reflect.Map || kind == reflect.Slice {
+			return nil, errors.New("raw maps and slices are not supported property values")
 		}
 
-		return string(bs), nil
-	}
-
-	if t, ok := i.(time.Time); ok {
-		tt := NewTime(t)
-		bs, err := tt.MarshalTalon()
-		if err != nil {
-			return nil, err
+		if _, ok := mp[k]; !ok {
+			mp[k] = v
 		}
-
-		return string(bs), nil
 	}
 
-	return i, nil
+	return mp, nil
+}
+
+// UnmarshaledProperties assumes that properties are raw strings from the
+// database and examines them for potential type values.
+func (p Properties) UnmarshaledProperties() (Properties, error) {
+	up := make(Properties)
+
+	for k, v := range p {
+		switch t := v.(type) {
+		case string:
+			if len(t) > 2 && t[1] == '!' {
+				typeKey := t[0:1]
+				if gu, ok := Unmarshalers[typeKey]; ok {
+					u := gu()
+					err := u.UnmarshalTalon([]byte(t))
+					if err != nil {
+						return nil, err
+					}
+					v = u
+				}
+			}
+			up[k] = v
+		default:
+			up[k] = v
+		}
+	}
+
+	return up, nil
 }

@@ -4,8 +4,54 @@ package types
 
 import (
 	"fmt"
+	"regexp"
 	"time"
 )
+
+// utility maps that allow easy conversion between a name, like ANSIC and the
+// constant format value defined in the time package.
+var timeNameToFormat = map[string]string{
+	"ANSIC":       time.ANSIC,
+	"UnixDate":    time.UnixDate,
+	"RubyDate":    time.RubyDate,
+	"RFC822":      time.RFC822,
+	"RFC822Z":     time.RFC822Z,
+	"RFC850":      time.RFC850,
+	"RFC1123":     time.RFC1123,
+	"RFC1123Z":    time.RFC1123Z,
+	"RFC3339":     time.RFC3339,
+	"RFC3339Nano": time.RFC3339Nano,
+	"Kitchen":     time.Kitchen,
+	"Stamp":       time.Stamp,
+	"StampMilli":  time.StampMilli,
+	"StampMicro":  time.StampMicro,
+	"StampNano":   time.StampNano,
+}
+
+// assinged in init, the reverse of the above
+var timeFormatToName map[string]string
+
+func init() {
+	Unmarshalers["T"] = func() Unmarshaler {
+		t := EmptyTime()
+
+		return &t
+	}
+
+	timeFormatToName = make(map[string]string)
+	for n, f := range timeNameToFormat {
+		timeFormatToName[f] = n
+	}
+}
+
+// format for the final value after serialization, the first string is the
+// format used to generate the output string, the second string is the formatted
+// time value being stored
+const timeSerializedFormat = "T!%s!!%s"
+
+// timeRx is the format expected to parse for time, the first group is the
+// format for parsing, and the second is the actual time string.
+var timeRx = regexp.MustCompile(`^T!(.+?)!!(.+?)$`)
 
 // DefaultTimeFormat is set to RFC3339 (predefined format) for use in storing
 // retreiving dates. This is a profile of IOS 8601 date transfer formats and
@@ -61,24 +107,41 @@ func NewTimeWithFormat(t time.Time, f string) Time {
 
 // MarshalTalon allows Time to implement the Talon Marshaler interface.
 func (t Time) MarshalTalon() ([]byte, error) {
-	tstr := fmt.Sprintf("T!%s", t.Format(t.OutputFormat))
+	format := t.OutputFormat
+	if f, ok := timeFormatToName[format]; ok {
+		format = f
+	}
+
+	tstr := fmt.Sprintf(timeSerializedFormat, format, t.Format(t.OutputFormat))
 
 	return []byte(tstr), nil
 }
 
 // UnmarshalTalon allows Time to implement the Talan Unmarshaler interface.
 func (t *Time) UnmarshalTalon(bs []byte) error {
-	str := string(bs)
-	if len(str) < 2 {
-		return TimeParseError("time string is too short")
+	vals := timeRx.FindAllSubmatch(bs, 1)
+
+	if len(vals) < 1 {
+		return TimeParseError("time string is not the correct format")
 	}
 
-	pt, err := time.Parse(t.OutputFormat, str[2:])
-	if err == nil {
-		t.Time = pt
-	} else {
-		err = TimeParseError(err.Error())
+	format := string(vals[0][1])
+	value := string(vals[0][2])
+
+	if f, ok := timeNameToFormat[format]; ok {
+		format = f
 	}
 
-	return err
+	if t.OutputFormat != format {
+		t.OutputFormat = format
+	}
+
+	pt, err := time.Parse(t.OutputFormat, value)
+	if err != nil {
+		return TimeParseError(err.Error())
+	}
+
+	t.Time = pt
+
+	return nil
 }

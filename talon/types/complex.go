@@ -8,6 +8,14 @@ import (
 	"strconv"
 )
 
+func init() {
+	Unmarshalers["C"] = func() Unmarshaler {
+		c := NewComplex(0i)
+
+		return &c
+	}
+}
+
 // regular expression defining the structure of a complex value
 var complexRx = regexp.MustCompile(`^C!([\d.e+-]+?) \+ ([\d.e+-]+?)i$`)
 

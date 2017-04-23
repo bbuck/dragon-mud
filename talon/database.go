@@ -3,8 +3,6 @@
 package talon
 
 import (
-	"time"
-
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 
 	"github.com/bbuck/dragon-mud/talon/types"
@@ -19,7 +17,7 @@ type DB struct {
 // CypherP performs the same job as Cypher, it just allows the user to pass in
 // a set of properties.
 func (d *DB) CypherP(cypher string, p types.Properties) (*Query, error) {
-	props, err := talonMarshalProperties(p)
+	props, err := p.MarshaledProperties()
 	if err != nil {
 		return nil, err
 	}
@@ -55,34 +53,4 @@ func (d *DB) conn() (bolt.Conn, error) {
 	c, err := d.driver.Conn()
 
 	return c, err
-}
-
-func talonMarshalProperties(p types.Properties) (types.Properties, error) {
-	mp := make(types.Properties)
-	for k, v := range p {
-		switch t := v.(type) {
-		case types.Marshaler:
-			bs, err := t.MarshalTalon()
-			if err != nil {
-				return mp, err
-			}
-			mp[k] = string(bs)
-		case complex128, complex64:
-			bs, err := types.NewComplex(t).MarshalTalon()
-			if err != nil {
-				return nil, err
-			}
-			mp[k] = string(bs)
-		case time.Time:
-			bs, err := types.NewTime(t).MarshalTalon()
-			if err != nil {
-				return nil, err
-			}
-			mp[k] = string(bs)
-		default:
-			mp[k] = v
-		}
-	}
-
-	return mp, nil
 }
