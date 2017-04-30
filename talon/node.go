@@ -15,12 +15,19 @@ type Node struct {
 }
 
 // convert the bolt node object into a GraphNode.
-func wrapBoltNode(n bolt.Node) *Node {
+func wrapBoltNode(n bolt.Node) (*Node, error) {
+	var err error
+	p := types.Properties(n.Properties)
+	p, err = p.UnmarshaledProperties()
+	if err != nil {
+		return nil, err
+	}
+
 	return &Node{
 		ID:         n.NodeIdentity,
 		Labels:     n.Labels,
-		Properties: types.Properties(n.Properties),
-	}
+		Properties: p,
+	}, nil
 }
 
 // Type implements Entity for Node returning EntityNode

@@ -11,6 +11,15 @@ import (
 	"time"
 )
 
+// ErrNoNestedProperties is returned when you attempt to Marshal a Properties
+// map that has a Properties map inside of it.
+var ErrNoNestedProperties = errors.New("cannot nest properties within properties")
+
+// ErrNoRawCollections is returned when a map or slice value (raw) is present
+// inside of a Properties map. The correct resolution is to use a new type
+// that implements Marshaler.
+var ErrNoRawCollections = errors.New("raw maps and slices are not supported property values")
+
 // GenUnmarshaler is a function that takes an interface value and returns a type
 // that can unmarshal a string.
 type GenUnmarshaler func() Unmarshaler
@@ -107,11 +116,11 @@ func (p Properties) MarshaledProperties() (Properties, error) {
 			}
 			mp[k] = string(bs)
 		case Properties:
-			return nil, errors.New("cannot embed properties within properties")
+			return nil, ErrNoNestedProperties
 		}
 
 		if kind := reflect.TypeOf(v).Kind(); kind == reflect.Map || kind == reflect.Slice {
-			return nil, errors.New("raw maps and slices are not supported property values")
+			return nil, ErrNoRawCollections
 		}
 
 		if _, ok := mp[k]; !ok {

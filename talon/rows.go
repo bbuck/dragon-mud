@@ -73,7 +73,11 @@ func (r *Rows) Next() (Row, error) {
 	boltRow, _, err := r.boltRows.NextNeo()
 	row := make(Row, len(boltRow))
 	for i, boltEnt := range boltRow {
-		row[i] = boltToTalonEntity(boltEnt)
+		ent, err := boltToTalonEntity(boltEnt)
+		if err != nil {
+			return nil, err
+		}
+		row[i] = ent
 	}
 
 	return row, err
@@ -89,7 +93,11 @@ func (r *Rows) All() ([]Row, error) {
 	for _, boltRow := range all {
 		row := make(Row, len(boltRow))
 		for i, boltEnt := range boltRow {
-			row[i] = boltToTalonEntity(boltEnt)
+			ent, err := boltToTalonEntity(boltEnt)
+			if err != nil {
+				return nil, err
+			}
+			row[i] = ent
 		}
 		results = append(results, row)
 	}
@@ -99,15 +107,13 @@ func (r *Rows) All() ([]Row, error) {
 }
 
 // bolt type to talon type
-func boltToTalonEntity(i interface{}) Entity {
+func boltToTalonEntity(i interface{}) (Entity, error) {
 	switch e := i.(type) {
 	case boltGraph.Node:
 		return wrapBoltNode(e)
 	case boltGraph.Relationship:
 		return wrapBoltRelationship(e)
-	default:
-		panic(fmt.Errorf("found %T value, didn't expect it", i))
 	}
 
-	return nil
+	return nil, fmt.Errorf("found %T value, didn't expect it", i)
 }

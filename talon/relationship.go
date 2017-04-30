@@ -15,14 +15,14 @@ type Relationship struct {
 	Properties  types.Properties
 }
 
-func wrapBoltRelationship(r bolt.Relationship) *Relationship {
+func wrapBoltRelationship(r bolt.Relationship) (*Relationship, error) {
 	return &Relationship{
 		ID:          r.RelIdentity,
 		StartNodeID: r.StartNodeIdentity,
 		EndNodeID:   r.EndNodeIdentity,
 		Name:        r.Type,
 		Properties:  types.Properties(r.Properties),
-	}
+	}, nil
 }
 
 func (*Relationship) Type() EntityType {
