@@ -16,7 +16,7 @@ get-glide:
 
 get-deps:
 	glide install
-	go get github.com/onsi/ginkgo/ginkgo
-	go get github.com/jteeuwen/go-bindata/...
+	go get -u github.com/onsi/ginkgo/ginkgo
+	go get -u github.com/jteeuwen/go-bindata/...
 
 .PHONY: test install bootstrap get-glide get-deps pre-build
