@@ -3,13 +3,13 @@ SOURCE_FILES := $(shell go list ./... | grep -v /vendor/ | grep -v /assets)
 test: install
 	ginkgo -skipPackage=vendor -r
 
-install: 
+install: pre-build 
 	go install github.com/bbuck/dragon-mud/cmd/...
 
 bootstrap: get-glide get-deps
 
-assets:
-	go-bindata -pkg assets -o assets/assets.go -prefix assets/raw assets/raw/...
+pre-build:
+	go-bindata -debug -pkg assets -o assets/assets.go -prefix assets/raw assets/raw/...
 
 get-glide:
 	go get github.com/Masterminds/glide
