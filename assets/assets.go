@@ -32,7 +32,7 @@ type asset struct {
 
 // dragoninfoToml reads file data from disk. It returns an error on failure.
 func dragoninfoToml() (*asset, error) {
-	path := "/Users/bbuck/Dev/go/src/github.com/bbuck/dragon-mud/assets/raw/DragonInfo.toml"
+	path := "/Users/izuriel/Dev/go/src/github.com/bbuck/dragon-mud/assets/raw/DragonInfo.toml"
 	name := "DragonInfo.toml"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
@@ -50,7 +50,7 @@ func dragoninfoToml() (*asset, error) {
 
 // dragonfileToml reads file data from disk. It returns an error on failure.
 func dragonfileToml() (*asset, error) {
-	path := "/Users/bbuck/Dev/go/src/github.com/bbuck/dragon-mud/assets/raw/Dragonfile.toml"
+	path := "/Users/izuriel/Dev/go/src/github.com/bbuck/dragon-mud/assets/raw/Dragonfile.toml"
 	name := "Dragonfile.toml"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
@@ -68,7 +68,7 @@ func dragonfileToml() (*asset, error) {
 
 // initLua reads file data from disk. It returns an error on failure.
 func initLua() (*asset, error) {
-	path := "/Users/bbuck/Dev/go/src/github.com/bbuck/dragon-mud/assets/raw/init.lua"
+	path := "/Users/izuriel/Dev/go/src/github.com/bbuck/dragon-mud/assets/raw/init.lua"
 	name := "init.lua"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
@@ -86,7 +86,7 @@ func initLua() (*asset, error) {
 
 // testToml reads file data from disk. It returns an error on failure.
 func testToml() (*asset, error) {
-	path := "/Users/bbuck/Dev/go/src/github.com/bbuck/dragon-mud/assets/raw/test.toml"
+	path := "/Users/izuriel/Dev/go/src/github.com/bbuck/dragon-mud/assets/raw/test.toml"
 	name := "test.toml"
 	bytes, err := bindataRead(path, name)
 	if err != nil {
