@@ -7,14 +7,20 @@ import (
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
 )
 
+// Relationship represents a link between two nodes, it can come in two
+// different kinds -- bounded or unbounded. If it's bounded then StartNodeID
+// and EndNodeID will be set (and Bounded will be true). If it's unbounded
+// these values will be 0.
 type Relationship struct {
 	ID          int64
 	StartNodeID int64
 	EndNodeID   int64
 	Name        string
 	Properties  types.Properties
+	Bounded     bool
 }
 
+// for bounded relationships
 func wrapBoltRelationship(r bolt.Relationship) (*Relationship, error) {
 	var err error
 	p := types.Properties(r.Properties)
@@ -29,6 +35,24 @@ func wrapBoltRelationship(r bolt.Relationship) (*Relationship, error) {
 		EndNodeID:   r.EndNodeIdentity,
 		Name:        r.Type,
 		Properties:  types.Properties(r.Properties),
+		Bounded:     true,
+	}, nil
+}
+
+// for unbounded relationships
+func wrapBoltUnboundRelationship(r bolt.UnboundRelationship) (*Relationship, error) {
+	var err error
+	p := types.Properties(r.Properties)
+	p, err = p.UnmarshaledProperties()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Relationship{
+		ID:         r.RelIdentity,
+		Name:       r.Type,
+		Properties: types.Properties(r.Properties),
+		Bounded:    false,
 	}, nil
 }
 

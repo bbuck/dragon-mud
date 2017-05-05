@@ -115,11 +115,14 @@ var _ = Describe("LiveDB", func() {
 
 					// examine rows
 					Ω(err).ShouldNot(HaveOccurred())
-					Ω(row).Should(HaveLen(1))
-					Ω(row[0].Type()).Should(Equal(EntityNode))
+					Ω(row.Len()).Should(Equal(1))
+
+					ent, ok := row.GetIndex(0)
+					Ω(ok).Should(BeTrue())
+					Ω(ent.Type()).Should(Equal(EntityNode))
 
 					// examine node
-					node := row[0].(*Node)
+					node := ent.(*Node)
 					Ω(node.Labels).Should(HaveLen(1))
 					Ω(node.Labels).Should(ContainElement("TalonSingleNodeTest"))
 					Ω(node.Properties).Should(HaveLen(1))
@@ -128,7 +131,8 @@ var _ = Describe("LiveDB", func() {
 
 					row, err = rows.Next()
 
-					Ω(row).Should(HaveLen(0))
+					ent, _ = row.GetIndex(0)
+					Ω(row.Len()).Should(Equal(0))
 					Ω(err).Should(MatchError(io.EOF))
 
 					By("deleting nodes")
@@ -166,11 +170,14 @@ var _ = Describe("LiveDB", func() {
 
 					// examine rows
 					Ω(err).ShouldNot(HaveOccurred())
-					Ω(row).Should(HaveLen(1))
-					Ω(row[0].Type()).Should(Equal(EntityNode))
+					Ω(row.Len()).Should(Equal(1))
+
+					ent, ok := row.GetIndex(0)
+					Ω(ok).Should(BeTrue())
+					Ω(ent.Type()).Should(Equal(EntityNode))
 
 					// examine node
-					node := row[0].(*Node)
+					node := ent.(*Node)
 					Ω(node.Labels).Should(HaveLen(1))
 					Ω(node.Labels).Should(ContainElement("TalonSingleNodeTest"))
 					Ω(node.Properties).Should(HaveLen(1))
@@ -179,7 +186,7 @@ var _ = Describe("LiveDB", func() {
 
 					row, err = rows.Next()
 
-					Ω(row).Should(HaveLen(0))
+					Ω(row.Len()).Should(Equal(0))
 					Ω(err).Should(MatchError(io.EOF))
 
 					By("deleting nodes")
@@ -219,10 +226,13 @@ var _ = Describe("LiveDB", func() {
 					row, err := rows.Next()
 
 					Ω(err).ShouldNot(HaveOccurred())
-					Ω(row).Should(HaveLen(1))
-					Ω(row[0].Type()).Should(Equal(EntityRelationship))
+					Ω(row.Len()).Should(Equal(1))
 
-					rel := row[0].(*Relationship)
+					ent, ok := row.GetIndex(0)
+					Ω(ok).Should(BeTrue())
+					Ω(ent.Type()).Should(Equal(EntityRelationship))
+
+					rel := ent.(*Relationship)
 					Ω(rel.Name).Should(Equal("TALON_TEST_RELATIONSHIP"))
 					Ω(rel.StartNodeID).Should(BeNumerically(">", 0))
 					Ω(rel.EndNodeID).Should(And(
@@ -233,7 +243,7 @@ var _ = Describe("LiveDB", func() {
 					Ω(rel.Properties["hello"]).Should(Equal("world"))
 
 					row, err = rows.Next()
-					Ω(row).Should(HaveLen(0))
+					Ω(row.Len()).Should(Equal(0))
 					Ω(err).Should(MatchError(io.EOF))
 
 					By("deleting the relationship")
@@ -243,6 +253,61 @@ var _ = Describe("LiveDB", func() {
 					Ω(err).ShouldNot(HaveOccurred())
 					Ω(result.Stats.NodesDeleted).Should(BeEquivalentTo(2))
 					Ω(result.Stats.RelationshipsDeleted).Should(BeEquivalentTo(1))
+				})
+			})
+
+			Context("return a path", func() {
+				It("allows fetching paths", func() {
+					By("setting up the database")
+
+					result, err := db.Cypher(`
+						CREATE (a:TalonPathTestNode {id: 1}),
+							   (b:TalonPathTestNode {id: 2}),
+							   (c:TalonPathTestNode {id: 3}),
+							   (a)-[:TALON_PATH_TEST_REL]->(b),
+							   (b)-[:TALON_PATH_TEST_REL]->(c)
+					`).Exec()
+
+					Ω(err).Should(BeNil())
+					Ω(result.Stats.NodesCreated).Should(BeEquivalentTo(3))
+					Ω(result.Stats.RelationshipsCreated).Should(BeEquivalentTo(2))
+
+					By("fetching the path")
+
+					rows, err := db.Cypher(`
+						MATCH (a:TalonPathTestNode {id: 1}), (c:TalonPathTestNode {id: 3})
+						WITH a, c
+							MATCH p = shortestPath((a)-[:TALON_PATH_TEST_REL*..2]->(c))
+							RETURN p
+					`).Query()
+					defer rows.Close()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(rows).ShouldNot(BeNil())
+
+					row, err := rows.Next()
+
+					p, ok := row.GetColumn("p")
+
+					Ω(ok).Should(BeTrue())
+					Ω(p).ShouldNot(BeNil())
+					Ω(p).Should(HaveLen(5))
+
+					row, err = rows.Next()
+
+					Ω(row.Len()).Should(Equal(0))
+					Ω(err).Should(MatchError(io.EOF))
+
+					By("cleaning up")
+
+					result, err = db.Cypher(`
+						MATCH (n:TalonPathTestNode)
+						OPTIONAL MATCH (n)-[r:TALON_PATH_TEST_REL]->()
+						DELETE n, r
+					`).Exec()
+
+					Ω(result.Stats.NodesDeleted).Should(BeEquivalentTo(3))
+					Ω(result.Stats.RelationshipsDeleted).Should(BeEquivalentTo(2))
 				})
 			})
 		})

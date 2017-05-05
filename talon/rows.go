@@ -24,29 +24,64 @@ import (
 // Metadata contains details about the rows response, such as the field names
 // from the query.
 type Metadata struct {
-	Fields []string
+	Fields   []string
+	fieldMap map[string]int
 }
 
 func metadataFromBoltRows(rows bolt.Rows) *Metadata {
 	md := rows.Metadata()
 	mdFields := md["fields"].([]interface{})
 	fields := make([]string, len(mdFields))
+	fieldMap := make(map[string]int)
 	for i := 0; i < len(fields); i++ {
-		fields[i] = mdFields[i].(string)
+		label := mdFields[i].(string)
+		fields[i] = label
+		fieldMap[label] = i
 	}
 
 	return &Metadata{
-		Fields: fields,
+		Fields:   fields,
+		fieldMap: fieldMap,
 	}
 }
 
 // Row represents a list of graph entities.
-type Row []Entity
+type Row struct {
+	fields   []Entity
+	Metadata *Metadata
+}
+
+// Len returns the number of fields contained in the row.
+func (r *Row) Len() int {
+	return len(r.fields)
+}
+
+// GetColumn fetchs a column by it's associated name, so if you return the name
+// 'node' in your query, you can fetch the value for that column via
+// GetColumn("node").
+func (r *Row) GetColumn(label string) (Entity, bool) {
+	if idx, ok := r.Metadata.fieldMap[label]; ok {
+		return r.fields[idx], true
+	}
+
+	return nil, false
+}
+
+// GetIndex returns the column by index, along with a bool no whether the index
+// existed.
+func (r *Row) GetIndex(idx int) (Entity, bool) {
+	if idx >= 0 && idx < len(r.fields) {
+		return r.fields[idx], true
+	}
+
+	return nil, false
+}
 
 // Rows represents a group of rows fetched from a Cypher query.
 type Rows struct {
 	Metadata *Metadata
 	Columns  []string
+	Data     []*Row
 
 	closed   bool
 	boltRows bolt.Rows
@@ -56,6 +91,7 @@ type Rows struct {
 func wrapBoltRows(rs bolt.Rows) *Rows {
 	return &Rows{
 		Metadata: metadataFromBoltRows(rs),
+		Data:     make([]*Row, 0),
 		boltRows: rs,
 	}
 }
@@ -69,38 +105,46 @@ func (r *Rows) Close() {
 }
 
 // Next fetches the next row in the resultset.
-func (r *Rows) Next() (Row, error) {
+func (r *Rows) Next() (*Row, error) {
 	boltRow, _, err := r.boltRows.NextNeo()
-	row := make(Row, len(boltRow))
+	row := &Row{
+		fields:   make([]Entity, len(boltRow)),
+		Metadata: r.Metadata,
+	}
 	for i, boltEnt := range boltRow {
 		ent, err := boltToTalonEntity(boltEnt)
 		if err != nil {
 			return nil, err
 		}
-		row[i] = ent
+		row.fields[i] = ent
 	}
+	r.Data = append(r.Data, row)
 
 	return row, err
 }
 
 // All returns all the rows up front instead of using the streaming API.
-func (r *Rows) All() ([]Row, error) {
+func (r *Rows) All() ([]*Row, error) {
 	all, _, err := r.boltRows.All()
 	if err != nil {
 		return nil, err
 	}
-	results := make([]Row, 0)
+	results := make([]*Row, 0)
 	for _, boltRow := range all {
-		row := make(Row, len(boltRow))
+		row := &Row{
+			fields:   make([]Entity, len(boltRow)),
+			Metadata: r.Metadata,
+		}
 		for i, boltEnt := range boltRow {
 			ent, err := boltToTalonEntity(boltEnt)
 			if err != nil {
 				return nil, err
 			}
-			row[i] = ent
+			row.fields[i] = ent
 		}
 		results = append(results, row)
 	}
+	r.Data = results
 	r.Close()
 
 	return results, nil
@@ -113,6 +157,10 @@ func boltToTalonEntity(i interface{}) (Entity, error) {
 		return wrapBoltNode(e)
 	case boltGraph.Relationship:
 		return wrapBoltRelationship(e)
+	case boltGraph.UnboundRelationship:
+		return wrapBoltUnboundRelationship(e)
+	case boltGraph.Path:
+		return wrapBoltPath(e)
 	}
 
 	return nil, fmt.Errorf("found %T value, didn't expect it", i)
