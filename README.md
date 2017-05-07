@@ -15,27 +15,35 @@ for your game.
 
 ### Why should I use this?
 
-That's really up to you. This project is for me but I believe in sharing. I
+That's really up to you. This project is for me, but I believe in sharing. I
 also feel yet another new MUD engine may inspire some new games to be created
 in the genre, which would be amazing. I'm a huge fan of MUDs and feel that new
 entries have kind of become almost non-existent. Perhaps a new game and an
-accessible low-setup MUD server would make it easier for new games to be quickly
-created.
+accessible low-setup server framework would make it easier for new games to be
+quickly created.
 
 ### What exactly is it?
 
-DragonMUD is a server for text based multi-user games. It will be completely
-moldable from the ground up through plugins. Along with the server once they're
-done, the plugins I create to build out my own game will seed the initial plugin
-base to allow you to pull and get started with a game if you don't want to do
-a lot of engineering on your own.
+DragonMUD started life as an engine designed specifically for the MUD that I
+wanted to build, but before long it pivoted to being a base for text based
+multi-user games. Leverage the power of Lua running on top of Go, DragonMUD
+aims to provide a quick entry into the genre. Once you generate a new game you
+can immediately start adding plugins that the community has put together to
+piece your game together. Want classic rooms? Grab a plugin, what geographically
+organized rooms? Grab a plugin, want a mapping system? Grab a plugin -- if you
+can't find one, the build your own and share it with the community!
+
+DragonMUD provides the foundation and the glue code to allow many different
+plugins to come together and form a cohesive bond, allowing you to build the
+text based game of your dreams (or non-game, if that's your thing).
 
 ### What exactly is it not?
 
-DragonMUD is not a "game engine" for games in general. It's heavily geared to
-building an "MMO with no graphics" that runs over Telnet and is delivered in
-colored text. If you're looking for a game engine in Go to build a 2D platformer
-or a Call of Duty shooter you're in the wrong place.
+DragonMUD is engineered specifically for text based games running over TELNET.
+It doens't have to be games though, but it does need to function over TELNET.
+There are plans to provide an HTTP server with websocket support in the future
+but for the time being you should probably find another engine if you're
+looking to do anything that isn't text-based.
 
 ## Why Go?
 
@@ -43,7 +51,7 @@ I love C and C++ but they're older and slightly more complex languages to set
 up and maintain. [Go](https://golang.org/) strives to be a "modern" C and was
 therefore a good choice in my opinion. It also supports concurrency out of the
 box in a very easy to use and understand way. It's also relatively low level
-enough for the purpose of a game server running.
+enough for the purpose of a running a game server.
 
 ## Why Lua?
 
@@ -63,19 +71,20 @@ this project matures I will clean up and define these details more and more.
  - [x] TravisCI integration to easily demonstrate stable builds
  - [x] Code climate monitoring GPA of code, maintaining an A - B grade for overall
    project
- - [x] Test suites with extensive coverage (protected with Coveralls) -- (not
-   'completed' per se, but started)
- - [ ] Database backed server, can choose which database (Neo4j)
-   - [x] Partial implementation
-   - [ ] Complete implementation
+ - [x] Test suite to validate working state of features, capturing as many
+   differing/edge cases as possible
+ - [ ] Neo4j backed database features
+   - [ ] Neo4j database connection library available to Lua (in development)
+   - [ ] ActiveRecord-esque Entity framework for the scripts to leverage
  - [x] Script engine for loading and executing Lua files.
  - [ ] Plugin system to allow for creation of whatever game one desires
  - [ ] Plugin manager (like `go get` but for DragonMUD plugins)
- - [ ] MUD Server
+ - [ ] Telnet Server
 
 ## Future
 
- - [ ] Admin web interface with game building capabilities
+ - [ ] Web layer for defining and building any kind of web server on top of
+   the chosen application
 
 # Contributing
 
@@ -95,14 +104,11 @@ So the process to set up for contributions is to fork it, and then `go get` your
 project:
 
 ```sh
-go get github.com/myusername/dragon-mud
-cd $GOPATH/src/github.com/myusername/dragon-mud
-glide install
+go get github.com/bbuck/dragon-mud
+cd $GOPATH/src/github.com/bbuck/dragon-mud
+make get-glide
+make get-deps
 ```
-
-At this point, you can symlink `$GOPATH/src/github.com/myusername/dragon-mud` to
-`$GOPATH/src/github.com/bbuck/dragon-mud` to avoid having to rewrite import
-paths.
 
 To build your project:
 
@@ -113,10 +119,14 @@ make install
 And if `make` is not available**, then install with the following command:
 
 ```sh
+glide install
+go get github.com/onsi/ginkgo/ginkgo
+go get github.com/jteeuwen/go-bindata/...
+go-bindata -pkg assets -o assets/assets.go -prefix assets/raw assets/raw/...
 go install github.com/bbuck/dragon-mud/cmd/...
 ```
 
-** But keep in mind, `make` is used to engineer standard multi-step processes for
+\*\* But keep in mind, `make` is used to engineer standard multi-step processes for
 building/installing so it's highly advantageous to get a version for your OS
 up and running to use in place of trying to do everything manually.
 
