@@ -4,15 +4,13 @@ package talon
 
 import (
 	"reflect"
-
-	"github.com/bbuck/dragon-mud/talon/types"
 )
 
 // convert an arbitrary struct into properties
-func structToMap(i interface{}) types.Properties {
+func structToMap(i interface{}) Properties {
 	value := reflect.ValueOf(i)
 	typ := value.Type()
-	props := make(types.Properties)
+	props := make(Properties)
 	if value.Kind() != reflect.Struct {
 		return props
 	}

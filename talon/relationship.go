@@ -3,7 +3,6 @@
 package talon
 
 import (
-	"github.com/bbuck/dragon-mud/talon/types"
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
 )
 
@@ -16,14 +15,14 @@ type Relationship struct {
 	StartNodeID int64
 	EndNodeID   int64
 	Name        string
-	Properties  types.Properties
+	Properties  Properties
 	Bounded     bool
 }
 
 // for bounded relationships
 func wrapBoltRelationship(r bolt.Relationship) (*Relationship, error) {
 	var err error
-	p := types.Properties(r.Properties)
+	p := Properties(r.Properties)
 	p, err = p.UnmarshaledProperties()
 	if err != nil {
 		return nil, err
@@ -34,7 +33,7 @@ func wrapBoltRelationship(r bolt.Relationship) (*Relationship, error) {
 		StartNodeID: r.StartNodeIdentity,
 		EndNodeID:   r.EndNodeIdentity,
 		Name:        r.Type,
-		Properties:  types.Properties(r.Properties),
+		Properties:  Properties(r.Properties),
 		Bounded:     true,
 	}, nil
 }
@@ -42,7 +41,7 @@ func wrapBoltRelationship(r bolt.Relationship) (*Relationship, error) {
 // for unbounded relationships
 func wrapBoltUnboundRelationship(r bolt.UnboundRelationship) (*Relationship, error) {
 	var err error
-	p := types.Properties(r.Properties)
+	p := Properties(r.Properties)
 	p, err = p.UnmarshaledProperties()
 	if err != nil {
 		return nil, err
@@ -51,7 +50,7 @@ func wrapBoltUnboundRelationship(r bolt.UnboundRelationship) (*Relationship, err
 	return &Relationship{
 		ID:         r.RelIdentity,
 		Name:       r.Type,
-		Properties: types.Properties(r.Properties),
+		Properties: Properties(r.Properties),
 		Bounded:    false,
 	}, nil
 }

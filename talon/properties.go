@@ -1,6 +1,6 @@
 // Copyright (c) 2016-2017 Brandon Buck
 
-package types
+package talon
 
 import (
 	"bytes"
@@ -110,11 +110,7 @@ func (p Properties) MarshaledProperties() (Properties, error) {
 			}
 			mp[k] = string(bs)
 		case time.Time:
-			bs, err := NewTime(t).MarshalTalon()
-			if err != nil {
-				return nil, err
-			}
-			mp[k] = string(bs)
+			mp[k] = t.UTC().Unix()
 		case Properties:
 			return nil, ErrNoNestedProperties
 		}
@@ -139,17 +135,11 @@ func (p Properties) UnmarshaledProperties() (Properties, error) {
 	for k, v := range p {
 		switch t := v.(type) {
 		case string:
-			if len(t) > 2 && t[1] == '!' {
-				typeKey := t[0:1]
-				if gu, ok := Unmarshalers[typeKey]; ok {
-					u := gu()
-					err := u.UnmarshalTalon([]byte(t))
-					if err != nil {
-						return nil, err
-					}
-					v = u
-				}
+			v, err := tryUnmarshalString(t)
+			if err != nil {
+				return nil, err
 			}
+
 			up[k] = v
 		default:
 			up[k] = v
@@ -157,4 +147,23 @@ func (p Properties) UnmarshaledProperties() (Properties, error) {
 	}
 
 	return up, nil
+}
+
+// try to unmarshal a string value with the given unmarshalers, or just return
+// the string itself.
+func tryUnmarshalString(val string) (interface{}, error) {
+	if len(val) > 2 && val[1] == '!' {
+		typeKey := val[0:1]
+		if gu, ok := Unmarshalers[typeKey]; ok {
+			u := gu()
+			err := u.UnmarshalTalon([]byte(val))
+			if err != nil {
+				return nil, err
+			}
+
+			return u, nil
+		}
+	}
+
+	return val, nil
 }

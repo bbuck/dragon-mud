@@ -1,11 +1,11 @@
 // Copyright (c) 2016-2017 Brandon Buck
 
-package types_test
+package talon_test
 
 import (
 	"fmt"
 
-	. "github.com/bbuck/dragon-mud/talon/types"
+	. "github.com/bbuck/dragon-mud/talon"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"

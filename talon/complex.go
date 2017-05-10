@@ -1,6 +1,6 @@
 // Copyright (c) 2016-2017 Brandon Buck
 
-package types
+package talon
 
 import (
 	"fmt"
@@ -50,6 +50,12 @@ func NewComplex(i interface{}) Complex {
 	}
 
 	return Complex(0i)
+}
+
+// Type returns EntityComplex, and allows for the Complex type to fit the
+// Entity interface.
+func (Complex) Type() EntityType {
+	return EntityComplex
 }
 
 // MarshalTalon takes a complex value and turns it into a string representation

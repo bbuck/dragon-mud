@@ -1,6 +1,6 @@
 // Copyright (c) 2016-2017 Brandon Buck
 
-package types_test
+package talon_test
 
 import (
 	. "github.com/onsi/ginkgo"

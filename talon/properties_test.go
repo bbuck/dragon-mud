@@ -1,12 +1,11 @@
 // Copyright (c) 2016-2017 Brandon Buck
 
-package types_test
+package talon_test
 
 import (
-	"fmt"
 	"time"
 
-	. "github.com/bbuck/dragon-mud/talon/types"
+	. "github.com/bbuck/dragon-mud/talon"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -65,7 +64,7 @@ var _ = Describe("Properties", func() {
 		var (
 			str           = "string"
 			date          = time.Date(1986, time.November, 12, 1, 2, 3, 4, time.Local)
-			dateStr       = fmt.Sprintf("T!RFC3339!!%s", date.Format(DefaultTimeFormat))
+			ts            = int64(532162923)
 			cmplx         = 1 + 2i
 			cmplxStr      = "C!1 + 2i"
 			before, after Properties
@@ -92,7 +91,7 @@ var _ = Describe("Properties", func() {
 			})
 
 			It("marshales dates in the list", func() {
-				Ω(after).Should(HaveKeyWithValue("test_date", dateStr))
+				Ω(after).Should(HaveKeyWithValue("test_date", ts))
 			})
 
 			It("marshales complex types", func() {
@@ -162,8 +161,7 @@ var _ = Describe("Properties", func() {
 	Describe("UnmarshaledProperties", func() {
 		var (
 			str           = "string"
-			date          = time.Date(1986, time.November, 12, 1, 2, 3, 0, time.Local)
-			dateStr       = fmt.Sprintf("T!RFC3339!!%s", date.Format(DefaultTimeFormat))
+			ts            = int64(532162923)
 			cmplx         = complex64(1 + 2i)
 			cmplxStr      = "C!1 + 2i"
 			before, after Properties
@@ -172,7 +170,7 @@ var _ = Describe("Properties", func() {
 
 		BeforeEach(func() {
 			before = Properties{
-				"test_date":    dateStr,
+				"test_date":    ts,
 				"test_complex": cmplxStr,
 				"test_string":  str,
 			}
@@ -189,10 +187,7 @@ var _ = Describe("Properties", func() {
 		})
 
 		It("marshales dates in the list", func() {
-			Ω(after).Should(HaveKey("test_date"))
-			d, ok := after["test_date"].(*Time)
-			Ω(ok).Should(BeTrue())
-			Ω(date.Equal(d.Time)).Should(BeTrue())
+			Ω(after).Should(HaveKeyWithValue("test_date", ts))
 		})
 
 		It("marshales complex types", func() {

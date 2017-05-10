@@ -80,8 +80,6 @@ func (r *Row) GetIndex(idx int) (Entity, bool) {
 // Rows represents a group of rows fetched from a Cypher query.
 type Rows struct {
 	Metadata *Metadata
-	Columns  []string
-	Data     []*Row
 
 	closed   bool
 	boltRows bolt.Rows
@@ -91,7 +89,6 @@ type Rows struct {
 func wrapBoltRows(rs bolt.Rows) *Rows {
 	return &Rows{
 		Metadata: metadataFromBoltRows(rs),
-		Data:     make([]*Row, 0),
 		boltRows: rs,
 	}
 }
@@ -118,7 +115,6 @@ func (r *Rows) Next() (*Row, error) {
 		}
 		row.fields[i] = ent
 	}
-	r.Data = append(r.Data, row)
 
 	return row, err
 }
@@ -144,7 +140,6 @@ func (r *Rows) All() ([]*Row, error) {
 		}
 		results = append(results, row)
 	}
-	r.Data = results
 	r.Close()
 
 	return results, nil
@@ -152,6 +147,10 @@ func (r *Rows) All() ([]*Row, error) {
 
 // bolt type to talon type
 func boltToTalonEntity(i interface{}) (Entity, error) {
+	if i == nil {
+		return &Nil{}, nil
+	}
+
 	switch e := i.(type) {
 	case boltGraph.Node:
 		return wrapBoltNode(e)
@@ -161,6 +160,22 @@ func boltToTalonEntity(i interface{}) (Entity, error) {
 		return wrapBoltUnboundRelationship(e)
 	case boltGraph.Path:
 		return wrapBoltPath(e)
+	case string:
+		str := String(e)
+
+		return &str, nil
+	case int64:
+		i := Int(e)
+
+		return &i, nil
+	case float64:
+		f := Float(e)
+
+		return &f, nil
+	case bool:
+		b := Bool(e)
+
+		return &b, nil
 	}
 
 	return nil, fmt.Errorf("found %T value, didn't expect it", i)

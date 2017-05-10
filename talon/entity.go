@@ -10,8 +10,21 @@ const (
 	EntityNode EntityType = iota
 	EntityRelationship
 	EntityPath
+
+	// various types associated to non graph types
+	EntityString
+	EntityInt
+	EntityFloat
+	EntityBool
+	EntityNil
+
+	// for marshaled types
+	EntityComplex
+	EntityTime
 )
 
+// Entity represents an element in a Neo4j query result, such a node,
+// relationship, path or value (like a string, etc...)
 type Entity interface {
 	Type() EntityType
 }

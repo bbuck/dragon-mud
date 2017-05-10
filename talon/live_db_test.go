@@ -9,7 +9,6 @@ import (
 	"strconv"
 
 	. "github.com/bbuck/dragon-mud/talon"
-	"github.com/bbuck/dragon-mud/talon/types"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -151,7 +150,7 @@ var _ = Describe("LiveDB", func() {
 
 					By("creating a node")
 
-					result, err := db.MustCypherP(`CREATE (:TalonSingleNodeTest {hello: {str}})`, types.Properties{"str": str}).Exec()
+					result, err := db.MustCypherP(`CREATE (:TalonSingleNodeTest {hello: {str}})`, Properties{"str": str}).Exec()
 
 					Ω(err).ShouldNot(HaveOccurred())
 					Ω(result.Stats.LabelsAdded).Should(BeEquivalentTo(1))
@@ -308,6 +307,266 @@ var _ = Describe("LiveDB", func() {
 
 					Ω(result.Stats.NodesDeleted).Should(BeEquivalentTo(3))
 					Ω(result.Stats.RelationshipsDeleted).Should(BeEquivalentTo(2))
+				})
+			})
+
+			Context("returning other data types", func() {
+				It("handling string value returns", func() {
+					By("adding a test node to the database")
+
+					result, err := db.Cypher(`
+						CREATE (:TalonLiveStringValueTest {str: 'String'})
+					`).Exec()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(result.Stats.NodesCreated).Should(BeEquivalentTo(1))
+
+					By("fetching a string property from a node")
+
+					rows, err := db.Cypher(`
+						MATCH (n:TalonLiveStringValueTest)
+						RETURN n.str
+					`).Query()
+					defer rows.Close()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(rows).ShouldNot(BeNil())
+
+					By("fetching the first row")
+
+					row, err := rows.Next()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(row).ShouldNot(BeNil())
+
+					By("fetching the first field")
+
+					ent, exists := row.GetIndex(0)
+
+					Ω(exists).Should(BeTrue())
+					Ω(ent.Type()).Should(Equal(EntityString))
+
+					By("converting it to, and working with, a value")
+
+					str := ent.(*String)
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(string(*str)).Should(Equal("String"))
+
+					By("cleaning up after the test")
+
+					result, err = db.Cypher(`
+						MATCH (n:TalonLiveStringValueTest)
+						DELETE n
+					`).Exec()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(result.Stats.NodesDeleted).Should(BeEquivalentTo(1))
+				})
+
+				It("handling int64 value returns", func() {
+					By("adding a test node to the database")
+
+					result, err := db.Cypher(`
+						CREATE (:TalonLiveTestIntValue {num: 1})
+					`).Exec()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(result.Stats.NodesCreated).Should(BeEquivalentTo(1))
+
+					By("fetching a string property from a node")
+
+					rows, err := db.Cypher(`
+						MATCH (n:TalonLiveTestIntValue)
+						RETURN n.num
+					`).Query()
+					defer rows.Close()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(rows).ShouldNot(BeNil())
+
+					By("fetching the first row")
+
+					row, err := rows.Next()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(row).ShouldNot(BeNil())
+
+					By("fetching the first field")
+
+					ent, exists := row.GetIndex(0)
+
+					Ω(exists).Should(BeTrue())
+					Ω(ent.Type()).Should(Equal(EntityInt))
+
+					By("converting it to, and working with, a value")
+
+					i := ent.(*Int)
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(int64(*i)).Should(Equal(int64(1)))
+
+					By("cleaning up after the test")
+
+					result, err = db.Cypher(`
+						MATCH (n:TalonLiveTestIntValue)
+						DELETE n
+					`).Exec()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(result.Stats.NodesDeleted).Should(BeEquivalentTo(1))
+				})
+
+				It("handling float64 value returns", func() {
+					By("adding a test node to the database")
+
+					result, err := db.Cypher(`
+						CREATE (:TalonLiveTestFloatValue {flt: 1.2})
+					`).Exec()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(result.Stats.NodesCreated).Should(BeEquivalentTo(1))
+
+					By("fetching a string property from a node")
+
+					rows, err := db.Cypher(`
+						MATCH (n:TalonLiveTestFloatValue)
+						RETURN n.flt
+					`).Query()
+					defer rows.Close()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(rows).ShouldNot(BeNil())
+
+					By("fetching the first row")
+
+					row, err := rows.Next()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(row).ShouldNot(BeNil())
+
+					By("fetching the first field")
+
+					ent, exists := row.GetIndex(0)
+
+					Ω(exists).Should(BeTrue())
+					Ω(ent.Type()).Should(Equal(EntityFloat))
+
+					By("converting it to, and working with, a value")
+
+					f := ent.(*Float)
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(float64(*f)).Should(Equal(float64(1.2)))
+
+					By("cleaning up after the test")
+
+					result, err = db.Cypher(`
+						MATCH (n:TalonLiveTestFloatValue)
+						DELETE n
+					`).Exec()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(result.Stats.NodesDeleted).Should(BeEquivalentTo(1))
+				})
+
+				It("handling bool value returns", func() {
+					By("adding a test node to the database")
+
+					result, err := db.Cypher(`
+						CREATE (:TalonLiveTestIntValue {bool: true})
+					`).Exec()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(result.Stats.NodesCreated).Should(BeEquivalentTo(1))
+
+					By("fetching a string property from a node")
+
+					rows, err := db.Cypher(`
+						MATCH (n:TalonLiveTestIntValue)
+						RETURN n.bool
+					`).Query()
+					defer rows.Close()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(rows).ShouldNot(BeNil())
+
+					By("fetching the first row")
+
+					row, err := rows.Next()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(row).ShouldNot(BeNil())
+
+					By("fetching the first field")
+
+					ent, exists := row.GetIndex(0)
+
+					Ω(exists).Should(BeTrue())
+					Ω(ent.Type()).Should(Equal(EntityBool))
+
+					By("converting it to, and working with, a value")
+
+					b := ent.(*Bool)
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(bool(*b)).Should(Equal(true))
+
+					By("cleaning up after the test")
+
+					result, err = db.Cypher(`
+						MATCH (n:TalonLiveTestIntValue)
+						DELETE n
+					`).Exec()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(result.Stats.NodesDeleted).Should(BeEquivalentTo(1))
+				})
+
+				It("handling nil value returns", func() {
+					By("adding a test node to the database")
+
+					result, err := db.Cypher(`
+						CREATE (:TalonLiveTestIntValue {nil: null})
+					`).Exec()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(result.Stats.NodesCreated).Should(BeEquivalentTo(1))
+
+					By("fetching a string property from a node")
+
+					rows, err := db.Cypher(`
+						MATCH (n:TalonLiveTestIntValue)
+						RETURN n.nil
+					`).Query()
+					defer rows.Close()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(rows).ShouldNot(BeNil())
+
+					By("fetching the first row")
+
+					row, err := rows.Next()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(row).ShouldNot(BeNil())
+
+					By("fetching the first field")
+
+					ent, exists := row.GetIndex(0)
+
+					Ω(exists).Should(BeTrue())
+					Ω(ent.Type()).Should(Equal(EntityNil))
+
+					By("cleaning up after the test")
+
+					result, err = db.Cypher(`
+						MATCH (n:TalonLiveTestIntValue)
+						DELETE n
+					`).Exec()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(result.Stats.NodesDeleted).Should(BeEquivalentTo(1))
 				})
 			})
 		})

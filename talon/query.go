@@ -3,17 +3,16 @@
 package talon
 
 import (
-	"github.com/bbuck/dragon-mud/talon/types"
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 )
 
-var noProperties = make(types.Properties)
+var noProperties = make(Properties)
 
 // Query reprsents a Talon query before it's been converted in Cypher
 type Query struct {
 	db         *DB
 	rawCypher  string
-	properties types.Properties
+	properties Properties
 }
 
 // ToCypher converts a query object into a Cypher query string.

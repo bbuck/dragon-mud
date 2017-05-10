@@ -4,8 +4,6 @@ package talon
 
 import (
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
-
-	"github.com/bbuck/dragon-mud/talon/types"
 )
 
 // DB represents a talon connection to a Neo4j database using Neo4j bolt behind
@@ -16,7 +14,7 @@ type DB struct {
 
 // CypherP performs the same job as Cypher, it just allows the user to pass in
 // a set of properties.
-func (d *DB) CypherP(cypher string, p types.Properties) (*Query, error) {
+func (d *DB) CypherP(cypher string, p Properties) (*Query, error) {
 	props, err := p.MarshaledProperties()
 	if err != nil {
 		return nil, err
@@ -32,7 +30,7 @@ func (d *DB) CypherP(cypher string, p types.Properties) (*Query, error) {
 }
 
 // MustCypherP calls MustCypher but will panic on error.
-func (d *DB) MustCypherP(cypher string, p types.Properties) *Query {
+func (d *DB) MustCypherP(cypher string, p Properties) *Query {
 	q, err := d.CypherP(cypher, p)
 	if err != nil {
 		panic(err)

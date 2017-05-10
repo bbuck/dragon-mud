@@ -3,7 +3,6 @@
 package talon
 
 import (
-	"github.com/bbuck/dragon-mud/talon/types"
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
 )
 
@@ -11,13 +10,13 @@ import (
 type Node struct {
 	ID         int64
 	Labels     []string
-	Properties types.Properties
+	Properties Properties
 }
 
 // convert the bolt node object into a GraphNode.
 func wrapBoltNode(n bolt.Node) (*Node, error) {
 	var err error
-	p := types.Properties(n.Properties)
+	p := Properties(n.Properties)
 	p, err = p.UnmarshaledProperties()
 	if err != nil {
 		return nil, err
