@@ -568,6 +568,59 @@ var _ = Describe("LiveDB", func() {
 					Ω(err).ShouldNot(HaveOccurred())
 					Ω(result.Stats.NodesDeleted).Should(BeEquivalentTo(1))
 				})
+
+				It("handling complex value returns", func() {
+					By("adding a test node to the database")
+
+					result, err := db.Cypher(`
+						CREATE (:TalonLiveTestComplexValue {cplx: "C!1 + 2i"})
+					`).Exec()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(result.Stats.NodesCreated).Should(BeEquivalentTo(1))
+
+					By("fetching a string property from a node")
+
+					rows, err := db.Cypher(`
+						MATCH (n:TalonLiveTestComplexValue)
+						RETURN n.cplx
+					`).Query()
+					defer rows.Close()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(rows).ShouldNot(BeNil())
+
+					By("fetching the first row")
+
+					row, err := rows.Next()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(row).ShouldNot(BeNil())
+
+					By("fetching the first field")
+
+					ent, exists := row.GetIndex(0)
+
+					Ω(exists).Should(BeTrue())
+					Ω(ent.Type()).Should(Equal(EntityComplex))
+
+					By("casting it we should cet a complext128")
+
+					cm, ok := ent.(*Complex)
+
+					Ω(ok).Should(BeTrue())
+					Ω(complex128(*cm)).Should(BeEquivalentTo(complex128(1 + 2i)))
+
+					By("cleaning up after the test")
+
+					result, err = db.Cypher(`
+						MATCH (n:TalonLiveTestComplexValue)
+						DELETE n
+					`).Exec()
+
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(result.Stats.NodesDeleted).Should(BeEquivalentTo(1))
+				})
 			})
 		})
 	})

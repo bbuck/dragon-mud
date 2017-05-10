@@ -161,9 +161,24 @@ func boltToTalonEntity(i interface{}) (Entity, error) {
 	case boltGraph.Path:
 		return wrapBoltPath(e)
 	case string:
-		str := String(e)
+		val, err := tryUnmarshalString(e)
+		if err != nil {
+			return nil, err
+		}
 
-		return &str, nil
+		switch t := val.(type) {
+		case string:
+			str := String(t)
+
+			return &str, nil
+		case Entity:
+			return t, nil
+		// default case is just using the original string
+		default:
+			str := String(e)
+
+			return &str, nil
+		}
 	case int64:
 		i := Int(e)
 

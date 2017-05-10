@@ -20,7 +20,6 @@ const (
 
 	// for marshaled types
 	EntityComplex
-	EntityTime
 )
 
 // Entity represents an element in a Neo4j query result, such a node,
