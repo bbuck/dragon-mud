@@ -17,6 +17,7 @@ import:
 - package: github.com/x-cray/logrus-prefixed-formatter
   version: 0.3.1
 - package: github.com/yuin/gopher-lua
+  version: b402f3114ec730d8bddb074a6c137309f561aa78
 testImport:
 - package: github.com/jinzhu/gorm
   version: ^1.0.0

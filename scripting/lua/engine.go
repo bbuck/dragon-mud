@@ -4,6 +4,7 @@ package lua
 
 import (
 	"reflect"
+	"unicode"
 
 	"github.com/yuin/gopher-lua"
 	luar "layeh.com/gopher-luar"
@@ -24,7 +25,7 @@ type ScriptFunction func(*Engine) int
 type TableMap map[string]interface{}
 
 // NewEngine creates a new engine containing a new lua.LState.
-func NewEngine() *Engine {
+func NewEngine(opts ...EngineOptions) *Engine {
 	eng := &Engine{
 		state: lua.NewState(lua.Options{
 			SkipOpenLibs:        true,
@@ -35,7 +36,46 @@ func NewEngine() *Engine {
 	eng.OpenBase()
 	eng.OpenPackage()
 
+	eng.configureFromOptions(opts)
+
 	return eng
+}
+
+func (e *Engine) configureFromOptions(options []EngineOptions) {
+	openedLibs := false
+
+	for _, opt := range options {
+		if !openedLibs && opt.OpenLibs {
+			e.OpenLibs()
+		}
+
+		config := luar.GetConfig(e.state)
+		switch opt.FieldNaming {
+		case SnakeCaseExportedNames:
+			config.FieldNames = nil
+		case SnakeCaseNames:
+			config.FieldNames = func(t reflect.Type, s reflect.StructField) []string {
+				return []string{toSnake(s.Name)}
+			}
+		case ExportedNames:
+			config.FieldNames = func(t reflect.Type, s reflect.StructField) []string {
+				return []string{s.Name}
+			}
+		}
+
+		switch opt.MethodNaming {
+		case SnakeCaseExportedNames:
+			config.MethodNames = nil
+		case SnakeCaseNames:
+			config.MethodNames = func(t reflect.Type, s reflect.Method) []string {
+				return []string{toSnake(s.Name)}
+			}
+		case ExportedNames:
+			config.MethodNames = func(t reflect.Type, s reflect.Method) []string {
+				return []string{s.Name}
+			}
+		}
+	}
 }
 
 // Close will perform a close on the Lua state.
@@ -113,6 +153,11 @@ func (e *Engine) DoFile(fn string) error {
 // DoString runs the given string through the Lua interpreter.
 func (e *Engine) DoString(src string) error {
 	return e.state.DoString(src)
+}
+
+// RaiseError will throw an error in the Lua engine.
+func (e *Engine) RaiseError(err string, args []interface{}) {
+	e.state.RaiseError(err, args...)
 }
 
 // SetGlobal allows for setting global variables in the loaded code.
@@ -369,24 +414,6 @@ func (e *Engine) ValueFor(val interface{}) *Value {
 	}
 }
 
-// WhitelistFor will mark the given method names whitelisted on the metatable
-// for the given interface{} value.
-func (e *Engine) WhitelistFor(i interface{}, names ...string) {
-	mt := luar.MT(e.state, i)
-	if mt != nil {
-		mt.Whitelist(names...)
-	}
-}
-
-// BlacklistFor will mark the given method names blacklisted on the metatable
-// for the given interface{} value.
-func (e *Engine) BlacklistFor(i interface{}, names ...string) {
-	mt := luar.MT(e.state, i)
-	if mt != nil {
-		mt.Blacklist(names...)
-	}
-}
-
 // TableFromMap takes a map of go values and generates a Lua table representing
 // the value.
 func (e *Engine) TableFromMap(i interface{}) *Value {
@@ -457,4 +484,22 @@ func (e *Engine) wrapScriptFunction(fn ScriptFunction) lua.LGFunction {
 // expects to see when calling method from Lua.
 func (e *Engine) genScriptFunc(fn ScriptFunction) *lua.LFunction {
 	return e.state.NewFunction(e.wrapScriptFunction(fn))
+}
+
+// ToSnake convert the given string to snake case following the Golang format:
+// acronyms are converted to lower-case and preceded by an underscore.
+// found at: https://gist.github.com/elwinar/14e1e897fdbe4d3432e1
+func toSnake(in string) string {
+	runes := []rune(in)
+	length := len(runes)
+
+	var out []rune
+	for i := 0; i < length; i++ {
+		if i > 0 && unicode.IsUpper(runes[i]) && ((i+1 < length && unicode.IsLower(runes[i+1])) || unicode.IsLower(runes[i-1])) {
+			out = append(out, '_')
+		}
+		out = append(out, unicode.ToLower(runes[i]))
+	}
+
+	return string(out)
 }

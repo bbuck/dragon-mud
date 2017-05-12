@@ -1,5 +1,5 @@
-hash: 23ad1bd5cb44248d08a5652b6b7dd8ca3b2a43af15cf412828a473878fa677a5
-updated: 2017-02-27T01:35:25.954542491-06:00
+hash: 2196a98ca2cb64af57b2ba6137982aa68269962364868b88de77cbcabee6d76b
+updated: 2017-05-12T09:45:41.517242348-05:00
 imports:
 - name: github.com/dchest/blake2b
   version: 3c8c640cd7bea3ca78209d812b5854442ab92fed
@@ -87,7 +87,7 @@ imports:
 - name: gopkg.in/yaml.v2
   version: 4c78c975fe7c825c6d1466c42be594d1d6f3aba6
 - name: layeh.com/gopher-luar
-  version: ab3f305945becf90dbde5962755dc044cb78acee
+  version: 16281577dff29557258daa8ca9bc9b2e05f451f2
 testImports:
 - name: github.com/jinzhu/gorm
   version: 5174cc5c242a728b435ea2be8a2f7f998e15429b
