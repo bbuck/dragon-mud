@@ -6,13 +6,7 @@ import (
 
 // Path represents a graph path, like node a -> rel 1 -> node b -> rel 2 ->
 // node c or what-have-you.
-type Path []Entity
-
-// Type returns EntityPath for type *Path to make it fall in line with the
-// Entity interface.
-func (Path) Type() EntityType {
-	return EntityPath
-}
+type Path []interface{}
 
 func wrapBoltPath(bp bolt.Path) (Path, error) {
 	p := make(Path, len(bp.Sequence)+1)

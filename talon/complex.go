@@ -17,7 +17,7 @@ func init() {
 			return nil, err
 		}
 
-		return c, nil
+		return complex128(c), nil
 	}
 }
 
@@ -55,12 +55,6 @@ func NewComplex(i interface{}) Complex {
 	}
 
 	return Complex(0i)
-}
-
-// Type returns EntityComplex, and allows for the Complex type to fit the
-// Entity interface.
-func (Complex) Type() EntityType {
-	return EntityComplex
 }
 
 // MarshalTalon takes a complex value and turns it into a string representation

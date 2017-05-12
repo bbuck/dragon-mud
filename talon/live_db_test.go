@@ -118,10 +118,10 @@ var _ = Describe("LiveDB", func() {
 
 					ent, ok := row.GetIndex(0)
 					Ω(ok).Should(BeTrue())
-					Ω(ent.Type()).Should(Equal(EntityNode))
 
 					// examine node
-					node := ent.(*Node)
+					node, ok := ent.(*Node)
+					Ω(ok).Should(BeTrue())
 					Ω(node.Labels).Should(HaveLen(1))
 					Ω(node.Labels).Should(ContainElement("TalonSingleNodeTest"))
 					Ω(node.Properties).Should(HaveLen(1))
@@ -173,10 +173,10 @@ var _ = Describe("LiveDB", func() {
 
 					ent, ok := row.GetIndex(0)
 					Ω(ok).Should(BeTrue())
-					Ω(ent.Type()).Should(Equal(EntityNode))
 
 					// examine node
-					node := ent.(*Node)
+					node, ok := ent.(*Node)
+					Ω(ok).Should(BeTrue())
 					Ω(node.Labels).Should(HaveLen(1))
 					Ω(node.Labels).Should(ContainElement("TalonSingleNodeTest"))
 					Ω(node.Properties).Should(HaveLen(1))
@@ -229,9 +229,9 @@ var _ = Describe("LiveDB", func() {
 
 					ent, ok := row.GetIndex(0)
 					Ω(ok).Should(BeTrue())
-					Ω(ent.Type()).Should(Equal(EntityRelationship))
 
-					rel := ent.(*Relationship)
+					rel, ok := ent.(*Relationship)
+					Ω(ok).Should(BeTrue())
 					Ω(rel.Name).Should(Equal("TALON_TEST_RELATIONSHIP"))
 					Ω(rel.StartNodeID).Should(BeNumerically(">", 0))
 					Ω(rel.EndNodeID).Should(And(
@@ -344,14 +344,13 @@ var _ = Describe("LiveDB", func() {
 					ent, exists := row.GetIndex(0)
 
 					Ω(exists).Should(BeTrue())
-					Ω(ent.Type()).Should(Equal(EntityString))
 
 					By("converting it to, and working with, a value")
 
-					str := ent.(*String)
-
+					str, ok := ent.(string)
+					Ω(ok).Should(BeTrue())
 					Ω(err).ShouldNot(HaveOccurred())
-					Ω(string(*str)).Should(Equal("String"))
+					Ω(str).Should(Equal("String"))
 
 					By("cleaning up after the test")
 
@@ -397,14 +396,13 @@ var _ = Describe("LiveDB", func() {
 					ent, exists := row.GetIndex(0)
 
 					Ω(exists).Should(BeTrue())
-					Ω(ent.Type()).Should(Equal(EntityInt))
 
 					By("converting it to, and working with, a value")
 
-					i := ent.(*Int)
-
+					i, ok := ent.(int64)
+					Ω(ok).Should(BeTrue())
 					Ω(err).ShouldNot(HaveOccurred())
-					Ω(int64(*i)).Should(Equal(int64(1)))
+					Ω(i).Should(Equal(int64(1)))
 
 					By("cleaning up after the test")
 
@@ -450,14 +448,13 @@ var _ = Describe("LiveDB", func() {
 					ent, exists := row.GetIndex(0)
 
 					Ω(exists).Should(BeTrue())
-					Ω(ent.Type()).Should(Equal(EntityFloat))
 
 					By("converting it to, and working with, a value")
 
-					f := ent.(*Float)
-
+					f, ok := ent.(float64)
+					Ω(ok).Should(BeTrue())
 					Ω(err).ShouldNot(HaveOccurred())
-					Ω(float64(*f)).Should(Equal(float64(1.2)))
+					Ω(f).Should(Equal(float64(1.2)))
 
 					By("cleaning up after the test")
 
@@ -503,14 +500,13 @@ var _ = Describe("LiveDB", func() {
 					ent, exists := row.GetIndex(0)
 
 					Ω(exists).Should(BeTrue())
-					Ω(ent.Type()).Should(Equal(EntityBool))
 
 					By("converting it to, and working with, a value")
 
-					b := ent.(*Bool)
-
+					b, ok := ent.(bool)
+					Ω(ok).Should(BeTrue())
 					Ω(err).ShouldNot(HaveOccurred())
-					Ω(bool(*b)).Should(Equal(true))
+					Ω(b).Should(Equal(true))
 
 					By("cleaning up after the test")
 
@@ -556,7 +552,7 @@ var _ = Describe("LiveDB", func() {
 					ent, exists := row.GetIndex(0)
 
 					Ω(exists).Should(BeTrue())
-					Ω(ent.Type()).Should(Equal(EntityNil))
+					Ω(ent).Should(BeNil())
 
 					By("cleaning up after the test")
 
@@ -602,12 +598,10 @@ var _ = Describe("LiveDB", func() {
 					ent, exists := row.GetIndex(0)
 
 					Ω(exists).Should(BeTrue())
-					Ω(ent.Type()).Should(Equal(EntityComplex))
 
 					By("casting it we should cet a complext128")
 
-					cm, ok := ent.(Complex)
-
+					cm, ok := ent.(complex128)
 					Ω(ok).Should(BeTrue())
 					Ω(complex128(cm)).Should(BeEquivalentTo(complex128(1 + 2i)))
 

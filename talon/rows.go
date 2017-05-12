@@ -3,8 +3,6 @@
 package talon
 
 import (
-	"fmt"
-
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 	boltGraph "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
 )
@@ -47,7 +45,7 @@ func metadataFromBoltRows(rows bolt.Rows) *Metadata {
 
 // Row represents a list of graph entities.
 type Row struct {
-	fields   []Entity
+	fields   []interface{}
 	Metadata *Metadata
 }
 
@@ -59,7 +57,7 @@ func (r *Row) Len() int {
 // GetColumn fetchs a column by it's associated name, so if you return the name
 // 'node' in your query, you can fetch the value for that column via
 // GetColumn("node").
-func (r *Row) GetColumn(label string) (Entity, bool) {
+func (r *Row) GetColumn(label string) (interface{}, bool) {
 	if idx, ok := r.Metadata.fieldMap[label]; ok {
 		return r.fields[idx], true
 	}
@@ -69,7 +67,7 @@ func (r *Row) GetColumn(label string) (Entity, bool) {
 
 // GetIndex returns the column by index, along with a bool no whether the index
 // existed.
-func (r *Row) GetIndex(idx int) (Entity, bool) {
+func (r *Row) GetIndex(idx int) (interface{}, bool) {
 	if idx >= 0 && idx < len(r.fields) {
 		return r.fields[idx], true
 	}
@@ -105,7 +103,7 @@ func (r *Rows) Close() {
 func (r *Rows) Next() (*Row, error) {
 	boltRow, _, err := r.boltRows.NextNeo()
 	row := &Row{
-		fields:   make([]Entity, len(boltRow)),
+		fields:   make([]interface{}, len(boltRow)),
 		Metadata: r.Metadata,
 	}
 	for i, boltEnt := range boltRow {
@@ -128,7 +126,7 @@ func (r *Rows) All() ([]*Row, error) {
 	results := make([]*Row, 0)
 	for _, boltRow := range all {
 		row := &Row{
-			fields:   make([]Entity, len(boltRow)),
+			fields:   make([]interface{}, len(boltRow)),
 			Metadata: r.Metadata,
 		}
 		for i, boltEnt := range boltRow {
@@ -146,9 +144,9 @@ func (r *Rows) All() ([]*Row, error) {
 }
 
 // bolt type to talon type
-func boltToTalonEntity(i interface{}) (Entity, error) {
+func boltToTalonEntity(i interface{}) (interface{}, error) {
 	if i == nil {
-		return &Nil{}, nil
+		return nil, nil
 	}
 
 	switch e := i.(type) {
@@ -166,32 +164,8 @@ func boltToTalonEntity(i interface{}) (Entity, error) {
 			return nil, err
 		}
 
-		switch t := val.(type) {
-		case string:
-			str := String(t)
-
-			return &str, nil
-		case Entity:
-			return t, nil
-		// default case is just using the original string
-		default:
-			str := String(e)
-
-			return &str, nil
-		}
-	case int64:
-		i := Int(e)
-
-		return &i, nil
-	case float64:
-		f := Float(e)
-
-		return &f, nil
-	case bool:
-		b := Bool(e)
-
-		return &b, nil
+		return val, nil
+	default:
+		return i, nil
 	}
-
-	return nil, fmt.Errorf("found %T value, didn't expect it", i)
 }

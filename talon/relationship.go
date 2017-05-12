@@ -55,11 +55,6 @@ func wrapBoltUnboundRelationship(r bolt.UnboundRelationship) (*Relationship, err
 	}, nil
 }
 
-// Type implements Entity for Relationship returning EntityRelationship
-func (*Relationship) Type() EntityType {
-	return EntityRelationship
-}
-
 // Get will fetch the property assocaited with the relationship, returning a
 // bool to signify if the property did exist.
 func (r *Relationship) Get(key string) (val interface{}, ok bool) {

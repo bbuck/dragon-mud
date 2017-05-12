@@ -29,11 +29,6 @@ func wrapBoltNode(n bolt.Node) (*Node, error) {
 	}, nil
 }
 
-// Type implements Entity for Node returning EntityNode
-func (*Node) Type() EntityType {
-	return EntityNode
-}
-
 // Get will fetch the property assocaited with the node, returning a bool
 // to signify if the property did exist.
 func (n *Node) Get(key string) (val interface{}, ok bool) {

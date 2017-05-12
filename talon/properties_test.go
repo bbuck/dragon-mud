@@ -197,9 +197,9 @@ var _ = Describe("Properties", func() {
 		})
 
 		It("marshales complex types", func() {
-			c, ok := after["test_complex"].(Complex)
+			c, ok := after["test_complex"].(complex128)
 			Ω(ok).Should(BeTrue())
-			Ω(complex128(c)).Should(Equal(cmplx))
+			Ω(c).Should(Equal(cmplx))
 		})
 
 		It("doesn't alter strings", func() {
