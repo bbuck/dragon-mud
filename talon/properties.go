@@ -11,22 +11,23 @@ import (
 	"time"
 )
 
-// ErrNoNestedProperties is returned when you attempt to Marshal a Properties
-// map that has a Properties map inside of it.
-var ErrNoNestedProperties = errors.New("cannot nest properties within properties")
-
-// ErrNoRawCollections is returned when a map or slice value (raw) is present
-// inside of a Properties map. The correct resolution is to use a new type
-// that implements Marshaler.
-var ErrNoRawCollections = errors.New("raw maps and slices are not supported property values")
-
-// GenUnmarshaler is a function that takes an interface value and returns a type
-// that can unmarshal a string.
-type GenUnmarshaler func() Unmarshaler
+// UnmarshalType is a function that will take in a byte value and return an
+// interface type (or error) when trying to Unmarshal.
+type UnmarshalType func([]byte) (interface{}, error)
 
 // Unmarshalers is a map of type keys to GenUnmarshaler functions for fetching
 // types that convert strings into useful values for use.
-var Unmarshalers = make(map[string]GenUnmarshaler)
+var Unmarshalers = make(map[string]UnmarshalType)
+
+func init() {
+	Unmarshalers["P"] = func(bs []byte) (interface{}, error) {
+		p := make(Properties)
+		um := &p
+		err := um.UnmarshalTalon(bs)
+
+		return p, err
+	}
+}
 
 // Properties is a map[string]interface{} wrapper with a special string function
 // designed to produce properties for Neo4j.
@@ -91,6 +92,46 @@ func (p Properties) Merge(other Properties) Properties {
 	return props
 }
 
+// MarshalTalon will marshal the Properties object using JSON.
+func (p Properties) MarshalTalon() ([]byte, error) {
+	after, err := p.MarshaledProperties()
+	if err != nil {
+		return make([]byte, 0), err
+	}
+
+	j := JSON{Data: after}
+
+	bs, err := j.MarshalTalon()
+	if err != nil {
+		return make([]byte, 0), err
+	}
+
+	bs[0] = 'P'
+
+	return bs, nil
+}
+
+// UnmarshalTalon will convert a JSON value back into a properties value.
+func (p *Properties) UnmarshalTalon(bs []byte) error {
+	if bs[0] == 'P' {
+		bs[0] = 'J'
+	}
+
+	j := JSON{}
+	err := j.UnmarshalTalon(bs)
+	if err != nil {
+		return err
+	}
+
+	if m, ok := j.Data.(map[string]interface{}); ok {
+		*p = Properties(m)
+
+		return nil
+	}
+
+	return errors.New("invalid data format for properties")
+}
+
 // MarshaledProperties will attempt to TalonMarshal all property values that
 // can be marshaled.
 func (p Properties) MarshaledProperties() (Properties, error) {
@@ -103,25 +144,34 @@ func (p Properties) MarshaledProperties() (Properties, error) {
 				return mp, err
 			}
 			mp[k] = string(bs)
+
+			continue
 		case complex128, complex64:
 			bs, err := NewComplex(t).MarshalTalon()
 			if err != nil {
 				return nil, err
 			}
 			mp[k] = string(bs)
+
+			continue
 		case time.Time:
-			mp[k] = t.UTC().Unix()
-		case Properties:
-			return nil, ErrNoNestedProperties
+			mp[k] = t.Unix()
+
+			continue
 		}
 
 		if kind := reflect.TypeOf(v).Kind(); kind == reflect.Map || kind == reflect.Slice {
-			return nil, ErrNoRawCollections
+			j := NewJSON(v)
+			bs, err := j.MarshalTalon()
+			if err != nil {
+				return mp, err
+			}
+			mp[k] = string(bs)
+
+			continue
 		}
 
-		if _, ok := mp[k]; !ok {
-			mp[k] = v
-		}
+		mp[k] = v
 	}
 
 	return mp, nil
@@ -154,14 +204,13 @@ func (p Properties) UnmarshaledProperties() (Properties, error) {
 func tryUnmarshalString(val string) (interface{}, error) {
 	if len(val) > 2 && val[1] == '!' {
 		typeKey := val[0:1]
-		if gu, ok := Unmarshalers[typeKey]; ok {
-			u := gu()
-			err := u.UnmarshalTalon([]byte(val))
+		if uFn, ok := Unmarshalers[typeKey]; ok {
+			v, err := uFn([]byte(val))
 			if err != nil {
 				return nil, err
 			}
 
-			return u, nil
+			return v, nil
 		}
 	}
 

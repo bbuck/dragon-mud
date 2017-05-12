@@ -394,7 +394,15 @@ func (e *Engine) TableFromMap(i interface{}) *Value {
 	m := reflect.ValueOf(i)
 	if m.Kind() == reflect.Map {
 		for _, k := range m.MapKeys() {
-			t.Set(k.Interface(), m.MapIndex(k).Interface())
+			v := m.MapIndex(k)
+			switch v.Kind() {
+			case reflect.Map:
+				t.Set(k.Interface(), e.TableFromMap(v.Interface()))
+			case reflect.Slice:
+				t.Set(k.Interface(), e.TableFromSlice(v.Interface()))
+			default:
+				t.Set(k.Interface(), v.Interface())
+			}
 		}
 	}
 
@@ -407,7 +415,15 @@ func (e *Engine) TableFromSlice(i interface{}) *Value {
 	s := reflect.ValueOf(i)
 	if s.Kind() == reflect.Slice {
 		for i := 0; i < s.Len(); i++ {
-			t.Append(s.Index(i).Interface())
+			v := s.Index(i)
+			switch v.Kind() {
+			case reflect.Map:
+				t.Append(e.TableFromMap(v.Interface()))
+			case reflect.Slice:
+				t.Append(e.TableFromSlice(v.Interface()))
+			default:
+				t.Append(s.Index(i).Interface())
+			}
 		}
 	}
 

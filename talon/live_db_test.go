@@ -606,10 +606,10 @@ var _ = Describe("LiveDB", func() {
 
 					By("casting it we should cet a complext128")
 
-					cm, ok := ent.(*Complex)
+					cm, ok := ent.(Complex)
 
 					Ω(ok).Should(BeTrue())
-					Ω(complex128(*cm)).Should(BeEquivalentTo(complex128(1 + 2i)))
+					Ω(complex128(cm)).Should(BeEquivalentTo(complex128(1 + 2i)))
 
 					By("cleaning up after the test")
 

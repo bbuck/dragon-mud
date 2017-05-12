@@ -9,10 +9,15 @@ import (
 )
 
 func init() {
-	Unmarshalers["C"] = func() Unmarshaler {
+	Unmarshalers["C"] = func(bs []byte) (interface{}, error) {
 		c := NewComplex(0i)
+		cPtr := &c
+		err := cPtr.UnmarshalTalon(bs)
+		if err != nil {
+			return nil, err
+		}
 
-		return &c
+		return c, nil
 	}
 }
 

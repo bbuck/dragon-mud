@@ -2,12 +2,13 @@
 
 package talon
 
+// EntityType represents the kind of entity in a field from the database.
 type EntityType uint8
 
 // Entity types for the various different kinds of return types from Neo. Like
 // node, relationship, path, etc...
 const (
-	EntityNode EntityType = iota
+	EntityNode EntityType = iota + 1
 	EntityRelationship
 	EntityPath
 
@@ -20,6 +21,9 @@ const (
 
 	// for marshaled types
 	EntityComplex
+
+	// properties, maps, arrays, slices
+	EntityJSON
 )
 
 // Entity represents an element in a Neo4j query result, such a node,

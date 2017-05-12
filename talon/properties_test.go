@@ -106,54 +106,54 @@ var _ = Describe("Properties", func() {
 		Context("nested properties", func() {
 			BeforeEach(func() {
 				before = Properties{
-					"props": Properties{},
+					"props": Properties{"key": "value"},
 				}
 
 				after, err = before.MarshaledProperties()
 			})
 
-			It("fails to marshal nested properties", func() {
-				Ω(err).ShouldNot(BeNil())
+			It("marshals with nested properties", func() {
+				Ω(err).ShouldNot(HaveOccurred())
 			})
 
-			It("fails with nested properties error", func() {
-				Ω(err).Should(Equal(ErrNoNestedProperties))
+			It("produces the correct result", func() {
+				Ω(after).Should(HaveKeyWithValue("props", `P!{"key":"value"}`))
 			})
 		})
 
 		Context("nested map", func() {
 			BeforeEach(func() {
 				before = Properties{
-					"props": map[string]string{},
+					"props": map[string]string{"key": "value"},
 				}
 
 				after, err = before.MarshaledProperties()
 			})
 
-			It("fails to marshal nested collections", func() {
-				Ω(err).ShouldNot(BeNil())
+			It("doesn't fail to marshal maps", func() {
+				Ω(err).ShouldNot(HaveOccurred())
 			})
 
-			It("fails with nested collections error", func() {
-				Ω(err).Should(Equal(ErrNoRawCollections))
+			It("returns the correct value", func() {
+				Ω(after).Should(HaveKeyWithValue("props", `J!{"key":"value"}`))
 			})
 		})
 
 		Context("nested slice", func() {
 			BeforeEach(func() {
 				before = Properties{
-					"props": []string{},
+					"props": []interface{}{"one", 1},
 				}
 
 				after, err = before.MarshaledProperties()
 			})
 
-			It("fails to marshal nested collections", func() {
-				Ω(err).ShouldNot(BeNil())
+			It("doesn't fail to marshal slices", func() {
+				Ω(err).ShouldNot(HaveOccurred())
 			})
 
-			It("fails with nested collections error", func() {
-				Ω(err).Should(Equal(ErrNoRawCollections))
+			It("retursn the correct value", func() {
+				Ω(after).Should(HaveKeyWithValue("props", `J!["one",1]`))
 			})
 		})
 	})
@@ -162,8 +162,11 @@ var _ = Describe("Properties", func() {
 		var (
 			str           = "string"
 			ts            = int64(532162923)
-			cmplx         = complex64(1 + 2i)
+			cmplx         = complex128(1 + 2i)
 			cmplxStr      = "C!1 + 2i"
+			props         = `P!{"key":"value"}`
+			m             = `J!{"one":2}`
+			s             = `J![3,true]`
 			before, after Properties
 			err           error
 		)
@@ -173,6 +176,9 @@ var _ = Describe("Properties", func() {
 				"test_date":    ts,
 				"test_complex": cmplxStr,
 				"test_string":  str,
+				"test_props":   props,
+				"test_map":     m,
+				"test_slice":   s,
 			}
 
 			after, err = before.UnmarshaledProperties()
@@ -183,7 +189,7 @@ var _ = Describe("Properties", func() {
 		})
 
 		It("contains the correct number of keys", func() {
-			Ω(after).Should(HaveLen(3))
+			Ω(after).Should(HaveLen(6))
 		})
 
 		It("marshales dates in the list", func() {
@@ -191,13 +197,34 @@ var _ = Describe("Properties", func() {
 		})
 
 		It("marshales complex types", func() {
-			c, ok := after["test_complex"].(*Complex)
+			c, ok := after["test_complex"].(Complex)
 			Ω(ok).Should(BeTrue())
-			Ω(complex64(*c)).Should(Equal(cmplx))
+			Ω(complex128(c)).Should(Equal(cmplx))
 		})
 
 		It("doesn't alter strings", func() {
 			Ω(after).Should(HaveKeyWithValue("test_string", str))
+		})
+
+		It("unmarshals Property types", func() {
+			Ω(after).Should(HaveKey("test_props"))
+
+			p, _ := after["test_props"].(Properties)
+			Ω(p).Should(HaveKeyWithValue("key", "value"))
+		})
+
+		It("unmarshals maps", func() {
+			Ω(after).Should(HaveKey("test_map"))
+			m, ok := after["test_map"].(map[string]interface{})
+			Ω(ok).Should(BeTrue())
+			Ω(m).Should(HaveKeyWithValue("one", float64(2)))
+		})
+
+		It("unmarshals slices", func() {
+			Ω(after).Should(HaveKey("test_slice"))
+			s, ok := after["test_slice"].([]interface{})
+			Ω(ok).Should(BeTrue())
+			Ω(s).Should(ConsistOf(float64(3), true))
 		})
 	})
 })
