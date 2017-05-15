@@ -63,8 +63,8 @@ var _ = Describe("Properties", func() {
 	Describe("MarshaledProperties", func() {
 		var (
 			str           = "string"
-			date          = time.Date(1986, time.November, 12, 1, 2, 3, 4, time.Local)
-			ts            = int64(532162923)
+			date          = time.Date(1986, time.November, 12, 1, 2, 3, 4, time.UTC)
+			ts            = int64(532141323)
 			cmplx         = 1 + 2i
 			cmplxStr      = "C!1 + 2i"
 			before, after Properties
