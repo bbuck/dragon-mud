@@ -156,7 +156,7 @@ func (e *Engine) DoString(src string) error {
 }
 
 // RaiseError will throw an error in the Lua engine.
-func (e *Engine) RaiseError(err string, args []interface{}) {
+func (e *Engine) RaiseError(err string, args ...interface{}) {
 	e.state.RaiseError(err, args...)
 }
 
@@ -409,6 +409,10 @@ func (e *Engine) ValueFor(val interface{}) *Value {
 		return e.newValue(luar.New(e.state, v.ScriptObject()))
 	case *Value:
 		return v
+	case ScriptFunction:
+		return e.newValue(luar.New(e.state, e.genScriptFunc(v)))
+	case func(*Engine) int:
+		return e.newValue(luar.New(e.state, e.genScriptFunc(ScriptFunction(v))))
 	default:
 		return e.newValue(luar.New(e.state, val))
 	}
@@ -465,12 +469,25 @@ func (e *Engine) newValue(val lua.LValue) *Value {
 	}
 }
 
-// NewTable creates and returns a new NewTable.
+// NewTable create and returns a new NewTable.
 func (e *Engine) NewTable() *Value {
 	tbl := e.newValue(e.state.NewTable())
 	tbl.owner = e
 
 	return tbl
+}
+
+// NewUserData creates a Lua User Data object from teh given value and
+// metatable value.
+func (e *Engine) NewUserData(val interface{}, mt interface{}) *Value {
+	ud := e.state.NewUserData()
+	ud.Value = val
+	mtVal := e.ValueFor(mt)
+	if mtVal.IsTable() {
+		ud.Metatable = mtVal.asTable()
+	}
+
+	return e.newValue(ud)
 }
 
 // wrapScriptFunction turns a ScriptFunction into a lua.LGFunction

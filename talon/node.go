@@ -31,10 +31,12 @@ func wrapBoltNode(n bolt.Node) (*Node, error) {
 
 // Get will fetch the property assocaited with the node, returning a bool
 // to signify if the property did exist.
-func (n *Node) Get(key string) (val interface{}, ok bool) {
-	val, ok = n.Properties[key]
+func (n *Node) Get(key string) interface{} {
+	if val, ok := n.Properties[key]; ok {
+		return val
+	}
 
-	return
+	return nil
 }
 
 // GetString performs the same function as get, except it handles fetching
@@ -42,7 +44,7 @@ func (n *Node) Get(key string) (val interface{}, ok bool) {
 // Get methods will return 'false' for it's second return if the value is not
 // of the requested type.
 func (n *Node) GetString(key string) (string, bool) {
-	val, ok := n.Get(key)
+	val, ok := n.Properties[key]
 	if ok {
 		switch str := val.(type) {
 		case string:
@@ -60,7 +62,7 @@ func (n *Node) GetString(key string) (string, bool) {
 // Get methods will return 'false' for it's second return if the value is not
 // of the requested type.
 func (n *Node) GetInt(key string) (int64, bool) {
-	val, ok := n.Get(key)
+	val, ok := n.Properties[key]
 	if ok {
 		switch i := val.(type) {
 		case int:
@@ -94,7 +96,7 @@ func (n *Node) GetInt(key string) (int64, bool) {
 // methods will return 'false' for it's second return if the value is not of
 // the requested type.
 func (n *Node) GetFloat(key string) (float64, bool) {
-	val, ok := n.Get(key)
+	val, ok := n.Properties[key]
 	if ok {
 		switch f := val.(type) {
 		case float32:
@@ -111,7 +113,7 @@ func (n *Node) GetFloat(key string) (float64, bool) {
 // to a bool (if it is a bool). Unlike Get, the type Get methods will return
 // 'false' for it's second return if the value is not of the requested type.
 func (n *Node) GetBool(key string) (bool, bool) {
-	val, ok := n.Get(key)
+	val, ok := n.Properties[key]
 	if ok {
 		switch b := val.(type) {
 		case bool:

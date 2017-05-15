@@ -4,7 +4,6 @@ package lua
 
 import (
 	"github.com/yuin/gopher-lua"
-	luar "layeh.com/gopher-luar"
 )
 
 // Value is a utility wrapper for lua.LValue that provies conveinient methods
@@ -264,7 +263,8 @@ func getLValue(e *Engine, item interface{}) lua.LValue {
 	}
 
 	if e != nil {
-		return luar.New(e.state, item)
+		return e.ValueFor(item).lval
+		// return luar.New(e.state, item)
 	}
 
 	return lua.LNil

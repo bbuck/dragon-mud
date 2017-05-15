@@ -78,7 +78,7 @@ version = "0.0.0"
 
   authentication = true
   host = "localhost"
-  port = "7474"
+  port = 7474
   username = "neo4j"
   password = "neo4j"
   connection_max = 10

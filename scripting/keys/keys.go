@@ -7,4 +7,7 @@ const (
 	Pool     = "engine pool"
 	Logger   = "logger"
 	RootCmd  = "root command"
+
+	TalonRowMetatable  = "talon row metatable"
+	TalonRowsMetatable = "talon rows metatable"
 )
