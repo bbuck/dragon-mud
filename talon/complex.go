@@ -1,13 +1,31 @@
 // Copyright (c) 2016-2017 Brandon Buck
 
-package types
+package talon
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
-	"strings"
-	"unicode/utf8"
 )
+
+func init() {
+	Unmarshalers["C"] = func(bs []byte) (interface{}, error) {
+		c := NewComplex(0i)
+		cPtr := &c
+		err := cPtr.UnmarshalTalon(bs)
+		if err != nil {
+			return nil, err
+		}
+
+		return complex128(c), nil
+	}
+}
+
+// regular expression defining the structure of a complex value
+var complexRx = regexp.MustCompile(`^C!([\d.e+-]+?) \+ ([\d.e+-]+?)i$`)
+
+// the format that will get stored as the field value for complex data types.
+const complexStorageFormat = "C!%g + %gi"
 
 // ComplexParseError represents an error that occurred while parsing a complex
 // value in string format.
@@ -25,10 +43,15 @@ type Complex complex128
 // NewComplex converts the complex64 or complex128 values into a Complex type
 // for marshaling but if another type is given this returns 0.
 func NewComplex(i interface{}) Complex {
-	if c64, ok := i.(complex64); ok {
-		return Complex(complex128(c64))
-	} else if c128, ok := i.(complex128); ok {
-		return Complex(c128)
+	switch c := i.(type) {
+	case complex64:
+		return Complex(complex128(c))
+	case *complex64:
+		return Complex(complex128(*c))
+	case complex128:
+		return Complex(c)
+	case *complex128:
+		return Complex(*c)
 	}
 
 	return Complex(0i)
@@ -38,36 +61,32 @@ func NewComplex(i interface{}) Complex {
 // of itself.
 func (c Complex) MarshalTalon() ([]byte, error) {
 	c128 := complex128(c)
-	cStr := fmt.Sprintf("%f + %fi", real(c128), imag(c128))
+	cStr := fmt.Sprintf(complexStorageFormat, real(c128), imag(c128))
 
 	return []byte(cStr), nil
 }
 
 // UnmarshalTalon takes a string and should it parse correctly
 func (c *Complex) UnmarshalTalon(bs []byte) error {
-	str := string(bs)
-	if !strings.Contains(str, " + ") {
+	vals := complexRx.FindAllSubmatch(bs, 1)
+
+	if len(vals) == 0 {
 		return ComplexParseError("complex string missing correct format")
 	}
-	if r, _ := utf8.DecodeLastRuneInString(str); r != 'i' {
-		return ComplexParseError("complex string does not end with 'i'")
-	}
-	parts := strings.Split(str, " + ")
-	r := parts[0]
-	rf, err := strconv.ParseFloat(r, 64)
+
+	rval := string(vals[0][1])
+	rp, err := strconv.ParseFloat(rval, 64)
 	if err != nil {
-		return err
-	}
-	if parts[1][len(parts[1])-1] != 'i' {
-		return ComplexParseError("complex string didn't end with 'i'")
-	}
-	im := parts[1][0 : len(parts[1])-1]
-	imf, err := strconv.ParseFloat(im, 64)
-	if err != nil {
-		return err
+		return ComplexParseError(err.Error())
 	}
 
-	*c = Complex(complex(rf, imf))
+	ival := string(vals[0][2])
+	ip, err := strconv.ParseFloat(ival, 64)
+	if err != nil {
+		return ComplexParseError(err.Error())
+	}
+
+	*c = Complex(complex(rp, ip))
 
 	return nil
 }

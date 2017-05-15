@@ -3,19 +3,21 @@
 package talon
 
 import (
-	"github.com/bbuck/dragon-mud/talon/types"
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 )
 
-var noProperties = make(types.Properties)
+var noProperties = make(Properties)
 
 // Query reprsents a Talon query before it's been converted in Cypher
 type Query struct {
 	db         *DB
 	rawCypher  string
-	properties types.Properties
+	properties Properties
 }
 
+// ToCypher converts a query object into a Cypher query string.
+// NOTE: For the time being raw queries (strings with property injection)
+//       are the only types of queries supported.
 func (q *Query) ToCypher() string {
 	if q.rawCypher != "" {
 		return q.rawCypher
@@ -43,25 +45,12 @@ func (q *Query) Query() (*Rows, error) {
 	return r, nil
 }
 
-func (q *Query) Query2() (bolt.Rows, error) {
-	conn, stmt, err := q.getStatement()
-	if err != nil {
-		return nil, err
-	}
-
-	rows, err := stmt.QueryNeo(q.propsForQuery())
-	if err != nil {
-		conn.Close()
-
-		return nil, err
-	}
-
-	return rows, nil
-}
-
 // Exec runs a query that doesn't expect rows to be returned.
 func (q *Query) Exec() (*Result, error) {
 	_, stmt, err := q.getStatement()
+	if err != nil {
+		return nil, err
+	}
 
 	result, err := stmt.ExecNeo(q.propsForQuery())
 	if err != nil {
@@ -69,17 +58,6 @@ func (q *Query) Exec() (*Result, error) {
 	}
 
 	return wrapBoltResult(result), nil
-}
-
-func (q *Query) Exec2() (interface{}, error) {
-	_, stmt, err := q.getStatement()
-
-	result, err := stmt.ExecNeo(q.propsForQuery())
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
 }
 
 func (q *Query) getStatement() (bolt.Conn, bolt.Stmt, error) {

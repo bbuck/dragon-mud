@@ -47,11 +47,9 @@ var _ = Describe("tmpl Module", func() {
 
 	It("doesn't fail", func() {
 		Ω(err).Should(BeNil())
-		Ω(ok).Should(BeTrue())
 	})
 
 	It("should render correctly", func() {
-		Ω(err).Should(BeNil())
 		Ω(result).Should(Equal("Hello, World!"))
 	})
 })

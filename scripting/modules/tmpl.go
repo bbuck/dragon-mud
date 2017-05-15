@@ -38,11 +38,9 @@ var Tmpl = lua.TableMap{
 		t, err := tmpl.Template(name)
 		if err != nil {
 			log.WithError(err).Error("Failed to fetch template name.")
+			engine.RaiseError(err.Error())
 
-			engine.PushValue("")
-			engine.PushValue(false)
-
-			return 2
+			return 0
 		}
 		result, err := t.Render(data)
 		if err != nil {
@@ -53,8 +51,7 @@ var Tmpl = lua.TableMap{
 		}
 
 		engine.PushValue(result)
-		engine.PushValue(err == nil)
 
-		return 2
+		return 1
 	},
 }

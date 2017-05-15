@@ -44,6 +44,13 @@ func RegisterDefaults() {
 	viper.SetDefault("crypto.password_length", 32)
 	viper.SetDefault("crypto.min_iterations", 3)
 	viper.SetDefault("crypto.max_iterations", 8)
+
+	viper.SetDefault("env", "development")
+
+	// database defaults
+	viper.SetDefault("database.development.host", "localhost")
+	viper.SetDefault("database.development.username", "neo4j")
+	viper.SetDefault("database.development.port", 7687)
 }
 
 func bindEnvVars() {
@@ -51,5 +58,9 @@ func bindEnvVars() {
 }
 
 func bindFlags(rootCmd *cobra.Command) {
+	if rootCmd == nil {
+		return
+	}
+
 	viper.BindPFlag("env", rootCmd.PersistentFlags().Lookup("env"))
 }

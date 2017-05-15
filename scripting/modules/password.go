@@ -34,11 +34,11 @@ import (
 var Password = lua.TableMap{
 	"getRandomParams": func(engine *lua.Engine) int {
 		num, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
-		successful := engine.True()
 		if err != nil {
 			log("password").WithError(err).Error("Failed to generate secure salt, CEASE OPERATION IMMEDIATELY")
-			successful = engine.False()
-			num = big.NewInt(0)
+			engine.RaiseError(err.Error())
+
+			return 0
 		}
 		salt := fmt.Sprintf("%x", num)
 		minIterations := viper.GetInt("crypto.min_iterations")
@@ -56,9 +56,8 @@ var Password = lua.TableMap{
 		table.Set("iterations", iterations)
 
 		engine.PushValue(table)
-		engine.PushValue(successful)
 
-		return 2
+		return 1
 	},
 
 	"hash": func(engine *lua.Engine) int {
@@ -70,16 +69,14 @@ var Password = lua.TableMap{
 		hash, err := hashPassword(password, saltStr, iterations)
 		if err != nil {
 			log("password").WithError(err).Error("Failed to hash password via Argon2i, CEASE OPERATION IMMEDIATLEY")
-			engine.PushValue("")
-			engine.PushValue(engine.False())
+			engine.RaiseError(err.Error())
 
-			return 2
+			return 0
 		}
 
 		engine.PushValue(string(hash))
-		engine.PushValue(engine.True())
 
-		return 2
+		return 1
 	},
 
 	"isValid": func(engine *lua.Engine) int {
@@ -97,13 +94,7 @@ var Password = lua.TableMap{
 			return 1
 		}
 
-		if hashed != hash {
-			engine.PushValue(engine.False())
-
-			return 1
-		}
-
-		engine.PushValue(engine.True())
+		engine.PushValue(hashed == hash)
 
 		return 1
 	},

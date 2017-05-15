@@ -3,8 +3,6 @@
 package talon
 
 import (
-	"errors"
-
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 	boltGraph "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
 )
@@ -24,31 +22,68 @@ import (
 // Metadata contains details about the rows response, such as the field names
 // from the query.
 type Metadata struct {
-	Fields []string
+	Fields   []string
+	fieldMap map[string]int
 }
 
 func metadataFromBoltRows(rows bolt.Rows) *Metadata {
 	md := rows.Metadata()
 	mdFields := md["fields"].([]interface{})
 	fields := make([]string, len(mdFields))
+	fieldMap := make(map[string]int)
 	for i := 0; i < len(fields); i++ {
-		fields[i] = mdFields[i].(string)
+		label := mdFields[i].(string)
+		fields[i] = label
+		fieldMap[label] = i
 	}
 
 	return &Metadata{
-		Fields: fields,
+		Fields:   fields,
+		fieldMap: fieldMap,
 	}
 }
 
-type Row []Entity
+// Row represents a list of graph entities.
+type Row struct {
+	fields   []interface{}
+	Metadata *Metadata
+}
 
+// Len returns the number of fields contained in the row.
+func (r *Row) Len() int {
+	return len(r.fields)
+}
+
+// GetColumn fetchs a column by it's associated name, so if you return the name
+// 'node' in your query, you can fetch the value for that column via
+// GetColumn("node").
+func (r *Row) GetColumn(label string) (interface{}, bool) {
+	if idx, ok := r.Metadata.fieldMap[label]; ok {
+		return r.fields[idx], true
+	}
+
+	return nil, false
+}
+
+// GetIndex returns the column by index, along with a bool no whether the index
+// existed.
+func (r *Row) GetIndex(idx int) (interface{}, bool) {
+	if idx >= 0 && idx < len(r.fields) {
+		return r.fields[idx], true
+	}
+
+	return nil, false
+}
+
+// Rows represents a group of rows fetched from a Cypher query.
 type Rows struct {
 	Metadata *Metadata
-	Columns  []string
 
+	closed   bool
 	boltRows bolt.Rows
 }
 
+// create a talon.Rows object from a bolt.Rows object.
 func wrapBoltRows(rs bolt.Rows) *Rows {
 	return &Rows{
 		Metadata: metadataFromBoltRows(rs),
@@ -56,27 +91,81 @@ func wrapBoltRows(rs bolt.Rows) *Rows {
 	}
 }
 
+// Close will close the incoming stream of graph entities.
 func (r *Rows) Close() {
-	r.boltRows.Close()
+	if !r.closed {
+		r.closed = true
+		r.boltRows.Close()
+	}
 }
 
-func (r *Rows) Next() (Row, error) {
+// Next fetches the next row in the resultset.
+func (r *Rows) Next() (*Row, error) {
 	boltRow, _, err := r.boltRows.NextNeo()
-	row := make(Row, len(boltRow))
-	for i := 0; i < len(row); i++ {
-		if node, ok := boltRow[i].(boltGraph.Node); ok {
-			row[i] = wrapBoltNode(node)
-		} else if rel, ok := boltRow[i].(boltGraph.Relationship); ok {
-			row[i] = wrapBoltRelationship(rel)
-		} else {
-			// TODO: Remove
-			panic(errors.New("this doesn't happen!!!"))
+	row := &Row{
+		fields:   make([]interface{}, len(boltRow)),
+		Metadata: r.Metadata,
+	}
+	for i, boltEnt := range boltRow {
+		ent, err := boltToTalonEntity(boltEnt)
+		if err != nil {
+			return nil, err
 		}
+		row.fields[i] = ent
 	}
 
 	return row, err
 }
 
-func (r *Rows) All() ([][]interface{}, map[string]interface{}, error) {
-	return r.boltRows.All()
+// All returns all the rows up front instead of using the streaming API.
+func (r *Rows) All() ([]*Row, error) {
+	all, _, err := r.boltRows.All()
+	if err != nil {
+		return nil, err
+	}
+	results := make([]*Row, 0)
+	for _, boltRow := range all {
+		row := &Row{
+			fields:   make([]interface{}, len(boltRow)),
+			Metadata: r.Metadata,
+		}
+		for i, boltEnt := range boltRow {
+			ent, err := boltToTalonEntity(boltEnt)
+			if err != nil {
+				return nil, err
+			}
+			row.fields[i] = ent
+		}
+		results = append(results, row)
+	}
+	r.Close()
+
+	return results, nil
+}
+
+// bolt type to talon type
+func boltToTalonEntity(i interface{}) (interface{}, error) {
+	if i == nil {
+		return nil, nil
+	}
+
+	switch e := i.(type) {
+	case boltGraph.Node:
+		return wrapBoltNode(e)
+	case boltGraph.Relationship:
+		return wrapBoltRelationship(e)
+	case boltGraph.UnboundRelationship:
+		return wrapBoltUnboundRelationship(e)
+	case boltGraph.Path:
+		return wrapBoltPath(e)
+	case string:
+		val, err := tryUnmarshalString(e)
+		if err != nil {
+			return nil, err
+		}
+
+		return val, nil
+	default:
+		return i, nil
+	}
 }

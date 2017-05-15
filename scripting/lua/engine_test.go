@@ -450,58 +450,6 @@ var _ = Describe("LuaEngine", func() {
 			})
 		})
 	})
-
-	Describe("WhitelistFor()", func() {
-		BeforeEach(func() {
-			engine.SetGlobal("obj", &TestObject{})
-			engine.WhitelistFor(TestObject{}, "GetStringFromPtr")
-			engine.DoString(`
-                function fromPtr()
-                    obj:GetStringFromPtr()
-                end
-
-                function fromVal()
-                    obj:GetStringFromValue()
-                end
-            `)
-		})
-
-		It("can call the whitelisted function", func() {
-			_, err := engine.Call("fromPtr", 1)
-			Ω(err).Should(BeNil())
-		})
-
-		It("can't call the non-whitelisted function", func() {
-			_, err := engine.Call("fromValue", 1)
-			Ω(err).ShouldNot(BeNil())
-		})
-	})
-
-	Describe("BlacklistFor()", func() {
-		BeforeEach(func() {
-			engine.SetGlobal("obj", &TestObject{})
-			engine.BlacklistFor(TestObject{}, "GetStringFromValue")
-			engine.DoString(`
-                function fromPtr()
-                    obj:GetStringFromPtr()
-                end
-
-                function fromVal()
-                    obj:GetStringFromValue()
-                end
-            `)
-		})
-
-		It("can call the non-blacklisted function", func() {
-			_, err := engine.Call("fromPtr", 1)
-			Ω(err).Should(BeNil())
-		})
-
-		It("can't call the blacklisted function", func() {
-			_, err := engine.Call("fromValue", 1)
-			Ω(err).ShouldNot(BeNil())
-		})
-	})
 })
 
 type TestObject struct{}

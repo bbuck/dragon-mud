@@ -7,7 +7,7 @@ import (
 	"github.com/bbuck/dragon-mud/scripting/modules"
 )
 
-var moduleMap = map[string]lua.TableMap{
+var simpleModuleMap = map[string]lua.TableMap{
 	"tmpl":     modules.Tmpl,
 	"password": modules.Password,
 	"die":      modules.Die,
@@ -19,12 +19,22 @@ var moduleMap = map[string]lua.TableMap{
 	"config":   modules.Config,
 }
 
+var complexModuleMap = map[string]func(*lua.Engine){
+	"talon": modules.TalonLoader,
+}
+
 // OpenLibs will open all modules given to the function as defined in the
 // scripting/modules directory.
 func OpenLibs(e *lua.Engine, modules ...string) {
 	for _, mname := range modules {
-		if m, ok := moduleMap[mname]; ok {
+		if m, ok := simpleModuleMap[mname]; ok {
 			e.RegisterModule(mname, m)
+
+			continue
+		}
+
+		if fn, ok := complexModuleMap[mname]; ok {
+			fn(e)
 		}
 	}
 }
