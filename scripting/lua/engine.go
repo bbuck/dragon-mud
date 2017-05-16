@@ -150,6 +150,18 @@ func (e *Engine) DoFile(fn string) error {
 	return e.state.DoFile(fn)
 }
 
+// LoadString runs the given string through the Lua interpreter, wrapping it
+// in a function that is then returned and it can be executed by calling the
+// returned function.
+func (e *Engine) LoadString(src string) (*Value, error) {
+	fn, err := e.state.LoadString(src)
+	if err != nil {
+		return nil, err
+	}
+
+	return e.ValueFor(fn), nil
+}
+
 // DoString runs the given string through the Lua interpreter.
 func (e *Engine) DoString(src string) error {
 	return e.state.DoString(src)

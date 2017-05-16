@@ -1,6 +1,8 @@
-hash: 2196a98ca2cb64af57b2ba6137982aa68269962364868b88de77cbcabee6d76b
-updated: 2017-05-12T09:45:41.517242348-05:00
+hash: 9cc00ce8d434b9fea0e28258a27d11300b1ca990c495599564526ba847cc42dc
+updated: 2017-05-16T01:29:44.861847883-05:00
 imports:
+- name: github.com/chzyer/readline
+  version: 62c6fe6193755f722b8b8788aa7357be55a50ff1
 - name: github.com/dchest/blake2b
   version: 3c8c640cd7bea3ca78209d812b5854442ab92fed
 - name: github.com/fatih/structs
@@ -66,7 +68,7 @@ imports:
 - name: github.com/x-cray/logrus-prefixed-formatter
   version: a35e641b1da09880f6432c2c7e814ef0817663f7
 - name: github.com/yuin/gopher-lua
-  version: 66c871e454fcf10251c61bf8eff02d0978cae75a
+  version: b402f3114ec730d8bddb074a6c137309f561aa78
   subpackages:
   - ast
   - parse

@@ -2,6 +2,7 @@ package modules
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/bbuck/dragon-mud/data"
 	"github.com/bbuck/dragon-mud/scripting/keys"
@@ -22,7 +23,23 @@ func TalonLoader(engine *lua.Engine) {
 // queries against the database
 var Talon = lua.TableMap{
 	"exec": func(engine *lua.Engine) int {
-		return 0
+		query, err := getTalonQuery(engine)
+		if err != nil {
+			engine.RaiseError(err.Error())
+
+			return 0
+		}
+
+		result, err := query.Exec()
+		if err != nil {
+			engine.RaiseError(err.Error())
+
+			return 0
+		}
+
+		engine.PushValue(result)
+
+		return 1
 	},
 	"query": func(engine *lua.Engine) int {
 		query, err := getTalonQuery(engine)
@@ -130,6 +147,12 @@ func loadTalonRows(eng *lua.Engine) {
 
 		row, err := rows.Next()
 		if err != nil {
+			if err == io.EOF {
+				engine.PushValue(engine.Nil())
+
+				return 1
+			}
+
 			engine.RaiseError(err.Error())
 
 			return 0
