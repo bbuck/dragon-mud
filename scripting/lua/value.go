@@ -3,6 +3,9 @@
 package lua
 
 import (
+	"bytes"
+	"fmt"
+
 	"github.com/yuin/gopher-lua"
 )
 
@@ -45,6 +48,47 @@ func (v *Value) AsRaw() interface{} {
 	}
 
 	return nil
+}
+
+// Inspect is similar to AsString except that it's designed to display values
+// for debug purposes.
+func (v *Value) Inspect() string {
+	switch v.lval.Type() {
+	case lua.LTString:
+		return fmt.Sprintf("%q", v.AsString())
+	case lua.LTBool:
+		if v.IsTrue() {
+			return "true"
+		}
+
+		return "false"
+	case lua.LTNil:
+		return "nil"
+	case lua.LTNumber:
+		return fmt.Sprintf("%g", v.AsNumber())
+	case lua.LTUserData:
+		iface := v.Interface()
+		return fmt.Sprintf("(%T) <%+v>", iface, iface)
+	case lua.LTTable:
+		vals, err := v.Invoke("inspect", 1, v)
+		if err != nil || len(vals) == 0 {
+			buf := new(bytes.Buffer)
+			buf.WriteString("{\n")
+			v.ForEach(func(key, val *Value) {
+				buf.WriteString(fmt.Sprintf("  [%s] = %s", key.Inspect(), val.Inspect()))
+				buf.WriteString(",\n")
+			})
+			buf.WriteString("}")
+
+			return buf.String()
+		}
+
+		return vals[0].Inspect()
+	case lua.LTFunction:
+		return "<function>"
+	}
+
+	return "nil"
 }
 
 // AsString returns the LValue as a Go string
@@ -108,6 +152,14 @@ func (v *Value) AsSliceInterface() []interface{} {
 	}
 
 	return nil
+}
+
+// Equals will determine if the *Value is equal to the other value. This also
+// verifies they are from the same *lua.Engine as well.
+func (v *Value) Equals(o interface{}) bool {
+	oval := v.owner.ValueFor(o)
+
+	return oval.owner == v.owner && v.owner.state.Equal(v.lval, oval.lval)
 }
 
 // IsNil will only return true if the Value wraps LNil.
@@ -342,8 +394,17 @@ func (v *Value) FuncLocalName(regno, pc int) (string, bool) {
 	return "", false
 }
 
+// Invoke will fetch a funtion value on the table (if we're working with a
+// table, and then attempt to invoke it if it's a function.
+func (v *Value) Invoke(key interface{}, retCount int, argList ...interface{}) ([]*Value, error) {
+	val := v.Get(key)
+
+	return val.Call(retCount, argList...)
+}
+
 // Call invokes the LuaValue as a function (if it is one) with similar behavior
-// to engine.Call
+// to engine.Call. If you're looking to invoke a function on table, then see
+// Value.Invoke
 func (v *Value) Call(retCount int, argList ...interface{}) ([]*Value, error) {
 	if v.IsFunction() && v.owner != nil {
 		p := lua.P{

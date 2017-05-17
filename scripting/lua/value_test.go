@@ -154,6 +154,69 @@ var _ = Describe("LuaValue", func() {
 		Entry("does not think nil is a string", Nil, false),
 	)
 
+	DescribeTable("Equals()",
+		func(a, b interface{}, expected bool) {
+			Ω(value(a).Equals(b)).Should(Equal(expected))
+		},
+		Entry("nil equals nil", nil, nil, true),
+		Entry("1 equals 1", 1, 1, true),
+		Entry("1 doens't equal 2", 1, 2, false),
+		Entry("'apple' equals 'apple'", "apple", "apple", true),
+	)
+
+	Context("with a table defined in Lua", func() {
+		var (
+			tbl *Value
+			err error
+			eng *Engine
+		)
+
+		// redefine in this scope
+		value := func(i interface{}) *Value {
+			return eng.ValueFor(i)
+		}
+
+		eng = NewEngine()
+		err = eng.DoString(`
+			tbl = {
+				identity = function(x)
+					return x
+				end,
+
+				add = function(a, b)
+					return a + b
+				end
+			}
+		`)
+
+		tbl = eng.GetGlobal("tbl")
+
+		It("doesn't fail", func() {
+			Ω(err).ShouldNot(HaveOccurred())
+		})
+
+		It("doesn't fetch nil for tbl", func() {
+			Ω(tbl.IsNil()).Should(BeFalse())
+		})
+
+		It("fetches a table for tbl", func() {
+			Ω(tbl.IsTable()).Should(BeTrue())
+		})
+
+		DescribeTable("Invoke()",
+			func(method string, args []interface{}, expected interface{}) {
+				vals, err := tbl.Invoke(method, 1, args...)
+
+				Ω(err).ShouldNot(HaveOccurred())
+				Ω(vals).Should(HaveLen(1))
+				Ω(vals[0].Equals(value(expected))).Should(BeTrue())
+			},
+			Entry("identity returns the first argument", "identity", []interface{}{1}, 1),
+			Entry("add adds numbers", "add", []interface{}{1, 2}, 3),
+			Entry("you can invoke methods with self", "identity", []interface{}{tbl}, tbl),
+		)
+	})
+
 	Context("with a table as a list", func() {
 		var list *Value
 
