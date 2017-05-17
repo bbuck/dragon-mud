@@ -68,7 +68,7 @@ func (v *Value) Inspect() string {
 		return fmt.Sprintf("%g", v.AsNumber())
 	case lua.LTUserData:
 		iface := v.Interface()
-		return fmt.Sprintf("(%T) %+v", iface, iface)
+		return fmt.Sprintf("(%T) <%+v>", iface, iface)
 	case lua.LTTable:
 		vals, err := v.Invoke("inspect", 1, v)
 		if err != nil || len(vals) == 0 {

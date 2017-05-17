@@ -13,6 +13,7 @@ import (
 // like after `dragon init` is called.
 var ProjectStructure = Dir{
 	"Dragonfile.toml": File{},
+	".gitignore":      File{},
 	"plugins":         Dir{},
 	"commands": Dir{
 		"init.lua": File{},

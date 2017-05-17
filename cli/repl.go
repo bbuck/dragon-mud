@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/bbuck/dragon-mud/logger"
+	"github.com/bbuck/dragon-mud/scripting"
 	"github.com/bbuck/dragon-mud/scripting/lua"
 )
 
@@ -35,6 +36,7 @@ var (
 				FieldNaming:  lua.SnakeCaseNames,
 				MethodNaming: lua.SnakeCaseNames,
 			})
+			scripting.OpenLibs(eng, "talon")
 
 			name := strings.ToLower(viper.GetString("name"))
 			repl := &REPL{
@@ -72,7 +74,10 @@ type REPL struct {
 // only ends when an input line matches `.exit` or if an error is encountered.
 func (r *REPL) Run() error {
 	var err error
-	r.input, err = readline.New(r.NumberPrompt())
+	r.input, err = readline.NewEx(&readline.Config{
+		Prompt:      r.NumberPrompt(),
+		HistoryFile: ".repl-history",
+	})
 	if err != nil {
 		return err
 	}
