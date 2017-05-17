@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 
@@ -36,10 +36,12 @@ var (
 				MethodNaming: lua.SnakeCaseNames,
 			})
 
+			name := strings.ToLower(viper.GetString("name"))
 			repl := &REPL{
-				promptFmt: fmt.Sprintf("%s (%%d)> ", strings.ToLower(viper.GetString("name"))),
-				engine:    eng,
-				log:       log,
+				promptNumFmt: fmt.Sprintf("%s (%%d)> ", name),
+				promptStrFmt: fmt.Sprintf("%s (%%s)> ", name),
+				engine:       eng,
+				log:          log,
 			}
 
 			err := repl.Run()
@@ -58,24 +60,25 @@ func init() {
 
 // REPL represent a Read-Eval-Print-Loop
 type REPL struct {
-	lineNumber uint
-	promptFmt  string
-	engine     *lua.Engine
-	log        logger.Log
-	input      *readline.Instance
+	lineNumber   uint
+	promptNumFmt string
+	promptStrFmt string
+	engine       *lua.Engine
+	log          logger.Log
+	input        *readline.Instance
 }
 
 // Run begins the execution fo the read-eval-print-loop. Executing the REPL
 // only ends when an input line matches `.exit` or if an error is encountered.
 func (r *REPL) Run() error {
 	var err error
-	r.input, err = readline.New(r.Prompt())
+	r.input, err = readline.New(r.NumberPrompt())
 	if err != nil {
 		return err
 	}
 
 	for {
-		line, err := r.input.Readline()
+		line, err := r.read()
 		if err != nil {
 			if err.Error() == "Interrupt" {
 				fmt.Print("Please use '.exit' to exit console.\n\n")
@@ -90,58 +93,74 @@ func (r *REPL) Run() error {
 			os.Exit(0)
 		}
 
-		before := r.engine.StackSize()
-		err = r.engine.DoString(line)
-		if err != nil {
-			fmt.Printf("\n <=> %s\n", err.Error())
-
-		} else {
-			var results []*lua.Value
-			after := r.engine.StackSize() - before
-			for i := 0; i < after; i++ {
-				val := r.engine.PopValue()
-				results = append([]*lua.Value{val}, results...)
-			}
-
-			if len(results) > 0 {
-				var strs []string
-				for i := 0; i < len(results); i++ {
-					strs = append(strs, results[i].AsString())
-				}
-
-				fmt.Printf(" => %s\n", strings.Join(strs, ", "))
-			} else {
-				fmt.Println(" => nil")
-			}
-		}
+		r.Execute(line)
 
 		r.lineNumber++
-		r.input.SetPrompt(r.Prompt())
+		r.input.SetPrompt(r.NumberPrompt())
 	}
 }
 
-// Prompt returns a formatted prompt to use as the Readline prompt.
-func (r *REPL) Prompt() string {
-	return fmt.Sprintf(r.promptFmt, r.lineNumber)
-}
+// Execute will take a source string and attempt to execute it in the given
+// engine context.
+func (r *REPL) Execute(src string) {
+	retSrc := fmt.Sprintf("return (%s)", src)
 
-func runConsole(log logger.Log, engine *lua.Engine) {
-	in := bufio.NewReader(os.Stdin)
-	for {
-		str, err := readLine(in, engine)
-		if err != nil {
-			log.WithError(err).Fatal("Failed to read line of script.")
+	before := r.engine.StackSize()
 
-			return
+	// try to run code that forces a return value
+	err := r.engine.DoString(retSrc)
+	if err != nil {
+		// if the customized return injection caused failure, we double check
+		// by executing the code without it.
+		err = r.engine.DoString(src)
+	}
+
+	if err != nil {
+		fmt.Printf("\n <=> %s\n", err.Error())
+	} else {
+		var results []*lua.Value
+		after := r.engine.StackSize() - before
+		for i := 0; i < after; i++ {
+			val := r.engine.PopValue()
+			results = append([]*lua.Value{val}, results...)
 		}
 
-		if err := engine.DoString(str); err != nil {
-			fmt.Printf(" ==> %s\n", err)
+		if len(results) > 0 {
+			var strs []string
+			for i := 0; i < len(results); i++ {
+				strs = append(strs, results[i].Inspect())
+			}
+
+			fmt.Printf(" => %s\n", strings.Join(strs, ", "))
+		} else {
+			fmt.Println(" => nil")
 		}
 	}
 }
 
-func isIncompleteLineError(err error) bool {
+// NumberPrompt returns a formatted prompt to use as the Readline prompt.
+func (r *REPL) NumberPrompt() string {
+	return fmt.Sprintf(r.promptNumFmt, r.lineNumber)
+}
+
+// StarPrompt generates a similar prompt to the font with the line number in
+// it, but instead of the line number it uses a * character.
+func (r *REPL) StarPrompt() string {
+	n := r.lineNumber
+	count := 0
+	for ; n > 0; n /= 10 {
+		count++
+	}
+	if count == 0 {
+		count = 1
+	}
+
+	return fmt.Sprintf(r.promptStrFmt, strings.Repeat("*", count))
+}
+
+// determines if the error means that more code can follow (i.e. multi-line
+// input.
+func (r *REPL) isIncompleteLine(err error) bool {
 	if lerr, ok := err.(*glua.ApiError); ok {
 		if perr, ok := lerr.Cause.(*parse.Error); ok {
 			return perr.Pos.Line == parse.EOF
@@ -151,34 +170,37 @@ func isIncompleteLineError(err error) bool {
 	return false
 }
 
-func readLine(reader *bufio.Reader, engine *lua.Engine) (string, error) {
-	fmt.Print("> ")
-	line, err := reader.ReadString('\n')
-	if err == nil {
-		// try add return <...> then compile
-		if _, err := engine.LoadString("return " + line); err == nil {
-			return line, nil
-		}
-
-		return multiline(line, reader, engine)
+func (r *REPL) read() (string, error) {
+	line, err := r.input.Readline()
+	if err != nil {
+		return "", err
 	}
 
-	return "", err
+	_, err = r.engine.LoadString("return " + line)
+	if err == nil {
+		return line, nil
+	}
+
+	return r.readMulti(line)
 }
 
-func multiline(ml string, reader *bufio.Reader, engine *lua.Engine) (string, error) {
+// read multiline input
+func (r *REPL) readMulti(line string) (string, error) {
+	buf := new(bytes.Buffer)
+	buf.WriteString(line)
+
 	for {
-		if _, err := engine.LoadString(ml); err == nil {
-			return ml, nil
-		} else if !isIncompleteLineError(err) {
-			return ml, nil
-		} else {
-			fmt.Print(">> ")
-			if line, err := reader.ReadString('\n'); err == nil {
-				ml = ml + "\n" + line
-			} else {
-				return "", err
-			}
+		_, err := r.engine.LoadString(buf.String())
+		if err == nil || !r.isIncompleteLine(err) {
+			return buf.String(), nil
 		}
+
+		r.input.SetPrompt(r.StarPrompt())
+		line, err = r.input.Readline()
+		if err != nil {
+			return "", err
+		}
+		buf.WriteRune('\n')
+		buf.WriteString(line)
 	}
 }
