@@ -397,7 +397,7 @@ func (v *Value) FuncLocalName(regno, pc int) (string, bool) {
 // Invoke will fetch a funtion value on the table (if we're working with a
 // table, and then attempt to invoke it if it's a function.
 func (v *Value) Invoke(key interface{}, retCount int, argList ...interface{}) ([]*Value, error) {
-	val := v.RawGet(key)
+	val := v.Get(key)
 
 	return val.Call(retCount, argList...)
 }
