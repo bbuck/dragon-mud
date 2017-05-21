@@ -99,6 +99,13 @@ func (r *Rows) Close() {
 	}
 }
 
+// IsOpen will return whether or not the Rows value has been closed or not,
+// most likely you won't need this but in cases were a row value might be
+// closed somewhere else, you can check before operating on it.
+func (r *Rows) IsOpen() bool {
+	return !r.closed
+}
+
 // Next fetches the next row in the resultset.
 func (r *Rows) Next() (*Row, error) {
 	boltRow, _, err := r.boltRows.NextNeo()

@@ -100,7 +100,9 @@ func loadTalonRow(eng *lua.Engine) {
 			return 0
 		}
 
+		// this is the _second_ argument passed to the function
 		arg := engine.PopValue()
+
 		row, ok := engine.PopValue().Interface().(*talon.Row)
 		if !ok {
 			engine.RaiseError("row value corrupted")
@@ -129,6 +131,32 @@ func loadTalonRow(eng *lua.Engine) {
 
 		return 0
 	})
+
+	mt.Set("inspect", func(engine *lua.Engine) int {
+		if engine.StackSize() < 1 {
+			engine.RaiseError("not enough arguments passed")
+
+			return 0
+		}
+
+		row, ok := engine.PopValue().Interface().(*talon.Row)
+		if !ok {
+			engine.RaiseError("row value corrupted")
+
+			return 0
+		}
+
+		var fields map[string]interface{}
+		for _, k := range row.Metadata.Fields {
+			v, _ := row.GetColumn(k)
+			fields[k] = v
+		}
+
+		engine.PushValue(fmt.Sprintf("talon.Row (%+v)", fields))
+
+		return 1
+	})
+
 	mt.Set("__index", mt)
 
 	eng.Meta[keys.TalonRowMetatable] = mt
@@ -162,6 +190,33 @@ func loadTalonRows(eng *lua.Engine) {
 
 		return 1
 	})
+
+	mt.Set("inspect", func(engine *lua.Engine) int {
+		rows, ok := engine.PopValue().Interface().(*talon.Rows)
+		if !ok {
+			engine.RaiseError("rows value corrupted")
+
+			return 0
+		}
+
+		engine.PushValue(fmt.Sprintf("talon.Rows (open = %s)", rows.IsOpen()))
+
+		return 1
+	})
+
+	mt.Set("close", func(engine *lua.Engine) int {
+		rows, ok := engine.PopValue().Interface().(*talon.Rows)
+		if !ok {
+			engine.RaiseError("rows value corrupted")
+
+			return 0
+		}
+
+		rows.Close()
+
+		return 0
+	})
+
 	mt.Set("__index", mt)
 
 	eng.Meta[keys.TalonRowsMetatable] = mt

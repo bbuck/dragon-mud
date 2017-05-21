@@ -11,8 +11,6 @@ import (
 	"github.com/yuin/gopher-lua/parse"
 )
 
-const defaultHistory = ".repl-history"
-
 // REPL represent a Read-Eval-Print-Loop
 type REPL struct {
 	lineNumber   uint
@@ -23,21 +21,52 @@ type REPL struct {
 	input        *readline.Instance
 }
 
+const defaultPrompt = "{name} ({n})"
+
+// REPLConfig provides a mean for configuring a lua.REPL value.
+// -- HistoryFilePath is the path to the history file for storing the written
+//    history of the REPL session (optional)
+// -- Prompt is a fmt string to print as the prompt for each REPL input line.
+//    There is a special format value {n} here where you want the line number
+//    to go, or {name} as a place to inject the name provided (if any).
+// -- Name is a name given, really only useful when no prompt is given as this
+//    value is injected into the prompt.
+type REPLConfig struct {
+	Engine          *Engine
+	HistoryFilePath string
+	Name            string
+	Prompt          string
+}
+
 // NewREPL creates a REPL struct and seeds it with the necessary values to
 // prepare it for use. Uses the default .repl-history file.
 func NewREPL(eng *Engine, name string) *REPL {
-	return NewREPLWithHistoryFile(eng, name, defaultHistory)
+	return NewREPLWithConfig(REPLConfig{
+		Prompt: defaultPrompt,
+		Engine: eng,
+		Name:   name,
+	})
 }
 
-// NewREPLWithHistoryFile creates a new REPL object with the given input and
-// associates the REPL history with a local file name provided.
-func NewREPLWithHistoryFile(eng *Engine, name, histPath string) *REPL {
-	return &REPL{
-		promptNumFmt: fmt.Sprintf("%s (%%d)> ", name),
-		promptStrFmt: fmt.Sprintf("%s (%%s)> ", name),
-		engine:       eng,
-		historyPath:  histPath,
+// NewREPLWithConfig creates a REPL from the provided configuration.
+func NewREPLWithConfig(config REPLConfig) *REPL {
+	prompt := defaultPrompt
+	if len(config.Prompt) > 0 {
+		prompt = config.Prompt
 	}
+	prompt = strings.Replace(prompt, "{name}", config.Name, -1)
+
+	repl := &REPL{
+		promptNumFmt: strings.Replace(prompt, "{n}", "%[1]d", -1),
+		promptStrFmt: strings.Replace(prompt, "{n}", "%[1]s", -1),
+		engine:       config.Engine,
+	}
+
+	if len(config.HistoryFilePath) == 0 {
+		repl.historyPath = config.HistoryFilePath
+	}
+
+	return repl
 }
 
 // Run begins the execution fo the read-eval-print-loop. Executing the REPL

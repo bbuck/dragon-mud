@@ -9,6 +9,14 @@ import (
 	"github.com/yuin/gopher-lua"
 )
 
+// Inspecter defines an type that can respond to the Inspect function. This is
+// similar to fmt.Stringer in that it's a method that returns a string, but the
+// goal with Inspecter over fmt.Stringer is to provide debug information in
+// the string output rather than (potentially) user facing output.
+type Inspecter interface {
+	Inspect() string
+}
+
 // Value is a utility wrapper for lua.LValue that provies conveinient methods
 // for casting.
 type Value struct {
@@ -68,7 +76,14 @@ func (v *Value) Inspect() string {
 		return fmt.Sprintf("%g", v.AsNumber())
 	case lua.LTUserData:
 		iface := v.Interface()
-		return fmt.Sprintf("(%T) <%+v>", iface, iface)
+		switch it := iface.(type) {
+		case Inspecter:
+			return it.Inspect()
+		case fmt.Stringer:
+			return it.String()
+		default:
+			return fmt.Sprintf("(%T) <%+v>", iface, iface)
+		}
 	case lua.LTTable:
 		vals, err := v.Invoke("inspect", 1, v)
 		if err != nil || len(vals) == 0 {
