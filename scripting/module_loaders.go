@@ -18,6 +18,7 @@ var simpleModuleMap = map[string]lua.TableMap{
 	"cli":      modules.Cli,
 	"config":   modules.Config,
 	"time":     modules.Time,
+	"uuid":     modules.UUID,
 }
 
 var complexModuleMap = map[string]func(*lua.Engine){

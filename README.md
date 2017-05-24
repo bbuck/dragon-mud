@@ -74,7 +74,7 @@ this project matures I will clean up and define these details more and more.
  - [x] Test suite to validate working state of features, capturing as many
    differing/edge cases as possible
  - [ ] Neo4j backed database features
-   - [ ] Neo4j database connection library available to Lua (in development)
+   - [x] Neo4j database connection library available to Lua (in development)
    - [ ] ActiveRecord-esque Entity framework for the scripts to leverage
  - [x] Script engine for loading and executing Lua files.
  - [ ] Plugin system to allow for creation of whatever game one desires
