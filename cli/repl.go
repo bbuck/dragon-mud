@@ -1,11 +1,14 @@
 package cli
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	"strings"
 
+	"github.com/bbuck/dragon-mud/ansi"
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/scripting"
 	"github.com/bbuck/dragon-mud/scripting/lua"
@@ -21,23 +24,36 @@ var (
 	in libraries for quick testing.`,
 		Aliases: []string{"repl", "c"},
 		Run: func(*cobra.Command, []string) {
-			log := logger.NewWithSource("repl")
-			log.Info("Starting read-eval-print-loop")
+			log := logger.NewWithSource("cmd(repl)")
+			log.Debug("Starting read-eval-print-loop")
+
+			dragon := getRandomDragonDetails()
+			log = log.WithField("color", dragon.name)
+			log.Debug("A dragon has appeard to handle your Lua code.")
 
 			// TODO: Add security level specic engine creation here
 			eng := lua.NewEngine(lua.EngineOptions{
 				FieldNaming:  lua.SnakeCaseNames,
 				MethodNaming: lua.SnakeCaseNames,
 			})
-			scripting.OpenLibs(eng, "talon")
+			scripting.OpenLibs(eng, "*")
 
 			name := strings.ToLower(viper.GetString("name"))
-			repl := lua.NewREPL(eng, name)
+			repl := lua.NewREPLWithConfig(lua.REPLConfig{
+				Engine:          eng,
+				Name:            name,
+				Prompt:          ansi.Colorize(dragon.color + "\\{name}{x} {L}(\\{n}) {W}> {x}"),
+				HistoryFilePath: ".repl-history",
+			})
 
+			fmt.Printf("\n  type '.exit' to quit.\n\n")
 			err := repl.Run()
 			if err != nil {
 				log.WithError(err).Error("Encountered error running Console.")
 			}
+
+			fmt.Println()
+			log.Debug("The dragon bids you farewell")
 		},
 	}
 )

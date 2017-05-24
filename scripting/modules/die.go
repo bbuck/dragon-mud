@@ -23,7 +23,8 @@ import (
 //     simulate rolling 1d20
 //   d100(): number
 //     simulate rolling 1d100
-//   roll(die: string)
+//   roll(die): table
+//     @param die: string = the string defining how many of what to roll
 //     parse die input and roll the specified number of sided die, for example
 //     die.roll("3d8") will simulate rolling 3 8-sided die, and return the values
 //     as a table.

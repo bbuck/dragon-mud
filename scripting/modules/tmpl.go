@@ -8,9 +8,16 @@ import (
 
 // Tmpl is the templating module accessible in scripts. This module consists of
 // two accessible methods:
-//   register(body: string, name: string)
+//   register(body, name)
+//     @param body: string = the uncompiled body of the template
+//     @param name: string = the name to associate with this template after
+//       registration
 //     register a template with the given name
 //   render(name: string, data: table)
+//     @param name: string = the name of the compiled template to use for
+//       generating output
+//     @param data: table = a table of data to provide to the rendering of the
+//       named templates
 //     render the template with the given name using the given data to populate
 //     it
 var Tmpl = lua.TableMap{

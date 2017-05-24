@@ -36,7 +36,7 @@ var _ = Describe("Color", func() {
 	Describe("ColorizeWithFallbackCode", func() {
 		var (
 			code   = "c001"
-			result = "\033[31m" + str
+			result = "\033[31;22m" + str
 		)
 
 		It("colorizes with fallback values", func() {
@@ -47,14 +47,14 @@ var _ = Describe("Color", func() {
 	Describe("Colorize", func() {
 		var (
 			colored             = "{r}this is {g}a colored{x} string"
-			result              = "\033[31mthis is \033[32ma colored\033[0m string"
-			escaped             = "sample code \\{r}"
+			result              = "\033[31;22mthis is \033[32;22ma colored\033[0m string"
+			escaped             = "sample code {{r}}"
 			escapedResult       = "sample code {r}"
 			withBackground      = "{-r}The background should be red!{x}"
-			bgResult            = "\033[41mThe background should be red!\033[0m"
+			bgResult            = "\033[41;22mThe background should be red!\033[0m"
 			withXterm           = "{c001}This is Xterm colored{x}"
 			xtermResult         = "\033[38;5;1mThis is Xterm colored\033[0m"
-			xtermFallbackResult = "\033[31mThis is Xterm colored\033[0m"
+			xtermFallbackResult = "\033[31;22mThis is Xterm colored\033[0m"
 		)
 
 		It("processes all color codes in a string", func() {
@@ -90,7 +90,7 @@ var _ = Describe("Color", func() {
 		var (
 			colored       = "{r}this is {g}a colored{x} string"
 			result        = "this is a colored string"
-			escaped       = "sample code \\{r}"
+			escaped       = "sample code {{r}}"
 			escapedResult = "sample code {r}"
 		)
 
@@ -106,7 +106,7 @@ var _ = Describe("Color", func() {
 	Describe("Escape", func() {
 		var (
 			str    = "{r}red{x}"
-			result = strings.Replace("\033[31mred\033[0m", "\033", "\\033", -1)
+			result = strings.Replace("\033[31;22mred\033[0m", "\033", "\\033", -1)
 		)
 
 		It("escapes the ANSI escape sequence", func() {

@@ -8,33 +8,30 @@ import (
 	"strings"
 )
 
-const (
-	colorCodeEscape = "\\"
-)
-
 // ColorizeFunc is a function that takes a string and returns a string with
 // ANSI color escape codes in it.
 type ColorizeFunc func(string) string
 
-var colorRx = regexp.MustCompile(`(?m)(.|^)\{(.+?)\}`)
+// var colorRx = regexp.MustCompile(`(?m)([^\\]|^)\{(.+?)\}`)
+var colorRx = regexp.MustCompile(`(?m)\{(\{?.{1,5}?\}?)\}`)
 
 var (
 	colorMap = map[string]string{
 		"l": "0",
 		"L": "0;1",
-		"r": "1",
+		"r": "1;22",
 		"R": "1;1",
-		"g": "2",
+		"g": "2;22",
 		"G": "2;1",
-		"y": "3",
+		"y": "3;22",
 		"Y": "3;1",
-		"b": "4",
+		"b": "4;22",
 		"B": "4;1",
-		"m": "5",
+		"m": "5;22",
 		"M": "5;1",
-		"c": "6",
+		"c": "6;22",
 		"C": "6;1",
-		"w": "7",
+		"w": "7;22",
 		"W": "7;1",
 	}
 	colorToANSI = map[string]string{
@@ -135,33 +132,20 @@ func Colorize(text string) string {
 func ColorizeWithFallback(text string, fallback bool) string {
 	final := colorRx.ReplaceAllStringFunc(text, func(s string) string {
 		match := colorRx.FindStringSubmatch(s)
-		if len(match[1]) > 0 && match[1] == colorCodeEscape {
-			return fmt.Sprintf("{%s}", match[2])
+		if strings.HasPrefix(match[1], "{") && strings.HasSuffix(match[1], "}") {
+			return match[1]
 		}
 
-		codes := strings.Split(match[2], ",")
-		var (
-			colors string
-			valid  = true
-		)
-		for _, code := range codes {
-			if fallback {
-				code = FallbackColor(code)
-			}
-
-			if color, ok := colorToANSI[code]; ok {
-				colors += color
-			} else {
-				valid = false
-				break
-			}
+		code := match[1]
+		if fallback {
+			code = FallbackColor(code)
 		}
 
-		if valid {
-			return fmt.Sprintf("%s%s", match[1], colors)
+		if color, ok := colorToANSI[code]; ok {
+			return color
 		}
 
-		return s
+		return match[0]
 	})
 
 	return final
@@ -181,11 +165,11 @@ func FallbackColor(code string) string {
 func Purge(text string) string {
 	final := colorRx.ReplaceAllStringFunc(text, func(s string) string {
 		match := colorRx.FindStringSubmatch(s)
-		if len(match[1]) > 0 && match[1] == colorCodeEscape {
-			return fmt.Sprintf("{%s}", match[2])
+		if strings.HasPrefix(match[1], "{") && strings.HasSuffix(match[1], "}") {
+			return match[1]
 		}
 
-		return match[1]
+		return ""
 	})
 
 	return final

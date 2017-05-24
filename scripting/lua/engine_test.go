@@ -65,7 +65,7 @@ var _ = Describe("LuaEngine", func() {
 			})
 
 			It("doesn't return nil", func() {
-				Ω(results[0]).ShouldNot(Equal(Nil))
+				Ω(results[0]).ShouldNot(Equal(engine.Nil()))
 			})
 
 			It("returns the string 'Hello, World!'", func() {
@@ -102,7 +102,7 @@ var _ = Describe("LuaEngine", func() {
 			})
 
 			It("does not return nil", func() {
-				Ω(results[0]).ShouldNot(Equal(Nil))
+				Ω(results[0]).ShouldNot(Equal(engine.Nil()))
 			})
 
 			It("returns the number 1", func() {
@@ -200,7 +200,7 @@ var _ = Describe("LuaEngine", func() {
 		})
 
 		It("doesn't return nil", func() {
-			Ω(value).ShouldNot(Equal(Nil))
+			Ω(value).ShouldNot(Equal(engine.Nil()))
 		})
 
 		It("returns the correct string", func() {
@@ -233,7 +233,7 @@ var _ = Describe("LuaEngine", func() {
 			})
 
 			It("does not return nil", func() {
-				Ω(results[0]).ShouldNot(Equal(Nil))
+				Ω(results[0]).ShouldNot(Equal(engine.Nil()))
 			})
 
 			It("returns 1 value", func() {
@@ -281,7 +281,7 @@ var _ = Describe("LuaEngine", func() {
 			})
 
 			It("does not return nil", func() {
-				Ω(results[0]).ShouldNot(Equal(Nil))
+				Ω(results[0]).ShouldNot(Equal(engine.Nil()))
 			})
 
 			It("returns the correct value", func() {

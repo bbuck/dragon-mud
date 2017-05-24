@@ -14,11 +14,20 @@ import (
 // Events is a module for emitting and receiving events in Lua.
 //   Halt: (go error)
 //     used to halt event exuction, bypassing failure logs
-//   emit(event: string[, data: table])
+//   emit(event[, data])
+//     @param event: string = the event string value to be emitted to
+//     @param data: table = a table of initial event properties to seed the
+//       event emission.
 //     emits the given event with the data, which can be nil or omitted
-//   on(event: string, handler: function)
+//   on(event, handler)
+//     @param event: string = the event to associate the given handler to.
+//     @param handler: function = a function to execute if the event specified
+//       is emitted.
 //     registers the given function to handle the given event
-//   once(event: string, handler: function)
+//   once(event, handler: function)
+//     @param event: string = the event to associate the given handler to.
+//     @param handler: function = a function to execute if the event specified
+//       is emitted.
 //     registers the given function to handle the given event only one time
 var Events = lua.TableMap{
 	"Halt": events.ErrHalt,

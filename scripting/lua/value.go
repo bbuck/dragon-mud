@@ -5,9 +5,18 @@ package lua
 import (
 	"bytes"
 	"fmt"
+	"math"
 
 	"github.com/yuin/gopher-lua"
 )
+
+// Inspecter defines an type that can respond to the Inspect function. This is
+// similar to fmt.Stringer in that it's a method that returns a string, but the
+// goal with Inspecter over fmt.Stringer is to provide debug information in
+// the string output rather than (potentially) user facing output.
+type Inspecter interface {
+	Inspect() string
+}
 
 // Value is a utility wrapper for lua.LValue that provies conveinient methods
 // for casting.
@@ -15,9 +24,6 @@ type Value struct {
 	lval  lua.LValue
 	owner *Engine
 }
-
-// Nil represents the Lua nil value.
-var Nil = &Value{lval: lua.LNil}
 
 // String makes Value conform to Stringer
 func (v *Value) String() string {
@@ -65,10 +71,30 @@ func (v *Value) Inspect() string {
 	case lua.LTNil:
 		return "nil"
 	case lua.LTNumber:
-		return fmt.Sprintf("%g", v.AsNumber())
+		n := v.AsNumber()
+		if math.Floor(n) == n && n >= float64(math.MinInt64) && n <= float64(math.MaxInt64) {
+			return fmt.Sprintf("%d", int64(n))
+		}
+
+		return fmt.Sprintf("%g", n)
 	case lua.LTUserData:
 		iface := v.Interface()
-		return fmt.Sprintf("(%T) <%+v>", iface, iface)
+		switch it := iface.(type) {
+		case Inspecter:
+			return it.Inspect()
+		case fmt.Stringer:
+			return it.String()
+		default:
+			ud := v.asUserData()
+			val := v.owner.ValueFor(ud.Metatable)
+
+			vals, err := val.Invoke("inspect", 1, v)
+			if err != nil || len(vals) == 0 {
+				return fmt.Sprintf("%T(%+v)", iface, iface)
+			}
+
+			return vals[0].AsString()
+		}
 	case lua.LTTable:
 		vals, err := v.Invoke("inspect", 1, v)
 		if err != nil || len(vals) == 0 {
@@ -290,7 +316,7 @@ func (v *Value) Next(key interface{}) (*Value, *Value) {
 		return v.owner.newValue(v1), v.owner.newValue(v2)
 	}
 
-	return Nil, Nil
+	return v.owner.Nil(), v.owner.Nil()
 }
 
 // Remove maps to lua.LTable.Remove
@@ -302,7 +328,7 @@ func (v *Value) Remove(pos int) *Value {
 		return v.owner.newValue(ret)
 	}
 
-	return Nil
+	return v.owner.Nil()
 }
 
 // Helper method for Set and RawSet
@@ -398,6 +424,9 @@ func (v *Value) FuncLocalName(regno, pc int) (string, bool) {
 // table, and then attempt to invoke it if it's a function.
 func (v *Value) Invoke(key interface{}, retCount int, argList ...interface{}) ([]*Value, error) {
 	val := v.Get(key)
+	if val == nil || val.IsNil() || !val.IsFunction() {
+		return nil, fmt.Errorf("value doesn't exist or is not a function")
+	}
 
 	return val.Call(retCount, argList...)
 }

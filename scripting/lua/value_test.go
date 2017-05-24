@@ -84,7 +84,7 @@ var _ = Describe("LuaValue", func() {
 		Entry("handles false", false, false),
 		Entry("thinks strings are true", str, true),
 		Entry("thinks numbers are true", i, true),
-		Entry("thinks nil is not true", Nil, false),
+		Entry("thinks nil is not true", engine.Nil(), false),
 		Entry("thinks functions are true", fn, true),
 	)
 
@@ -96,7 +96,7 @@ var _ = Describe("LuaValue", func() {
 		Entry("handles false", false, true),
 		Entry("thinks strings aren't false", str, false),
 		Entry("thinks numbers are't false", i, false),
-		Entry("thinks nil is false", Nil, true),
+		Entry("thinks nil is false", engine.Nil(), true),
 		Entry("does not think functions are false", fn, false),
 	)
 
@@ -108,7 +108,7 @@ var _ = Describe("LuaValue", func() {
 		Entry("does not think ints are nil", i, false),
 		Entry("does not think int64s are nil", i64, false),
 		Entry("does not think float64s are nil", f64, false),
-		Entry("thinks nil is nil", Nil, true),
+		Entry("thinks nil is nil", engine.Nil(), true),
 	)
 
 	DescribeTable("IsNumber()",
@@ -119,7 +119,7 @@ var _ = Describe("LuaValue", func() {
 		Entry("thinks ints are numbers", i, true),
 		Entry("thinks int64s are numbers", i64, true),
 		Entry("thinks float64s are number", f64, true),
-		Entry("doesn't think nil is a number", Nil, false),
+		Entry("doesn't think nil is a number", engine.Nil(), false),
 	)
 
 	DescribeTable("IsBool()",
@@ -130,7 +130,7 @@ var _ = Describe("LuaValue", func() {
 		Entry("thinks false is a bool", false, true),
 		Entry("does not think a string is a bool", str, false),
 		Entry("does not think a number is a bool", i, false),
-		Entry("does not think nil is a bool", Nil, false),
+		Entry("does not think nil is a bool", engine.Nil(), false),
 	)
 
 	DescribeTable("IsFunction()",
@@ -140,7 +140,7 @@ var _ = Describe("LuaValue", func() {
 		Entry("thinks functions are functions", fn, true),
 		Entry("does not think strings are functions", str, false),
 		Entry("does not think numbers are functions", i, false),
-		Entry("does not think nil is a function", Nil, false),
+		Entry("does not think nil is a function", engine.Nil(), false),
 	)
 
 	DescribeTable("IsString()",
@@ -151,7 +151,7 @@ var _ = Describe("LuaValue", func() {
 		Entry("does not think a number is a string", i, false),
 		Entry("does not think a boolean is a string", b, false),
 		Entry("does not think a function is a string", fn, false),
-		Entry("does not think nil is a string", Nil, false),
+		Entry("does not think nil is a string", engine.Nil(), false),
 	)
 
 	DescribeTable("Equals()",
