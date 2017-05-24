@@ -7,7 +7,7 @@ type dragonDetails struct {
 }
 
 var dragonColors = []dragonDetails{
-	{name: "{l,-W}black{x}", color: "{l,-W}"},
+	{name: "{l}{-W}black{x}", color: "{l}{-W}"},
 	{name: "{c220}brass{x}", color: "{c220}"},
 	{name: "{R}red{x}", color: "{R}"},
 	{name: "{c208}bronze{x}", color: "{c208}"},
@@ -16,7 +16,7 @@ var dragonColors = []dragonDetails{
 	{name: "{B}blue{x}", color: "{B}"},
 	{name: "{c202}copper{x}", color: "{c202}"},
 	{name: "{W}white{x}", color: "{W}"},
-	{name: "{c250,u}silver{x}", color: "{c250,u}"},
+	{name: "{c250}{u}silver{x}", color: "{c250}{u}"},
 }
 
 func getRandomDragonDetails() dragonDetails {

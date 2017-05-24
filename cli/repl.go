@@ -42,7 +42,7 @@ var (
 			repl := lua.NewREPLWithConfig(lua.REPLConfig{
 				Engine:          eng,
 				Name:            name,
-				Prompt:          ansi.Colorize(dragon.color + "\\{name}{x} {L}(\\{n}) {W}> {x}"),
+				Prompt:          ansi.Colorize(dragon.color + "{{name}}{x} {L}({{n}}) {W}> {x}"),
 				HistoryFilePath: ".repl-history",
 			})
 
