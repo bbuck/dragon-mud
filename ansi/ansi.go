@@ -190,6 +190,8 @@ func Purge(text string) string {
 		return match[1]
 	})
 
+	final = strings.Replace(final, `\{`, "{", -1)
+
 	return final
 }
 

@@ -35,10 +35,10 @@ var regexpCache = make(map[string]*regexp.Regexp)
 //     @param str: string = the value to test against the suffix
 //     @param suffix: string = the suffix that is in question
 //     determines if the string ends with the given substring
-//   contains(needle, haystack): boolean
+//   contains(haystack, needle): boolean
+//     @param haystack: string = the body of data to be searched by the pattern.
 //     @param needle: string = the pattern (regular expression) to search for
 //       within the text.
-//     @param haystack: string = the body of data to be searched by the pattern.
 //     determines if substring is present in the given string
 //   matches(needle, haystack): table
 //     @param needle: string = the pattern (regular expression) to compare
@@ -107,8 +107,8 @@ var Sutil = lua.TableMap{
 		return 1
 	},
 	"contains": func(eng *lua.Engine) int {
-		haystack := eng.PopString()
 		needle := eng.PopString()
+		haystack := eng.PopString()
 
 		eng.PushValue(strings.Contains(haystack, needle))
 
