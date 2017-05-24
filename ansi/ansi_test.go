@@ -48,7 +48,7 @@ var _ = Describe("Color", func() {
 		var (
 			colored             = "{r}this is {g}a colored{x} string"
 			result              = "\033[31;22mthis is \033[32;22ma colored\033[0m string"
-			escaped             = "sample code \\{r}"
+			escaped             = "sample code {{r}}"
 			escapedResult       = "sample code {r}"
 			withBackground      = "{-r}The background should be red!{x}"
 			bgResult            = "\033[41;22mThe background should be red!\033[0m"
@@ -90,7 +90,7 @@ var _ = Describe("Color", func() {
 		var (
 			colored       = "{r}this is {g}a colored{x} string"
 			result        = "this is a colored string"
-			escaped       = "sample code \\{r}"
+			escaped       = "sample code {{r}}"
 			escapedResult = "sample code {r}"
 		)
 
