@@ -112,7 +112,7 @@ var _ = Describe("Sutil", func() {
 		Entry("doesn't report false positives", "suffix", "post", false))
 
 	DescribeTable("contains()",
-		func(haystack, needle string, result bool) {
+		func(needle, haystack string, result bool) {
 			eng := p.Get()
 			defer eng.Release()
 
@@ -125,8 +125,8 @@ var _ = Describe("Sutil", func() {
 			Ω(err).Should(BeNil())
 			Ω(b).Should(Equal(result))
 		},
-		Entry("shows substring is present", "hello", "ll", true),
-		Entry("doesn't show false positives", "hello", "bye", false))
+		Entry("shows substring is present", "ll", "hello", true),
+		Entry("doesn't show false positives", "bye", "hello", false))
 
 	DescribeTable("matches()",
 		func(rx, haystack string, result []interface{}) {

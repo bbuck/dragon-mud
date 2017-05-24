@@ -24,8 +24,12 @@ var (
 	in libraries for quick testing.`,
 		Aliases: []string{"repl", "c"},
 		Run: func(*cobra.Command, []string) {
-			log := logger.NewWithSource("repl")
+			log := logger.NewWithSource("cmd(repl)")
 			log.Debug("Starting read-eval-print-loop")
+
+			dragon := getRandomDragonDetails()
+			log = log.WithField("color", dragon.name)
+			log.Debug("A dragon has appeard to handle your Lua code.")
 
 			// TODO: Add security level specic engine creation here
 			eng := lua.NewEngine(lua.EngineOptions{
@@ -38,15 +42,18 @@ var (
 			repl := lua.NewREPLWithConfig(lua.REPLConfig{
 				Engine:          eng,
 				Name:            name,
-				Prompt:          ansi.Colorize("{C}\\{name} {L}(\\{n}) {W}> {x}"),
+				Prompt:          ansi.Colorize(dragon.color + "\\{name}{x} {L}(\\{n}) {W}> {x}"),
 				HistoryFilePath: ".repl-history",
 			})
 
-			fmt.Println("  type '.exit' to quit.")
+			fmt.Printf("\n  type '.exit' to quit.\n\n")
 			err := repl.Run()
 			if err != nil {
 				log.WithError(err).Error("Encountered error running Console.")
 			}
+
+			fmt.Println()
+			log.Debug("The dragon bids you farewell")
 		},
 	}
 )

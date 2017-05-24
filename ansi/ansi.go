@@ -16,25 +16,25 @@ const (
 // ANSI color escape codes in it.
 type ColorizeFunc func(string) string
 
-var colorRx = regexp.MustCompile(`(?m)(.|^)\{(.+?)\}`)
+var colorRx = regexp.MustCompile(`(?m)([^\\]|^)\{(.+?)\}`)
 
 var (
 	colorMap = map[string]string{
 		"l": "0",
 		"L": "0;1",
-		"r": "1",
+		"r": "1;22",
 		"R": "1;1",
-		"g": "2",
+		"g": "2;22",
 		"G": "2;1",
-		"y": "3",
+		"y": "3;22",
 		"Y": "3;1",
-		"b": "4",
+		"b": "4;22",
 		"B": "4;1",
-		"m": "5",
+		"m": "5;22",
 		"M": "5;1",
-		"c": "6",
+		"c": "6;22",
 		"C": "6;1",
-		"w": "7",
+		"w": "7;22",
 		"W": "7;1",
 	}
 	colorToANSI = map[string]string{
@@ -135,9 +135,9 @@ func Colorize(text string) string {
 func ColorizeWithFallback(text string, fallback bool) string {
 	final := colorRx.ReplaceAllStringFunc(text, func(s string) string {
 		match := colorRx.FindStringSubmatch(s)
-		if len(match[1]) > 0 && match[1] == colorCodeEscape {
-			return fmt.Sprintf("{%s}", match[2])
-		}
+		// if len(match[1]) > 0 && match[1] == colorCodeEscape {
+		// 	return fmt.Sprintf("{%s}", match[2])
+		// }
 
 		codes := strings.Split(match[2], ",")
 		var (
@@ -163,6 +163,8 @@ func ColorizeWithFallback(text string, fallback bool) string {
 
 		return s
 	})
+
+	final = strings.Replace(final, `\{`, "{", -1)
 
 	return final
 }

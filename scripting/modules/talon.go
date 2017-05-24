@@ -21,6 +21,74 @@ func TalonLoader(engine *lua.Engine) {
 
 // Talon is the core database Lua wrapper, giving the coder access to running
 // queries against the database
+//   exec(cypher, properties): talon.Result
+//     @param cypher: string - the cypher query to execute on the database
+//       server
+//     @param properties: table - properties to fill the cypher query with
+//       before execution
+//     @errors raises an error if there is an issue with the database connection
+//       or the query construction
+//     executes a query on the database and returns a result value, this should
+//     be used with queries that don't return a result set (like creating,
+//     editing and deleting).
+//   query(cypher, properties): talon.Rows
+//     @param cypher: string - the cypher query to execute on the database
+//       server
+//     @param properties: table - properties to fill the cypher query with
+//       before execution
+//     @errors raises an error if there is an issue with the database connection
+//       or the query construction
+//     executes a query on the database server and returns a set of rows with
+//     the queries results.
+//   talon.Rows
+//     next(): talon.Row
+//       the rowset is a lazy loaded series of rows, next will return the next
+//       row in the set of rows returned by the query. If there are no more
+//       rows this will return nil.
+//     close()
+//       close the set of rows, this is a _very_ good thing to do to clean up
+//       after your queries. It is undefined behavior to fail to close your
+//       row sets.
+//     inspect(): string
+//       return a debug view into the talon.Rows value.
+//   talon.Row
+//     get(key): any
+//       @param key: string | number - the field name in the row or the field
+//         index in the result.
+//       this will return any value associated with the index or field name or
+//       nil if no value is found.
+//   talon.Node
+//     @property id: number - numeric auto id number assigned to the node by
+//       the database
+//     @property labels: table - a list of labels associated with the node; not
+//       quite a table, it's a Go slice but functions similarly
+//     @property properties: table - a key/vale paring of properties associated
+//       with the node; not quite a table, a Go map but functions like a table.
+//     get(key): any
+//       @param key: string - the name of the property to fetch from the node,
+//         mostly a shorthand for accessing properties
+//       fetch a property by key from the node.
+//   talon.Relationship
+//     @property id: number - numeric auto id number assigned to the node by
+//       the database
+//     @property start_node_id: number - the auto identifier of the node that
+//       this relationship originates from
+//     @property end_node_id: number - the auto identifier of the node that
+//       this relationship executes at
+//     @property name: string - the label of the label (or name)
+//     @property properties: table - a key/vale paring of properties associated
+//       with the node; not quite a table, a Go map but functions like a table.
+//     @property bounded: boolean - denotes whether start_node_id and
+//       end_node_id will be set. If a relationship is bounded then it's start
+//       and end points are recorded, if it's not bounded they will not be set
+//       (most likely returning 0).
+//     get(key): any
+//       @param key: string - the name of the property to fetch from the
+//         relationship, mostly a shorthand for accessing properties
+//       fetch a property by key from the relationship.
+//   talon.Path
+//     functionally a table (list) of alternating node/relationship values from
+//     one node to another.
 var Talon = lua.TableMap{
 	"exec": func(engine *lua.Engine) int {
 		query, err := getTalonQuery(engine)
@@ -146,13 +214,7 @@ func loadTalonRow(eng *lua.Engine) {
 			return 0
 		}
 
-		var fields map[string]interface{}
-		for _, k := range row.Metadata.Fields {
-			v, _ := row.GetColumn(k)
-			fields[k] = v
-		}
-
-		engine.PushValue(fmt.Sprintf("talon.Row (%+v)", fields))
+		engine.PushValue(fmt.Sprintf("talon.Row(%+v)", row.Metadata.Fields))
 
 		return 1
 	})
@@ -199,7 +261,7 @@ func loadTalonRows(eng *lua.Engine) {
 			return 0
 		}
 
-		engine.PushValue(fmt.Sprintf("talon.Rows (open = %s)", rows.IsOpen()))
+		engine.PushValue(fmt.Sprintf("talon.Rows(open = %t)", rows.IsOpen()))
 
 		return 1
 	})

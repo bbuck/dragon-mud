@@ -7,13 +7,29 @@ import (
 )
 
 // Log is the definition of the Lua logging module.
-//   error(msg: string[, data: table])
+//   error(msg[, data])
+//     @param msg: string = the message to log according the log configuraiton
+//       provided for the application
+//     @param data: table = associated data to log with the message, if any
+//       additional data is required.
 //     log message with data on the error level, data can be omitted or nil
-//   warn(msg: string[, data: table])
+//   warn(msg[, data])
+//     @param msg: string = the message to log according the log configuraiton
+//       provided for the application
+//     @param data: table = associated data to log with the message, if any
+//       additional data is required.
 //     log message with data on the warn level, data can be omitted or nil
-//   info(msg: string[, data: table])
+//   info(msg[, data])
+//     @param msg: string = the message to log according the log configuraiton
+//       provided for the application
+//     @param data: table = associated data to log with the message, if any
+//       additional data is required.
 //     log message with data on the info level, data can be omitted or nil
-//   debug(msg: string[, data: table])
+//   debug(msg[, data])
+//     @param msg: string = the message to log according the log configuraiton
+//       provided for the application
+//     @param data: table = associated data to log with the message, if any
+//       additional data is required.
 //     log message with data on the debug level, data can be omitted or nil
 var Log = lua.TableMap{
 	"error": func(eng *lua.Engine) int {

@@ -15,20 +15,27 @@ import (
 
 // Password provides a method to take options to hash a password using the argon2i
 // encryption algorithm.
-//   options table
-//     salt : string
-//       a string value used to differ password hashes
-//     iteration : number
-//       a number value used to determine the number of hash iterations over the
-//       password to produce a hash
-//   getRandomParams(): table (see options)
+//   options table = {
+//     salt : string = a string value used to differ password hashes
+//     iteration : number = a number value used to determine the number of hash
+//       iterations over the password to produce a hash
+//   getRandomParams(): options
 // 	   return a table with two keys, 'salt' and 'iterations' that have been
 //     cyrptographically secure randomly generated for use with hash and isValid.
-//   hash(password: string, options: table): string
+//   hash(password, options): string
+//     @param password: string = a plaintext password value
+//     @param options: options = the options values with which to encrypt the
+//       password by
 //     hashes the plain text password using the argon2i algorith with the data
 //     in the provided table. The table must have a 'salt' and 'iterations'
 //     field.
 //   isValid(password: string, hash: string, options: table): string
+//     @param password string = the plain text password entered by the user that
+//       will be compared against the hash
+//     @param hash: string = a hash of an encrypted password that the new
+//       password should match after encryption
+//     @param options: options = the options values with which to decrypt the
+//       password by
 //     hashes the password using the options given and compares the output hash
 //     to the given hash, true means the given password matches the hash
 var Password = lua.TableMap{

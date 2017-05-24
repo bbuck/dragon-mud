@@ -5,52 +5,32 @@ package cli
 import (
 	"github.com/bbuck/dragon-mud/config"
 	"github.com/bbuck/dragon-mud/logger"
-	"github.com/bbuck/dragon-mud/random"
 	"github.com/bbuck/dragon-mud/telnet/server"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-var (
-	serveCmd = &cobra.Command{
-		Use:   "serve",
-		Short: "Start the DragonMUD server.",
-		Long: `Starts the DragonMUD Game server to listen for new player connections.
+var serveCmd = &cobra.Command{
+	Use:   "serve",
+	Short: "Start the DragonMUD server.",
+	Long: `Starts the DragonMUD Game server to listen for new player connections.
 All lifecycle scripts will be notified during boot and the configuration
 information will be processed.`,
-		Run: func(cmd *cobra.Command, args []string) {
-			log := logger.NewWithSource("cmd(serve)")
-			log.Infof("A %s dragon arrives to serve you today.", getDragonColor())
-			if !config.Loaded {
-				log.Fatal("No configuration file detected. Make sure you run {W}dragon init{x} first.")
-			}
-			log.WithField("env", viper.GetString("env")).Info("Configuration loaded")
+	Run: func(cmd *cobra.Command, args []string) {
+		log := logger.NewWithSource("cmd(serve)")
 
-			// TODO: Implement serve command
-			server.Run()
-		},
-	}
+		dragon := getRandomDragonDetails()
+		log.WithField("color", dragon.name).Info("A dragon arrives to serve you today.")
+		if !config.Loaded {
+			log.Fatal("No configuration file detected. Make sure you run {W}dragon init{x} first.")
+		}
+		log.WithField("env", viper.GetString("env")).Info("Configuration loaded")
 
-	dragonColors = []string{
-		"{l,-W}black{x}",
-		"{c220}brass{x}",
-		"{R}red{x}",
-		"{c208}bronze{x}",
-		"{G}green{x}",
-		"{Y}gold{x}",
-		"{B}blue{x}",
-		"{c202}copper{x}",
-		"{W}white{x}",
-		"{c250,u}silver{x}",
-	}
-)
+		// TODO: Implement serve command
+		server.Run()
+	},
+}
 
 func init() {
 	RootCmd.AddCommand(serveCmd)
-}
-
-func getDragonColor() string {
-	index := random.Intn(len(dragonColors))
-
-	return dragonColors[index]
 }

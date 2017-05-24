@@ -11,6 +11,10 @@ import (
 
 // Config provides a way for scripts to access data defined inside the
 // Dragonfile.toml.
+//   get(key): any
+//     @param key: string = the dot notation key to look up in the application
+//       configuration
+//     fetches a configuration value for the application by key
 var Config = lua.TableMap{
 	"get": func(eng *lua.Engine) int {
 		key := eng.PopString()

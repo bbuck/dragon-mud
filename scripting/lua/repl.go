@@ -2,14 +2,16 @@ package lua
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/chzyer/readline"
 	glua "github.com/yuin/gopher-lua"
 	"github.com/yuin/gopher-lua/parse"
 )
+
+var errExit = errors.New("Exit")
 
 // REPL represent a Read-Eval-Print-Loop
 type REPL struct {
@@ -84,17 +86,20 @@ func (r *REPL) Run() error {
 	for {
 		line, err := r.read()
 		if err != nil {
-			if err.Error() == "Interrupt" {
-				fmt.Print("Please use '.exit' to exit console.\n\n")
+			switch err.Error() {
+			case "Interrupt":
+				r.input.SetPrompt(r.NumberPrompt())
 
 				continue
+			case "Exit":
+				return nil
 			}
 
 			return err
 		}
 
 		if line == ".exit" {
-			os.Exit(0)
+			return nil
 		}
 
 		r.Execute(line)
@@ -204,6 +209,10 @@ func (r *REPL) readMulti(line string) (string, error) {
 		if err != nil {
 			return "", err
 		}
+		if line == ".exit" {
+			return "", errExit
+		}
+
 		buf.WriteRune('\n')
 		buf.WriteString(line)
 	}

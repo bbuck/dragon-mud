@@ -12,19 +12,39 @@ var regexpCache = make(map[string]*regexp.Regexp)
 // Sutil contains several features that Lua string handling lacks, things like
 // joining and regex matching and splitting and trimming and various other
 // things.
-//   split(input: string, separator: string): table
+//   split(input, separator): table
+//     @param input: string = the string to perform the split operation on
+//     @param separator: string = the separator with which to split the string
+//       by
 //     split the input string in parts based on matching the separator string
-//   join(words: table, joiner: string): string
+//   join(words, joiner): string
+//     @param words: table = list of values that should be joined together
+//     @param joiner: string = a string value that should act as the glue
+//       between all values in (words) from ealier.
 //     combine the input list of strings with the joiner
-//   test_rx(needle: string, haystack: string): boolean
+//   test_rx(needle, haystack): boolean
+//     @param needle: pattern = A Go regular expressoin pattern used to test
+//       against the given string value?
+//     @param haystack: string = the body to perform the search within
 //     test the haystack against the needle (regular expression search)
-//   starts_with(str: string, prefix: string): boolean
+//   starts_with(str, prefix): boolean
+//     @param str: string = the value to test against the prefix
+//     @param prefix: string = the prefix that is in question
 //     determines if the string starts with the given substring
-//   ends_with(str: string, suffix: string): boolean
+//   ends_with(str, suffix): boolean
+//     @param str: string = the value to test against the suffix
+//     @param suffix: string = the suffix that is in question
 //     determines if the string ends with the given substring
-//   contains(haystack: string, needle: string): boolean
+//   contains(needle, haystack): boolean
+//     @param needle: string = the pattern (regular expression) to search for
+//       within the text.
+//     @param haystack: string = the body of data to be searched by the pattern.
 //     determines if substring is present in the given string
-//   matches(needle: string, haystack: string): table
+//   matches(needle, haystack): table
+//     @param needle: string = the pattern (regular expression) to compare
+//       against the haystack
+//     @param haystack: string = the body of data to be compared against the
+//       pattern
 //     a list of strings that match the needle (regexp)
 var Sutil = lua.TableMap{
 	"split": func(eng *lua.Engine) int {
@@ -87,8 +107,8 @@ var Sutil = lua.TableMap{
 		return 1
 	},
 	"contains": func(eng *lua.Engine) int {
-		needle := eng.PopString()
 		haystack := eng.PopString()
+		needle := eng.PopString()
 
 		eng.PushValue(strings.Contains(haystack, needle))
 

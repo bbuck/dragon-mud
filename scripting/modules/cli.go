@@ -29,7 +29,9 @@ import (
 //       }
 //     }
 //   }
-//   add_command(cmd_info: commandInfo): boolean
+//   add_command(cmd_info): boolean
+//     @param cmd_info: commandInfo = the information necessary to build out
+//       a new command for the command line interface.
 //     add a subcommand based on the information provided. Allowing any plguin
 //     to add their own commands.
 var Cli = lua.TableMap{
