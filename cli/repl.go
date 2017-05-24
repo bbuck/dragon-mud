@@ -29,7 +29,7 @@ var (
 
 			dragon := getRandomDragonDetails()
 			log = log.WithField("color", dragon.name)
-			log.Debug("A dragon has appeard to handle your Lua code.")
+			log.Debug("A dragon has appeared to handle your Lua code.")
 
 			// TODO: Add security level specic engine creation here
 			eng := lua.NewEngine(lua.EngineOptions{
@@ -42,7 +42,7 @@ var (
 			repl := lua.NewREPLWithConfig(lua.REPLConfig{
 				Engine:          eng,
 				Name:            name,
-				Prompt:          ansi.Colorize(dragon.color + "\\{name}{x} {L}(\\{n}) {W}> {x}"),
+				Prompt:          ansi.Colorize(dragon.color + "{{name}}{x} {L}({{n}}) {W}> {x}"),
 				HistoryFilePath: ".repl-history",
 			})
 
