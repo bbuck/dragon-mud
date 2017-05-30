@@ -38,8 +38,12 @@ func NewData() Data {
 
 // Handler is a type with a Call function that accepts Data, and represents some
 // callable type that wants to perform some action when an event is emitted.
+// Handlers have a source value associated to them, this allows them to be
+// uniquely bound -- avoiding a situation where the same object is bound
+// twice.
 type Handler interface {
 	Call(Data) error
+	Source() interface{}
 }
 
 // HandlerFunc wraps a Go func in a painless way to match the events.Handler
@@ -51,6 +55,14 @@ type HandlerFunc func(Data) error
 // painlessly.
 func (hf HandlerFunc) Call(d Data) error {
 	return hf(d)
+}
+
+// Source returns the pointer to the wrapped HandlerFunc value allowing for
+// Go functions to be identified uniquely.
+func (hf HandlerFunc) Source() interface{} {
+	fn := (func(Data) error)(hf)
+
+	return &fn
 }
 
 // Emitter represents a type capable of handling a list of callable actions to

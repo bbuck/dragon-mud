@@ -1,10 +1,13 @@
 package modules_test
 
 import (
+	"github.com/bbuck/dragon-mud/events"
+	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/scripting"
 	"github.com/bbuck/dragon-mud/scripting/lua"
 	"github.com/bbuck/dragon-mud/scripting/pool"
 
+	"github.com/bbuck/dragon-mud/scripting/keys"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -16,7 +19,11 @@ var _ = Describe("Events Lua Module", func() {
 		d = make(chan int, 1)
 	)
 
+	em := events.NewEmitter(logger.New())
+
 	p = pool.NewEnginePool(2, func(e *lua.Engine) {
+		e.Meta[keys.ExternalEmitter] = em
+
 		e.OpenChannel()
 		scripting.OpenLibs(e, "events")
 
