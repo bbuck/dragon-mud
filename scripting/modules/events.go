@@ -111,16 +111,20 @@ func emitOnceEvent(eng *lua.Engine, evt string, data events.Data) {
 // bind the event to the internal and external event emitters
 func bindEvent(eng *lua.Engine, fn *lua.Value, evt string) {
 	ie := internalEmitterForEngine(eng)
-	ie.On(evt, &internalLuaHandler{
-		engine: eng,
-		fn:     fn,
-	})
+	go func() {
+		ie.On(evt, &internalLuaHandler{
+			engine: eng,
+			fn:     fn,
+		})
+	}()
 
 	ee := externalEmitterForEngine(eng)
-	ee.On(evt, &externalLuaHandler{
-		pool:  poolForEngine(eng),
-		event: evt,
-	})
+	go func() {
+		ee.On(evt, &externalLuaHandler{
+			pool:  poolForEngine(eng),
+			event: evt,
+		})
+	}()
 }
 
 // bind the event to the internal and external event emitters, this event should
