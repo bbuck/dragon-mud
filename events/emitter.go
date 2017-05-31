@@ -49,6 +49,7 @@ type Emitter struct {
 	log              logger.Log
 	oneTimeEmissions map[string]Data
 	incomingEvents   chan *emittedEvent
+	running          bool
 }
 
 // NewEmitter generates a new event emitter with the given name used for logging
@@ -60,11 +61,21 @@ func NewEmitter(l logger.Log) *Emitter {
 		log:              l,
 		oneTimeEmissions: make(map[string]Data),
 		incomingEvents:   make(chan *emittedEvent, maxBufferedEventCount),
+		running:          true,
 	}
 
 	go em.handleEmissions()
 
 	return em
+}
+
+// Stop will mark the Emitter dead and prevent it receiving further events.
+func (e *Emitter) Stop() {
+	if e.running {
+		e.running = false
+
+		close(e.incomingEvents)
+	}
 }
 
 // On registers the handler for the given event.
@@ -92,7 +103,7 @@ func (e *Emitter) On(evt string, h Handler) {
 	defer e.mutex.RUnlock()
 
 	if data, ok := e.oneTimeEmissions[evt]; ok {
-		h.Call(copyData(data))
+		h.Call(data.Clone())
 	}
 }
 
@@ -103,7 +114,7 @@ func (e *Emitter) On(evt string, h Handler) {
 func (e *Emitter) Once(evt string, h Handler) {
 	e.mutex.RLock()
 	if data, ok := e.oneTimeEmissions[evt]; ok {
-		h.Call(copyData(data))
+		h.Call(data.Clone())
 		e.mutex.RUnlock()
 
 		return
@@ -160,7 +171,7 @@ func (e *Emitter) Emit(evt string, d Data) Done {
 	if d == nil {
 		d = NewData()
 	} else {
-		d = copyData(d)
+		d = d.Clone()
 	}
 
 	done := make(Done)
@@ -208,6 +219,10 @@ func (e *Emitter) handleEmissions() {
 		}
 
 		close(evt.done)
+
+		if !e.running {
+			break
+		}
 	}
 }
 
@@ -230,7 +245,7 @@ func (e *Emitter) EmitOnce(evt string, d Data) <-chan struct{} {
 	if d == nil {
 		d = NewData()
 	} else {
-		d = copyData(d)
+		d = d.Clone()
 	}
 	e.oneTimeEmissions["before:"+evt] = d
 	e.oneTimeEmissions[evt] = d
@@ -252,20 +267,4 @@ func (e *Emitter) emit(evt string, d Data) error {
 	}
 
 	return nil
-}
-
-func copyData(d Data) Data {
-	nd := make(Data)
-	for k, v := range d {
-		switch t := v.(type) {
-		case Data:
-			nd[k] = copyData(d)
-		case map[string]interface{}:
-			nd[k] = copyData(Data(t))
-		default:
-			nd[k] = v
-		}
-	}
-
-	return nd
 }
