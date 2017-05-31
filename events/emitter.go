@@ -23,21 +23,6 @@ var ErrHalt = errors.New("intentional halt of event execution")
 // never pushed over it.
 type Done chan struct{}
 
-// Data is a generic map from strings to any values that can be used as a means
-// to wrap a chunk of dynamic data and pass them to event handlers.
-// Event data should contain data specific to the event being fired that would
-// allow handlers to make actionable response to. Such as an "damage_taken"
-// event might have a map containing "source" (who did the damage), "target"
-// (who received the damage), and then data about the damage itself.
-type Data map[string]interface{}
-
-// NewData returns an empty map[string]interface{} wrapped in the Data type,
-// as an easy way to seen event emissions with empty data (where nil would mean
-// no data).
-func NewData() Data {
-	return Data(make(map[string]interface{}))
-}
-
 // Handler is a type with a Call function that accepts Data, and represents some
 // callable type that wants to perform some action when an event is emitted.
 // Handlers have a source value associated to them, this allows them to be
@@ -46,25 +31,6 @@ func NewData() Data {
 type Handler interface {
 	Call(Data) error
 	Source() interface{}
-}
-
-// HandlerFunc wraps a Go func in a painless way to match the events.Handler
-// interface.
-type HandlerFunc func(Data) error
-
-// Call will just call the funtion the HandlerFunc type is wrapping and return
-// it's results. This allows functions to fit the events.Handler interface
-// painlessly.
-func (hf HandlerFunc) Call(d Data) error {
-	return hf(d)
-}
-
-// Source returns the pointer to the wrapped HandlerFunc value allowing for
-// Go functions to be identified uniquely.
-func (hf HandlerFunc) Source() interface{} {
-	fn := (func(Data) error)(hf)
-
-	return &fn
 }
 
 // emittedEvent represents an event that was pushed into Emit and should be
