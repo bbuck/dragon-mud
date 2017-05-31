@@ -27,7 +27,7 @@ func Run() {
 	port := viper.GetString("telnet.port")
 
 	initialize()
-	done := Emit("server:init", nil)
+	done := ServerEmitter.EmitOnce("server:init", nil)
 	<-done
 
 	listener, err := net.Listen("tcp", host+":"+port)

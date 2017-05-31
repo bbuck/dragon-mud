@@ -79,12 +79,24 @@ func (hs *handlers) fireOnceHandlers(d Data) error {
 func (hs *handlers) add(h Handler) {
 	hs.mutex.Lock()
 	defer hs.mutex.Unlock()
+	for _, oh := range hs.persistent {
+		if oh.Source() == h.Source() {
+			return
+		}
+	}
+
 	hs.persistent = append(hs.persistent, h)
 }
 
 func (hs *handlers) addOnce(h Handler) {
 	hs.mutex.Lock()
 	defer hs.mutex.Unlock()
+	for _, oh := range hs.onceHandlers {
+		if oh.Source() == h.Source() {
+			return
+		}
+	}
+
 	hs.onceHandlers = append(hs.onceHandlers, h)
 }
 

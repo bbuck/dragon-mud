@@ -27,7 +27,9 @@ type PooledEngine struct {
 // to prevent continued usage of the engine.
 func (pe *PooledEngine) Release() {
 	if pe.Engine != nil {
-		pe.pool.engines <- pe.Engine
+		if !pe.pool.closed {
+			pe.pool.engines <- pe.Engine
+		}
 		pe.Engine = nil
 	}
 }
@@ -35,11 +37,13 @@ func (pe *PooledEngine) Release() {
 // EnginePool represents a grouping of predefined/preloaded engines that can be
 // grabbed for use when Lua scripts need to run.
 type EnginePool struct {
-	MaxPoolSize uint8
-	mutatorFn   EngineMutator
-	numEngines  uint8
-	engines     chan *lua.Engine
-	mutex       *sync.Mutex
+	MaxPoolSize   uint8
+	mutatorFn     EngineMutator
+	numEngines    uint8
+	engines       chan *lua.Engine
+	cachedEngines []*lua.Engine
+	mutex         *sync.Mutex
+	closed        bool
 }
 
 // NewEnginePool constructs a new pool with the specific maximum size and the
@@ -49,11 +53,13 @@ func NewEnginePool(poolSize uint8, mutator EngineMutator) *EnginePool {
 		poolSize = 1
 	}
 	ep := &EnginePool{
-		MaxPoolSize: poolSize,
-		mutatorFn:   mutator,
-		numEngines:  1,
-		engines:     make(chan *lua.Engine, poolSize),
-		mutex:       new(sync.Mutex),
+		MaxPoolSize:   poolSize,
+		mutatorFn:     mutator,
+		numEngines:    1,
+		engines:       make(chan *lua.Engine, poolSize),
+		mutex:         new(sync.Mutex),
+		cachedEngines: make([]*lua.Engine, 0),
+		closed:        false,
 	}
 	ep.engines <- ep.generateEngine()
 
@@ -65,6 +71,10 @@ func NewEnginePool(poolSize uint8, mutator EngineMutator) *EnginePool {
 // created yet then the spawner will be invoked to spawn a new engine and return
 // that.
 func (ep *EnginePool) Get() *PooledEngine {
+	if ep.closed {
+		return nil
+	}
+
 	var engine *lua.Engine
 	if len(ep.engines) > 0 {
 		engine = <-ep.engines
@@ -88,9 +98,37 @@ func (ep *EnginePool) Get() *PooledEngine {
 	return pe
 }
 
+// EachEngine will call the provided handler with each engine. IN NO WAY SHOULD
+// THIS BE USED TO UNDERMINE GET, THIS IS FOR MAINTENANCE.
+func (ep *EnginePool) EachEngine(fn func(*lua.Engine)) {
+	for _, eng := range ep.cachedEngines {
+		fn(eng)
+	}
+}
+
+// Shutdown will empty the channel, close all generated engines and mark the
+// pool closed.
+func (ep *EnginePool) Shutdown() {
+	if !ep.closed {
+		ep.closed = true
+
+		close(ep.engines)
+
+		for _, ok := <-ep.engines; ok; _, ok = <-ep.engines {
+			// emptyting out the engines channel
+		}
+
+		for _, eng := range ep.cachedEngines {
+			eng.Close()
+		}
+	}
+}
+
+// create a new engine for use in the pool
 func (ep *EnginePool) generateEngine() *lua.Engine {
 	eng := lua.NewEngine()
 	eng.Meta[keys.Pool] = ep
+	ep.cachedEngines = append(ep.cachedEngines, eng)
 
 	ep.mutatorFn(eng)
 

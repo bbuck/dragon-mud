@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	"github.com/bbuck/dragon-mud/events"
+	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/scripting"
 	"github.com/bbuck/dragon-mud/scripting/keys"
 	"github.com/bbuck/dragon-mud/scripting/lua"
@@ -17,7 +18,8 @@ import (
 
 // server utility values
 var (
-	EnginePool *pool.EnginePool
+	EnginePool    *pool.EnginePool
+	ServerEmitter *events.Emitter
 )
 
 var serverID uint64 = 1
@@ -35,33 +37,22 @@ func initialize() {
 	EnginePool = pool.NewEnginePool(usize, newServerEngine)
 }
 
-// Emit will emit a server event to the server scripts.
-func Emit(evt string, d events.Data) events.Done {
-	done := make(events.Done)
-	go func() {
-		eng := EnginePool.Get()
-		defer eng.Release()
-		if em, ok := eng.Meta[keys.Emitter].(*events.Emitter); ok {
-			d := em.Emit(evt, d)
-			<-d
-		}
-		close(done)
-	}()
-
-	return done
-}
-
 // generate a new lua engine ready for use by server code.
 func newServerEngine(eng *lua.Engine) {
+	if ServerEmitter == nil {
+		log := logger.NewWithSource("emitter(server)")
+		ServerEmitter = events.NewEmitter(log)
+	}
+
 	id := atomic.LoadUint64(&serverID)
 	atomic.AddUint64(&serverID, 1)
 
 	engID := fmt.Sprintf("server_engine(%d)", id)
 	eng.Meta[keys.EngineID] = engID
+	eng.Meta[keys.ExternalEmitter] = ServerEmitter
 
 	eng.OpenMath()
 	eng.OpenString()
 	eng.OpenTable()
-	scripting.OpenLibs(eng, "events", "random", "die", "log", "password",
-		"sutil", "tmpl")
+	scripting.OpenLibs(eng, "*")
 }
