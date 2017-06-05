@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -24,6 +25,17 @@ import (
 //       instant; default: 0,
 //     zone: string = the name of the time zone for the instant in anything
 //       other than "UTC"; default: UTC
+//   }
+//   durationData: table = {
+//     nanosecond: number = number of nanoseconds in this duration,
+//     millisecond: number = number of milliseconds in this duration,
+//     second: number = number of seconds in this duration,
+//     minute: number = number of minutes in this duration,
+//     hour: number = number of hours in this duration,
+//     day: number = number of days in this duration (assumed 24 hours),
+//     week: number = number of weeks in this duration (assumed 7 days),
+//     month: number = number of months in this duration (assumed 30 days),
+//     year: number = number of years in this duration (assumed 365 days)
 //   }
 //   now(): time.Instant
 //     returns an instant value representing the current time in the UTC time
@@ -47,6 +59,13 @@ import (
 //     @param timestamp: number = a Unix timestamp value used to generate an
 //       instant value for the given date based on the rules of unix timestamps.
 //     this method generates a time.Instant value based on the give timestamp.
+//   duration(generator): number
+//     @param generator: table(durationData) | number | string = either a table
+//       defining the values in the duration, a string encoding of the duration
+//       or a numeric value that is the duration.
+//     this method generates a duration value, it's range is roughly -290..290
+//     years. forcing beyond this boundary is undefined and should be avoided at
+//     all costs.
 //   time.Instant
 //     format(format): string
 //       @param format: string = the format that will be used to produce a
@@ -65,6 +84,15 @@ import (
 //       return the name of the time zone (not 100% accurate) used for the
 //       instant's current time zone. It's not super accurate becuase if you
 //       use 'local' you get 'local' back.
+//     add(duration): time.Instant
+//       @param duration: number = the number of nanonseconds that need to be
+//         to the current instant.
+//       add a fixed duration to the given date and return the results as a new
+//       date value.
+//     sub(duration): time.Instant
+//       @param duration: number = the number of nanonseconds that need to be
+//         to the current instant.
+//       much the same as :add, however this method will negate the duration.
 //     inspect(): string
 //       returns a string that represents a debug output, primarily for use in
 //       the REPL.
@@ -110,6 +138,28 @@ var Time = lua.TableMap{
 
 		return &iv
 	},
+	"duration": func(eng *lua.Engine) int {
+		if eng.StackSize() == 0 {
+			eng.ArgumentError(1, "expected an argument, but received none")
+
+			return 0
+		}
+
+		val := eng.PopValue()
+		var dur float64
+		switch {
+		case val.IsNumber():
+			dur = val.AsNumber()
+		case val.IsTable():
+			dur = durationFromMap(val.AsMapStringInterface())
+		case val.IsString():
+			dur = durationFromString(val.AsString())
+		}
+
+		eng.PushValue(float64(floatToDuration(dur)))
+
+		return 1
+	},
 }
 
 // instantValue represents a moment in time, by default without a time zone
@@ -154,6 +204,26 @@ func (iv *instantValue) Zone() string {
 	t := time.Time(*iv)
 
 	return t.Location().String()
+}
+
+// Add a duration period to the given date.
+func (iv *instantValue) Add(duration float64) *instantValue {
+	dur := floatToDuration(duration)
+	t := time.Time(*iv)
+	ot := t.Add(dur)
+	oiv := instantValue(ot)
+
+	return &oiv
+}
+
+// Sub a duration period to the given date.
+func (iv *instantValue) Sub(duration float64) *instantValue {
+	dur := floatToDuration(duration)
+	t := time.Time(*iv)
+	ot := t.Add(-dur)
+	oiv := instantValue(ot)
+
+	return &oiv
 }
 
 // map 3-letter and full month names to `time.Month` values
@@ -316,4 +386,75 @@ func toInt(i interface{}) int {
 	}
 
 	return 0
+}
+
+func floatToDuration(f float64) time.Duration {
+	if f > math.MaxInt64 {
+		f = math.MaxInt64
+	} else if f < math.MinInt64 {
+		f = math.MinInt64
+	}
+
+	return time.Duration(round(f))
+}
+
+var durationMap = map[string]time.Duration{
+	"nanosecond":   time.Nanosecond,
+	"nanoseconds":  time.Nanosecond,
+	"ns":           time.Nanosecond,
+	"millisecond":  time.Millisecond,
+	"milliseconds": time.Millisecond,
+	"ms":           time.Millisecond,
+	"second":       time.Second,
+	"seconds":      time.Second,
+	"s":            time.Second,
+	"minute":       time.Minute,
+	"minutes":      time.Minute,
+	"m":            time.Minute,
+	"hour":         time.Hour,
+	"hours":        time.Hour,
+	"h":            time.Hour,
+	"day":          time.Hour * 24,
+	"days":         time.Hour * 24,
+	"d":            time.Hour * 24,
+	"week":         time.Hour * 24 * 7,
+	"weeks":        time.Hour * 24 * 7,
+	"w":            time.Hour * 24 * 7,
+	"month":        time.Hour * 24 * 30,
+	"months":       time.Hour * 24 * 30,
+	"M":            time.Hour * 24 * 30,
+	"year":         time.Hour * 24 * 7 * 52,
+	"years":        time.Hour * 24 * 7 * 52,
+	"y":            time.Hour * 24 * 7 * 52,
+}
+
+func durationFromMap(m map[string]interface{}) float64 {
+	var duration float64
+
+	for k, v := range m {
+		if dur, ok := durationMap[k]; ok {
+			if f, fok := v.(float64); fok {
+				f = round(f)
+				duration += float64(dur) * f
+			}
+		}
+	}
+
+	return duration
+}
+
+var durationStringRx = regexp.MustCompile(`(-?\d+)(ns|ms|s|m|h|d|w|M|y)`)
+
+func durationFromString(s string) float64 {
+	var duration float64
+
+	matches := durationStringRx.FindAllStringSubmatch(s, -1)
+	for _, match := range matches {
+		if dur, ok := durationMap[match[2]]; ok {
+			f, _ := strconv.ParseFloat(match[1], 64)
+			duration += float64(dur) * f
+		}
+	}
+
+	return duration
 }

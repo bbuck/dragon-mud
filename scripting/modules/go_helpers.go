@@ -4,6 +4,7 @@ package modules
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/scripting/keys"
@@ -43,4 +44,13 @@ func poolForEngine(eng *lua.Engine) *lua.EnginePool {
 	log("script modules").WithField("engine", nameForEngine(eng)).Fatal("No pool associated with the scripting engine, cannot continue execution.")
 
 	return nil
+}
+
+// round to the nearest whole number
+func round(f64 float64) float64 {
+	if f64 < 0 {
+		return math.Ceil(f64 - 0.5)
+	}
+
+	return math.Floor(f64 + 0.5)
 }
