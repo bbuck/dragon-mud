@@ -20,9 +20,15 @@ import (
 //     day: number = the day in which the instant is to be set; default: 1,
 //     hour: number = the hour (0-23) of the instant; default: 0,
 //     min: number = the minute (0-59) of the instant; default: 0,
+//     minute: number = alias for min
 //     sec: number = the second (0-59) of the instant; default: 0,
+//     second: number = alias for sec
+//     milli: number = the number of milliseconds (past the second) of the
+//       instant; defualt 0
+//     millisecond: number = alias for milli
 //     nano: number = the number of nanoseconds (past the second) of the
 //       instant; default: 0,
+//     nanosecond: number = alias for nano
 //     zone: string = the name of the time zone for the instant in anything
 //       other than "UTC"; default: UTC
 //   }
@@ -160,6 +166,56 @@ var Time = lua.TableMap{
 
 		return 1
 	},
+	"duration_parts": func(f float64) map[string]float64 {
+		if f > math.MaxInt64 || f < math.MinInt64 {
+			return map[string]float64{
+				"out_of_range": f,
+			}
+		}
+
+		dur := floatToDuration(f)
+		durMap := make(map[string]float64)
+
+		year := durationMap["year"]
+		temp := dur / year
+		dur %= year
+		durMap["years"] = float64(temp)
+
+		month := durationMap["month"]
+		temp = dur / month
+		dur %= month
+		durMap["months"] = float64(temp)
+
+		week := durationMap["week"]
+		temp = dur / week
+		dur %= week
+		durMap["weeks"] = float64(temp)
+
+		day := durationMap["day"]
+		temp = dur / day
+		dur %= day
+		durMap["days"] = float64(temp)
+
+		temp = dur / time.Hour
+		dur %= time.Hour
+		durMap["hours"] = float64(temp)
+
+		temp = dur / time.Minute
+		dur %= time.Minute
+		durMap["minutes"] = float64(temp)
+
+		temp = dur / time.Second
+		dur %= time.Second
+		durMap["seconds"] = float64(temp)
+
+		temp = dur / time.Millisecond
+		dur %= time.Millisecond
+		durMap["milliseconds"] = float64(temp)
+
+		durMap["nanoseconds"] = float64(dur)
+
+		return durMap
+	},
 }
 
 // instantValue represents a moment in time, by default without a time zone
@@ -226,6 +282,32 @@ func (iv *instantValue) Sub(duration float64) *instantValue {
 	return &oiv
 }
 
+func (iv *instantValue) SubDate(oiv *instantValue) float64 {
+	t := time.Time(*iv)
+	ot := time.Time(*oiv)
+	dur := t.Sub(ot)
+
+	return float64(dur)
+}
+
+// IsBefore determines whether or not the given date occurs before the time
+// this metohd is called on.
+func (iv *instantValue) IsBefore(oiv *instantValue) bool {
+	t := time.Time(*iv)
+	ot := time.Time(*oiv)
+
+	return t.Before(ot)
+}
+
+// IsAfter determine whether or not the given date occurse after the time this
+// method is called on.
+func (iv *instantValue) IsAfter(oiv *instantValue) bool {
+	t := time.Time(*iv)
+	ot := time.Time(*oiv)
+
+	return t.After(ot)
+}
+
 // map 3-letter and full month names to `time.Month` values
 var monthMap = map[string]time.Month{
 	"jan":       time.January,
@@ -283,12 +365,32 @@ func instantFromMap(m map[string]interface{}) (*instantValue, error) {
 		min = toInt(imi)
 	}
 
+	if imi, ok := m["minutes"]; ok {
+		min = toInt(imi)
+	}
+
 	if is, ok := m["sec"]; ok {
 		sec = toInt(is)
 	}
 
+	if is, ok := m["seconds"]; ok {
+		sec = toInt(is)
+	}
+
+	if ins, ok := m["milli"]; ok {
+		nsec += toInt(ins) * int(time.Millisecond)
+	}
+
+	if ins, ok := m["millisecond"]; ok {
+		nsec += toInt(ins) * int(time.Millisecond)
+	}
+
 	if ins, ok := m["nano"]; ok {
-		nsec = toInt(ins)
+		nsec += toInt(ins)
+	}
+
+	if ins, ok := m["nanoseconds"]; ok {
+		nsec += toInt(ins)
 	}
 
 	var err error
@@ -388,6 +490,7 @@ func toInt(i interface{}) int {
 	return 0
 }
 
+// convert a float to a duration, doing bound checking
 func floatToDuration(f float64) time.Duration {
 	if f > math.MaxInt64 {
 		f = math.MaxInt64
@@ -423,9 +526,9 @@ var durationMap = map[string]time.Duration{
 	"month":        time.Hour * 24 * 30,
 	"months":       time.Hour * 24 * 30,
 	"M":            time.Hour * 24 * 30,
-	"year":         time.Hour * 24 * 7 * 52,
-	"years":        time.Hour * 24 * 7 * 52,
-	"y":            time.Hour * 24 * 7 * 52,
+	"year":         (time.Hour * 24 * 7 * 52) + (time.Hour * 24),
+	"years":        (time.Hour * 24 * 7 * 52) + (time.Hour * 24),
+	"y":            (time.Hour * 24 * 7 * 52) + (time.Hour * 24),
 }
 
 func durationFromMap(m map[string]interface{}) float64 {
