@@ -72,6 +72,14 @@ import (
 //     this method generates a duration value, it's range is roughly -290..290
 //     years. forcing beyond this boundary is undefined and should be avoided at
 //     all costs.
+//   duration_parts(duration): table
+//     @param duration: number = the number of nanoseconds representing a period
+//       an arbitrary passing of time with no start point
+//     take a duration value and break it into a map containing the named
+//     components, like a duration of "1w" would come back with {weeks = 1}.
+//     given the nature of durations being numbers, if a generated duration has
+//     overlapping periods you can expect to get different components back, for
+//     example "8d" (8 days) = {weeks = 1, days = 1}
 //   time.Instant
 //     format(format): string
 //       @param format: string = the format that will be used to produce a
@@ -99,6 +107,21 @@ import (
 //       @param duration: number = the number of nanonseconds that need to be
 //         to the current instant.
 //       much the same as :add, however this method will negate the duration.
+//     sub_date(oinstant): number
+//       @param oinstant: time.Instant = the instant you wish to subtract from the
+//         current instant.
+//       returns the duration, or nanosecond difference, between the original
+//       instant and the instant you're subtracting from.
+//     is_before(oinstant): boolean
+//       @param oinstant: time.Instant = the other instant you're comparing
+//         this instant too.
+//       returns true if the current instant occurred _before_ the other
+//       instant.
+//     is_after(oinstant): boolean
+//       @param oinstant: time.Instant = the other instant you're comparing
+//         this instant too.
+//       the opposite of :is_before, this checks to see if this instant occurred
+//       _after_ the other.
 //     inspect(): string
 //       returns a string that represents a debug output, primarily for use in
 //       the REPL.
