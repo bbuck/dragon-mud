@@ -5,7 +5,6 @@ import (
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/scripting"
 	"github.com/bbuck/dragon-mud/scripting/lua"
-	"github.com/bbuck/dragon-mud/scripting/pool"
 
 	"github.com/bbuck/dragon-mud/scripting/keys"
 	. "github.com/onsi/ginkgo"
@@ -14,7 +13,7 @@ import (
 
 var _ = Describe("Events Lua Module", func() {
 	var (
-		p *pool.EnginePool
+		p *lua.EnginePool
 		c = make(chan int, 1)
 		d = make(chan int, 1)
 		f = make(chan int, 1)
@@ -24,7 +23,7 @@ var _ = Describe("Events Lua Module", func() {
 
 	em := events.NewEmitter(logger.New().WithField("note", "external_emitter"))
 
-	p = pool.NewEnginePool(2, func(e *lua.Engine) {
+	p = lua.NewEnginePool(2, func(e *lua.Engine) {
 		e.Meta[keys.ExternalEmitter] = em
 
 		e.OpenChannel()

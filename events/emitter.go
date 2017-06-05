@@ -191,34 +191,36 @@ func (e *Emitter) Emit(evt string, d Data) Done {
 
 func (e *Emitter) handleEmissions() {
 	for evt := range e.incomingEvents {
-		err := e.emit("before:"+evt.event, evt.data)
-		if err == nil {
-			err = e.emit(evt.event, evt.data)
-		}
-		if err == nil {
-			err = e.emit("after:"+evt.event, evt.data)
-		}
+		go func(event *emittedEvent) {
+			err := e.emit("before:"+event.event, event.data)
+			if err == nil {
+				err = e.emit(event.event, event.data)
+			}
+			if err == nil {
+				err = e.emit("after:"+event.event, event.data)
+			}
 
-		if err != nil {
-			if err == ErrHalt {
-				if e.log != nil {
-					e.log.WithFields(logger.Fields{
-						"event": evt.event,
-						"data":  evt.data,
-					}).Debug("Event emission halted.")
-				}
-			} else {
-				if e.log != nil {
-					e.log.WithFields(logger.Fields{
-						"error": err.Error(),
-						"event": evt.event,
-						"data":  evt.data,
-					}).Error("Failed during execution of event handlers.")
+			if err != nil {
+				if err == ErrHalt {
+					if e.log != nil {
+						e.log.WithFields(logger.Fields{
+							"event": event.event,
+							"data":  event.data,
+						}).Debug("Event emission halted.")
+					}
+				} else {
+					if e.log != nil {
+						e.log.WithFields(logger.Fields{
+							"error": err.Error(),
+							"event": event.event,
+							"data":  event.data,
+						}).Error("Failed during execution of event handlers.")
+					}
 				}
 			}
-		}
 
-		close(evt.done)
+			close(event.done)
+		}(evt)
 
 		if !e.running {
 			break

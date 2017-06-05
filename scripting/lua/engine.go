@@ -3,7 +3,10 @@
 package lua
 
 import (
+	"fmt"
+	"os"
 	"reflect"
+	"strings"
 	"unicode"
 
 	"github.com/yuin/gopher-lua"
@@ -35,12 +38,15 @@ func NewEngine(opts ...EngineOptions) *Engine {
 	}
 	eng.OpenBase()
 	eng.OpenPackage()
+	eng.OpenTable()
+	eng.OpenString()
 
 	eng.configureFromOptions(opts)
 
 	return eng
 }
 
+// perform configuartion work on the engine
 func (e *Engine) configureFromOptions(options []EngineOptions) {
 	openedLibs := false
 
@@ -162,6 +168,17 @@ func (e *Engine) LoadString(src string) (*Value, error) {
 	return e.ValueFor(fn), nil
 }
 
+// LoadFile attempts to read the file from the file system and then load it
+// into the engine, returning a function that executes the contents of the file.
+func (e *Engine) LoadFile(fpath string) (*Value, error) {
+	fn, err := e.state.LoadFile(fpath)
+	if err != nil {
+		return nil, err
+	}
+
+	return e.ValueFor(fn), nil
+}
+
 // DoString runs the given string through the Lua interpreter.
 func (e *Engine) DoString(src string) error {
 	return e.state.DoString(src)
@@ -170,6 +187,11 @@ func (e *Engine) DoString(src string) error {
 // RaiseError will throw an error in the Lua engine.
 func (e *Engine) RaiseError(err string, args ...interface{}) {
 	e.state.RaiseError(err, args...)
+}
+
+// ArgumentError raises an error associated with an invalid argument.
+func (e *Engine) ArgumentError(n int, msg string) {
+	e.state.ArgError(n, msg)
 }
 
 // SetGlobal allows for setting global variables in the loaded code.
@@ -356,6 +378,42 @@ func (e *Engine) Nil() *Value {
 	return e.newValue(lua.LNil)
 }
 
+// SecureRequire will set a require function that limits the files that can be
+// loaded into the engine.
+func (e *Engine) SecureRequire(validPaths []string) {
+	require := func(eng *Engine) int {
+		if eng.StackSize() == 0 {
+			eng.ArgumentError(1, "expected a string, got nothing")
+		}
+		mod := eng.PopString()
+		mod = strings.Replace(mod, ".", "/", -1)
+		for _, path := range validPaths {
+			fpath := strings.Replace(path, "?", mod, -1)
+			if _, err := os.Stat(fpath); err == nil {
+				fn, err := eng.LoadFile(fpath)
+				if err != nil {
+					eng.RaiseError(err.Error())
+
+					return 0
+				}
+				eng.PushValue(fn)
+
+				return 1
+			}
+		}
+
+		eng.RaiseError("%q module not found", mod)
+
+		return 0
+	}
+
+	tbl := e.NewTable()
+	tbl.RawSetInt(1, preloadLoader)
+	tbl.RawSetInt(2, require)
+	e.GetEnviron().RawGet("package").RawSet("loaders", tbl)
+	e.GetRegistry().RawSet("_LOADERS", tbl)
+}
+
 // Call allows for calling a method by name.
 // The second parameter is the number of return values the function being
 // called should return. These values will be returned in a slice of Value
@@ -531,4 +589,30 @@ func toSnake(in string) string {
 	}
 
 	return string(out)
+}
+
+// preload loader, pulled from yuin/gopher-lua and converted to match the new
+// engine API.
+func preloadLoader(eng *Engine) int {
+	if eng.StackSize() == 0 {
+		eng.ArgumentError(1, "expected a string, but got nothing.")
+
+		return 0
+	}
+
+	name := eng.PopString()
+	preload := eng.GetEnviron().RawGet("package").RawGet("preload")
+	if !preload.IsTable() {
+		eng.RaiseError("package.preload must be a table")
+	}
+	mod := preload.RawGet(name)
+	if mod.IsNil() {
+		eng.PushValue(fmt.Sprintf("no field package.preload['%s']", name))
+
+		return 1
+	}
+
+	eng.PushValue(mod)
+
+	return 1
 }

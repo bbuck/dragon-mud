@@ -50,10 +50,10 @@ func OpenLibs(e *lua.Engine, modules ...string) {
 // modified open libs, executes with open libs input like "*", "-talon", "-time"
 // which loads all modules but talon and time into the engine.
 func loadAll(e *lua.Engine, modules ...string) {
-	var ignore map[string]struct{}
+	ignore := make(map[string]struct{})
 	for _, mod := range modules {
 		if len(mod) >= 1 && mod[0] == '-' {
-			ignore[mod] = struct{}{}
+			ignore[mod[1:]] = struct{}{}
 		}
 	}
 

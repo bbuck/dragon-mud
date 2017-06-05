@@ -5,11 +5,14 @@ package modules
 import (
 	"fmt"
 	"reflect"
+	"strings"
+	"time"
 
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/scripting/keys"
 	"github.com/bbuck/dragon-mud/scripting/lua"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // Cli is a module designed specifically for adding new commands to the dragon
@@ -25,7 +28,7 @@ import (
 //         name: string = name of the flag, if it's "thing" the flag is "--thing"
 //         short: string = short description of the flag
 //         description: string = long description of the flag
-//         default: string | number | boolean = default value of the flag
+//         default: string | number | boolean | string(duration) = default value of the flag
 //       }
 //     }
 //   }
@@ -64,18 +67,15 @@ var Cli = lua.TableMap{
 
 		cmd.Short = cmdTbl.Get("summary").AsString()
 		cmd.Long = cmdTbl.Get("description").AsString()
-		pflags := make(map[string]interface{})
-		cmd.Run = func(_ *cobra.Command, args []string) {
+		cmd.Run = func(cmd *cobra.Command, args []string) {
 			luaArgs := eng.TableFromSlice(args)
 			flags := make(map[string]interface{})
-			for k, ptr := range pflags {
-				rval := reflect.ValueOf(ptr)
-				if rval.IsNil() {
-					flags[k] = nil
-					continue
-				}
-				flags[k] = rval.Elem().Interface()
-			}
+			cmd.Flags().VisitAll(func(f *pflag.Flag) {
+				fval := reflect.ValueOf(f.Value)
+				fval = reflect.Indirect(fval)
+				fname := strings.ToLower(f.Name)
+				flags[fname] = fval.Interface()
+			})
 			luaFlags := eng.TableFromMap(flags)
 			_, err := run.Call(0, luaArgs, luaFlags)
 			if err != nil {
@@ -107,16 +107,23 @@ var Cli = lua.TableMap{
 				switch typ {
 				case "string":
 					s, _ := def.(string)
-					str := cmd.Flags().StringP(name, short, s, desc)
-					pflags[name] = str
+					cmd.Flags().StringP(name, short, s, desc)
 				case "boolean":
 					bval, _ := def.(bool)
-					b := cmd.Flags().BoolP(name, short, bval, desc)
-					pflags[name] = b
+					cmd.Flags().BoolP(name, short, bval, desc)
 				case "number":
 					f64, _ := def.(float64)
-					f := cmd.Flags().Float64P(name, short, f64, desc)
-					pflags[name] = f
+					cmd.Flags().Float64P(name, short, f64, desc)
+				case "duration":
+					d, _ := def.(string)
+					dur, err := time.ParseDuration(d)
+					if err != nil {
+						eng.RaiseError(err.Error())
+
+						return 0
+					}
+					cmd.Flags().DurationP(name, short, dur, desc)
+				// TODO: Add more types
 				default:
 					log("cli").WithField("type", typ).Warn("Type value is not valid.")
 				}

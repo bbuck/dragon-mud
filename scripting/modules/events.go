@@ -8,7 +8,6 @@ import (
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/scripting/keys"
 	"github.com/bbuck/dragon-mud/scripting/lua"
-	"github.com/bbuck/dragon-mud/scripting/pool"
 )
 
 // Events is a module for emitting and receiving events in Lua.
@@ -203,7 +202,7 @@ func internalEmitterForEngine(eng *lua.Engine) *events.Emitter {
 
 // registering the pool with the global pool events emiter happens here.
 type externalLuaHandler struct {
-	pool  *pool.EnginePool
+	pool  *lua.EnginePool
 	event string
 }
 
@@ -236,7 +235,7 @@ func externalEmitterForEngine(eng *lua.Engine) *events.Emitter {
 
 // send the event to an engine within the pool using that engines internal
 // event emitter
-func emitToPool(p *pool.EnginePool, evt string, data events.Data) {
+func emitToPool(p *lua.EnginePool, evt string, data events.Data) {
 	eng := p.Get()
 	defer eng.Release()
 	emitter := internalEmitterForEngine(eng.Engine)

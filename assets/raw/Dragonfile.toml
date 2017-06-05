@@ -27,7 +27,7 @@ version = "0.0.0"
   # This section contains settins relevant to server-side script execution.
   # Changing values here can have drastic runtime effects so be careful when
   # modifying from the defaults.
-  [server]
+  [scripting.server]
 
     # This determines how many total server engines there are going to be.
     # It's hard to balance, so be careful. Too many engines would be wasteful,

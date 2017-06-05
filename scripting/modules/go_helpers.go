@@ -8,7 +8,6 @@ import (
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/scripting/keys"
 	"github.com/bbuck/dragon-mud/scripting/lua"
-	"github.com/bbuck/dragon-mud/scripting/pool"
 )
 
 var logCache = make(map[string]logger.Log)
@@ -36,8 +35,8 @@ func nameForEngine(eng *lua.Engine) string {
 }
 
 // fetch the EnginePool associated with the given engine
-func poolForEngine(eng *lua.Engine) *pool.EnginePool {
-	if p, ok := eng.Meta[keys.Pool].(*pool.EnginePool); ok {
+func poolForEngine(eng *lua.Engine) *lua.EnginePool {
+	if p, ok := eng.Meta[keys.Pool].(*lua.EnginePool); ok {
 		return p
 	}
 
