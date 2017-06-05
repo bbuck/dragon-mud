@@ -5,6 +5,9 @@ package lua
 import (
 	"runtime"
 	"sync"
+	"time"
+
+	"github.com/bbuck/dragon-mud/scripting/keys"
 )
 
 // EnginePoolMetaKey is a string value for associating the pool with an engine
@@ -27,7 +30,7 @@ type PooledEngine struct {
 // to prevent continued usage of the engine.
 func (pe *PooledEngine) Release() {
 	if pe.Engine != nil {
-		if !pe.pool.drained {
+		if !pe.pool.closed {
 			pe.pool.engines <- pe.Engine
 		}
 		pe.Engine = nil
@@ -37,13 +40,13 @@ func (pe *PooledEngine) Release() {
 // EnginePool represents a grouping of predefined/preloaded engines that can be
 // grabbed for use when Lua scripts need to run.
 type EnginePool struct {
-	MaxPoolSize uint8
-	Mutator     EngineMutator
-	numEngines  uint8
-	engines     chan *Engine
-	engineCache []*Engine
-	mutex       *sync.Mutex
-	drained     bool
+	MaxPoolSize   uint8
+	Mutator       EngineMutator
+	numEngines    uint8
+	engines       chan *Engine
+	cachedEngines []*Engine
+	mutex         *sync.Mutex
+	closed        bool
 }
 
 // NewEnginePool constructs a new pool with the specific maximum size and the
@@ -53,40 +56,23 @@ func NewEnginePool(poolSize uint8, mutator EngineMutator) *EnginePool {
 		poolSize = 1
 	}
 	ep := &EnginePool{
-		MaxPoolSize: poolSize,
-		Mutator:     mutator,
-		numEngines:  1,
-		engines:     make(chan *Engine, poolSize),
-		engineCache: make([]*Engine, 0),
-		mutex:       new(sync.Mutex),
-		drained:     false,
+		MaxPoolSize:   poolSize,
+		Mutator:       mutator,
+		numEngines:    1,
+		engines:       make(chan *Engine, poolSize),
+		mutex:         new(sync.Mutex),
+		cachedEngines: make([]*Engine, 0),
+		closed:        false,
 	}
 	ep.engines <- ep.generateEngine()
 
 	return ep
 }
 
-// Drain will fetch and kill all engines in the pool and shutdown.
-func (ep *EnginePool) Drain() {
-	if !ep.drained {
-		ep.drained = true
-
-		for _, eng := range ep.engineCache {
-			eng.Meta = nil
-			eng.Close()
-		}
-
-		close(ep.engines)
-		for _ = range ep.engines {
-			// do nothing with the engine
-		}
-	}
-}
-
 // Len will return the number of engines that have been spawned during the
 // execution fo the pool.
 func (ep *EnginePool) Len() int {
-	return int(ep.numEngines)
+	return len(ep.cachedEngines)
 }
 
 // Get will fetch the next available engine from the EnginePool. If no engines
@@ -94,21 +80,36 @@ func (ep *EnginePool) Len() int {
 // created yet then the spawner will be invoked to spawn a new engine and return
 // that.
 func (ep *EnginePool) Get() *PooledEngine {
+	if ep.closed {
+		return nil
+	}
+
 	if ep.MaxPoolSize == 0 {
 		ep.MaxPoolSize = 1
 	}
 
 	var engine *Engine
-	if len(ep.engines) > 0 {
-		engine = <-ep.engines
-	} else if ep.numEngines < ep.MaxPoolSize {
-		ep.mutex.Lock()
-		engine = ep.generateEngine()
-		ep.numEngines++
-		ep.mutex.Unlock()
-	} else {
-		engine = <-ep.engines
+	select {
+	case eng := <-ep.engines:
+		engine = eng
+	case <-time.After(250 * time.Millisecond):
+		if uint8(ep.Len()) < ep.MaxPoolSize {
+			ep.mutex.Lock()
+			engine = ep.generateEngine()
+			ep.mutex.Unlock()
+		} else {
+			engine = <-ep.engines
+		}
 	}
+	// if len(ep.engines) > 0 {
+
+	// } else if uint8(ep.Len()) < ep.MaxPoolSize {
+	// 	ep.mutex.Lock()
+	// 	engine = ep.generateEngine()
+	// 	ep.mutex.Unlock()
+	// } else {
+	// 	engine = <-ep.engines
+	// }
 
 	pe := &PooledEngine{
 		Engine: engine,
@@ -121,10 +122,37 @@ func (ep *EnginePool) Get() *PooledEngine {
 	return pe
 }
 
-// generate a new engine, running through the provided mutator (if any)
+// EachEngine will call the provided handler with each engine. IN NO WAY SHOULD
+// THIS BE USED TO UNDERMINE GET, THIS IS FOR MAINTENANCE.
+func (ep *EnginePool) EachEngine(fn func(*Engine)) {
+	for _, eng := range ep.cachedEngines {
+		fn(eng)
+	}
+}
+
+// Shutdown will empty the channel, close all generated engines and mark the
+// pool closed.
+func (ep *EnginePool) Shutdown() {
+	if !ep.closed {
+		ep.closed = true
+
+		close(ep.engines)
+
+		for range ep.engines {
+			// emptyting out the engines channel
+		}
+
+		for _, eng := range ep.cachedEngines {
+			eng.Close()
+		}
+	}
+}
+
+// create a new engine for use in the pool
 func (ep *EnginePool) generateEngine() *Engine {
 	eng := NewEngine()
-	eng.Meta[EnginePoolMetaKey] = ep
+	eng.Meta[keys.Pool] = ep
+	ep.cachedEngines = append(ep.cachedEngines, eng)
 
 	if ep.Mutator != nil {
 		ep.Mutator(eng)

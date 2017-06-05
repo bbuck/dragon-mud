@@ -6,7 +6,10 @@ import (
 	"net"
 	"strings"
 
+	"time"
+
 	"github.com/bbuck/dragon-mud/logger"
+	"github.com/bbuck/dragon-mud/scripting"
 	"github.com/spf13/viper"
 )
 
@@ -26,8 +29,8 @@ func Run() {
 	host := viper.GetString("telnet.interface")
 	port := viper.GetString("telnet.port")
 
-	initialize()
-	done := Emit("server:init", nil)
+	scripting.Initialize()
+	done := scripting.ServerEmitter.EmitOnce("server:init", nil)
 	<-done
 
 	listener, err := net.Listen("tcp", host+":"+port)
@@ -45,6 +48,7 @@ func Run() {
 
 func runServer(listener net.Listener) {
 	defer listener.Close()
+	go runServerTicks()
 	for serverRunning {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -59,6 +63,23 @@ func runServer(listener net.Listener) {
 			"port": addrInfo[1],
 		}).Debug("Accepted incoming connection.")
 		go handleConnection(conn)
+	}
+}
+
+func runServerTicks() {
+	go runTicker(time.Tick(1*time.Second), "tick:1s")
+	go runTicker(time.Tick(5*time.Second), "tick:5s")
+	go runTicker(time.Tick(30*time.Second), "tick:30s")
+	go runTicker(time.Tick(1*time.Minute), "tick:1m")
+}
+
+func runTicker(tick <-chan time.Time, evt string) {
+	for range tick {
+		if !serverRunning {
+			return
+		}
+
+		scripting.GlobalEmit(evt, nil)
 	}
 }
 
