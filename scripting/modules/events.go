@@ -8,7 +8,6 @@ import (
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/scripting/keys"
 	"github.com/bbuck/dragon-mud/scripting/lua"
-	"github.com/bbuck/dragon-mud/scripting/pool"
 )
 
 // Events is a module for emitting and receiving events in Lua.
@@ -43,7 +42,7 @@ var Events = lua.TableMap{
 			data = events.Data(dataVal.AsMapStringInterface())
 		}
 
-		if p, ok := engine.Meta[keys.Pool].(*pool.EnginePool); ok {
+		if p, ok := engine.Meta[keys.Pool].(*lua.EnginePool); ok {
 			go emitToPool(p, evt, data)
 		} else {
 			log("events").WithFields(logger.Fields{
@@ -85,7 +84,7 @@ var Events = lua.TableMap{
 	},
 }
 
-func emitToPool(p *pool.EnginePool, evt string, data events.Data) {
+func emitToPool(p *lua.EnginePool, evt string, data events.Data) {
 	eng := p.Get()
 	defer eng.Release()
 	emitter := emitterForEngine(eng.Engine)

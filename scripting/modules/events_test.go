@@ -3,7 +3,6 @@ package modules_test
 import (
 	"github.com/bbuck/dragon-mud/scripting"
 	"github.com/bbuck/dragon-mud/scripting/lua"
-	"github.com/bbuck/dragon-mud/scripting/pool"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -11,12 +10,12 @@ import (
 
 var _ = Describe("Events Lua Module", func() {
 	var (
-		p *pool.EnginePool
+		p *lua.EnginePool
 		c = make(chan int, 1)
 		d = make(chan int, 1)
 	)
 
-	p = pool.NewEnginePool(2, func(e *lua.Engine) {
+	p = lua.NewEnginePool(2, func(e *lua.Engine) {
 		e.OpenChannel()
 		scripting.OpenLibs(e, "events")
 

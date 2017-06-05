@@ -1,24 +1,24 @@
 // Copyright (c) 2016-2017 Brandon Buck
 
-package pool
+package lua
 
 import (
 	"runtime"
 	"sync"
-
-	"github.com/bbuck/dragon-mud/scripting/keys"
-	"github.com/bbuck/dragon-mud/scripting/lua"
 )
+
+// EnginePoolMetaKey is a string value for associating the pool with an engine
+const EnginePoolMetaKey = "engine pool"
 
 // EngineMutator will modify an Engine before it goes into the pool. This can
 // run any number of scripts as necessary such as registring libraries,
 // executing code, etc...
-type EngineMutator func(*lua.Engine)
+type EngineMutator func(*Engine)
 
 // PooledEngine wraps a Lua engine. It's purpose is provide a means with which
 // to return the engine to the EnginePool when it's not longer being used.
 type PooledEngine struct {
-	*lua.Engine
+	*Engine
 	pool *EnginePool
 }
 
@@ -27,7 +27,9 @@ type PooledEngine struct {
 // to prevent continued usage of the engine.
 func (pe *PooledEngine) Release() {
 	if pe.Engine != nil {
-		pe.pool.engines <- pe.Engine
+		if !pe.pool.drained {
+			pe.pool.engines <- pe.Engine
+		}
 		pe.Engine = nil
 	}
 }
@@ -36,10 +38,12 @@ func (pe *PooledEngine) Release() {
 // grabbed for use when Lua scripts need to run.
 type EnginePool struct {
 	MaxPoolSize uint8
-	mutatorFn   EngineMutator
+	Mutator     EngineMutator
 	numEngines  uint8
-	engines     chan *lua.Engine
+	engines     chan *Engine
+	engineCache []*Engine
 	mutex       *sync.Mutex
+	drained     bool
 }
 
 // NewEnginePool constructs a new pool with the specific maximum size and the
@@ -50,14 +54,39 @@ func NewEnginePool(poolSize uint8, mutator EngineMutator) *EnginePool {
 	}
 	ep := &EnginePool{
 		MaxPoolSize: poolSize,
-		mutatorFn:   mutator,
+		Mutator:     mutator,
 		numEngines:  1,
-		engines:     make(chan *lua.Engine, poolSize),
+		engines:     make(chan *Engine, poolSize),
+		engineCache: make([]*Engine, 0),
 		mutex:       new(sync.Mutex),
+		drained:     false,
 	}
 	ep.engines <- ep.generateEngine()
 
 	return ep
+}
+
+// Drain will fetch and kill all engines in the pool and shutdown.
+func (ep *EnginePool) Drain() {
+	if !ep.drained {
+		ep.drained = true
+
+		for _, eng := range ep.engineCache {
+			eng.Meta = nil
+			eng.Close()
+		}
+
+		close(ep.engines)
+		for _ = range ep.engines {
+			// do nothing with the engine
+		}
+	}
+}
+
+// Len will return the number of engines that have been spawned during the
+// execution fo the pool.
+func (ep *EnginePool) Len() int {
+	return int(ep.numEngines)
 }
 
 // Get will fetch the next available engine from the EnginePool. If no engines
@@ -65,7 +94,11 @@ func NewEnginePool(poolSize uint8, mutator EngineMutator) *EnginePool {
 // created yet then the spawner will be invoked to spawn a new engine and return
 // that.
 func (ep *EnginePool) Get() *PooledEngine {
-	var engine *lua.Engine
+	if ep.MaxPoolSize == 0 {
+		ep.MaxPoolSize = 1
+	}
+
+	var engine *Engine
 	if len(ep.engines) > 0 {
 		engine = <-ep.engines
 	} else if ep.numEngines < ep.MaxPoolSize {
@@ -88,11 +121,14 @@ func (ep *EnginePool) Get() *PooledEngine {
 	return pe
 }
 
-func (ep *EnginePool) generateEngine() *lua.Engine {
-	eng := lua.NewEngine()
-	eng.Meta[keys.Pool] = ep
+// generate a new engine, running through the provided mutator (if any)
+func (ep *EnginePool) generateEngine() *Engine {
+	eng := NewEngine()
+	eng.Meta[EnginePoolMetaKey] = ep
 
-	ep.mutatorFn(eng)
+	if ep.Mutator != nil {
+		ep.Mutator(eng)
+	}
 
 	return eng
 }

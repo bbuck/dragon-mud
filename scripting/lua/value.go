@@ -383,6 +383,15 @@ func (v *Value) RawSet(goKey interface{}, val interface{}) {
 	}
 }
 
+// RawSetInt sets some value at the given integer index value.
+func (v *Value) RawSetInt(i int, val interface{}) {
+	if v.IsTable() {
+		lval := getLValue(v.owner, val)
+
+		v.asTable().RawSetInt(i, lval)
+	}
+}
+
 // RawGet fetches data from a table, bypassing __index metamethod.
 func (v *Value) RawGet(goKey interface{}) *Value {
 	if v.IsTable() {

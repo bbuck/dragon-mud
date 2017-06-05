@@ -9,7 +9,6 @@ import (
 	"github.com/bbuck/dragon-mud/data"
 	"github.com/bbuck/dragon-mud/scripting"
 	"github.com/bbuck/dragon-mud/scripting/lua"
-	"github.com/bbuck/dragon-mud/scripting/pool"
 	"github.com/spf13/viper"
 
 	. "github.com/onsi/ginkgo"
@@ -40,7 +39,7 @@ var _ = Describe("Talon", func() {
 	config.Setup(nil)
 
 	var (
-		p = pool.NewEnginePool(1, func(eng *lua.Engine) {
+		p = lua.NewEnginePool(1, func(eng *lua.Engine) {
 			scripting.OpenLibs(eng, "talon")
 		})
 	)

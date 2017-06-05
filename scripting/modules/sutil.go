@@ -131,6 +131,12 @@ var Sutil = lua.TableMap{
 
 		return 1
 	},
+	"inspect_value": func(eng *lua.Engine) int {
+		val := eng.PopValue()
+		eng.PushValue(val.Inspect())
+
+		return 1
+	},
 }
 
 func fetchRx(rx string) (*regexp.Regexp, error) {

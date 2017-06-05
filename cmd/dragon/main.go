@@ -4,6 +4,7 @@ package main
 
 import (
 	"os"
+	"strings"
 
 	"github.com/bbuck/dragon-mud/cli"
 	"github.com/bbuck/dragon-mud/config"
@@ -28,17 +29,22 @@ func main() {
 }
 
 func getCommandEngine() *lua.Engine {
+	log := logger.NewWithSource("command_engine")
+
 	eng := lua.NewEngine()
 	eng.OpenLibs()
-	scripting.OpenLibs(eng, "tmpl", "password", "die", "random", "log",
-		"sutil", "cli", "config")
+	scripting.OpenLibs(eng, "*", "-events")
 	eng.Meta[keys.RootCmd] = cli.RootCmd
 
-	plugins.RegisterLoadPaths(eng)
+	eng.SecureRequire(plugins.GetScriptLoadPaths())
 	err := plugins.LoadCommands(eng)
 	if err != nil {
-		logger.New().WithError(err).Fatal("Failed to load commands modules in plugins")
+		if !strings.Contains(err.Error(), "\"commands\"") {
+			log.WithError(err).Fatal("Failed to load commands modules in plugins")
+		}
 	}
+
+	eng.SetGlobal("print", log.Info)
 
 	return eng
 }

@@ -11,13 +11,12 @@ import (
 	"github.com/bbuck/dragon-mud/scripting"
 	"github.com/bbuck/dragon-mud/scripting/keys"
 	"github.com/bbuck/dragon-mud/scripting/lua"
-	"github.com/bbuck/dragon-mud/scripting/pool"
 	"github.com/spf13/viper"
 )
 
 // server utility values
 var (
-	EnginePool *pool.EnginePool
+	EnginePool *lua.EnginePool
 )
 
 var serverID uint64 = 1
@@ -32,7 +31,7 @@ func initialize() {
 		size = int(math.MaxUint8)
 	}
 	usize := uint8(size)
-	EnginePool = pool.NewEnginePool(usize, newServerEngine)
+	EnginePool = lua.NewEnginePool(usize, newServerEngine)
 }
 
 // Emit will emit a server event to the server scripts.

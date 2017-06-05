@@ -5,7 +5,6 @@ import (
 
 	"github.com/bbuck/dragon-mud/scripting"
 	"github.com/bbuck/dragon-mud/scripting/lua"
-	"github.com/bbuck/dragon-mud/scripting/pool"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -13,7 +12,7 @@ import (
 )
 
 var _ = Describe("Sutil", func() {
-	p := pool.NewEnginePool(4, func(eng *lua.Engine) {
+	p := lua.NewEnginePool(4, func(eng *lua.Engine) {
 		scripting.OpenLibs(eng, "sutil")
 		eng.DoString(`sutil = require("sutil")`)
 	})
