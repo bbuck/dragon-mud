@@ -39,7 +39,7 @@ func getCommandEngine() *lua.Engine {
 	eng.SecureRequire(plugins.GetScriptLoadPaths())
 	err := plugins.LoadCommands(eng)
 	if err != nil {
-		if !strings.Contains(err.Error(), "\"commands\"") {
+		if !strings.Contains(err.Error(), "commands\"") {
 			log.WithError(err).Fatal("Failed to load commands modules in plugins")
 		}
 	}
