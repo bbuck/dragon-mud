@@ -23,7 +23,7 @@ var _ = Describe("Events Lua Module", func() {
 
 	em := events.NewEmitter(logger.New().WithField("note", "external_emitter"))
 
-	p = pool.NewEnginePool(2, func(e *lua.Engine) {
+	p = lua.NewEnginePool(2, func(e *lua.Engine) {
 		e.Meta[keys.ExternalEmitter] = em
 
 		e.OpenChannel()
