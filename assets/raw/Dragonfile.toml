@@ -37,17 +37,16 @@ version = "0.0.0"
     # NOTE: Right now this value is in flux
     engine_pool_size = 10
 
-# DragonMUD uses the Argon2i method for encrypting passwords. This is a way to
-# configure the memory size of the encryption and the length of the final
-# output. These values aren't dangerous to keep the same here, but feel free
-# to change them. I highly recommend that you do nothing with them unless you
-# have a strong understanding of the effect it has on security.
+# DragonMUD uses the bcrypt method for encrypting passwords. This allows you to
+# control the cost used when hashing passwords. If you wish to set a static
+# cost, you're welcome to. The default cost is 10, but any number between
+# 4 and 31 is valid (any input that is not an integer between 4 and 31 and
+# "random" is ignored). IT IS NOT RECOMMEND TO CHANGE THIS VALUE. SETTING THIS
+# VALUE TO COST VALUES HIGHER THAN 10 (or "random") MAY MAKE IT RUN FOR VERY
+# LONG PERIODS OF TIME.
 [crypto]
 
-  # password_memory_size = 4096
-  # password_length = 32
-  # min_iterations = 3
-  # max_iterations = 8
+  # cost = 10
 
 # log contains settings specific to the logger for the project such as maximum
 # log level and output targets.

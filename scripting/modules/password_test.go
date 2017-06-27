@@ -21,10 +21,9 @@ var _ = Describe("password Module", func() {
 			local password = require("password")
 
 			function testCrypto()
-				local params = password.getRandomParams()
-				local hash = password.hash("this is a password", params)
-				local match = password.isValid("this is a password", hash, params)
-				local notMatch = password.isValid("this isn't a password", hash, params)
+				local hash = password.hash("this is a password")
+				local match = password.is_valid("this is a password", hash)
+				local notMatch = password.is_valid("this isn't a password", hash)
 
 				return hash, match, notMatch
 			end
@@ -51,10 +50,6 @@ var _ = Describe("password Module", func() {
 
 	It("doesn't generate empty strings", func() {
 		Ω(result).ShouldNot(Equal(""))
-	})
-
-	It("generates the correct hash length", func() {
-		Ω(result).Should(HaveLen(32))
 	})
 
 	It("generates the same hash with matching inputs", func() {

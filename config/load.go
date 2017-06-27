@@ -40,10 +40,7 @@ func Load() {
 
 // RegisterDefaults will load the defualt values in for the keys into Viper.
 func RegisterDefaults() {
-	viper.SetDefault("crypto.password_memory_size", 4096)
-	viper.SetDefault("crypto.password_length", 32)
-	viper.SetDefault("crypto.min_iterations", 3)
-	viper.SetDefault("crypto.max_iterations", 8)
+	viper.SetDefault("crypto.cost", 10)
 
 	viper.SetDefault("env", "development")
 
