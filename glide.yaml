@@ -8,7 +8,6 @@ import:
   - structures/graph
 - package: layeh.com/gopher-luar
 - package: github.com/mitchellh/mapstructure
-- package: github.com/pzduniak/argon2
 - package: github.com/satori/go.uuid
   version: ^1.1.0
 - package: github.com/spf13/cobra
@@ -20,6 +19,9 @@ import:
   version: b402f3114ec730d8bddb074a6c137309f561aa78
 - package: github.com/chzyer/readline
   version: ~1.4.0
+- package: golang.org/x/crypto
+  subpackages:
+  - bcrypt
 testImport:
 - package: github.com/jinzhu/gorm
   version: ^1.0.0

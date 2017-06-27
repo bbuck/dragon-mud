@@ -1,5 +1,5 @@
-hash: 9cc00ce8d434b9fea0e28258a27d11300b1ca990c495599564526ba847cc42dc
-updated: 2017-05-16T01:29:44.861847883-05:00
+hash: 1601d0ece7cb8d08103dfab3f1e966760cd27f8600af67bc1d35eb4e13f4aec6
+updated: 2017-06-26T20:55:36.223976622-05:00
 imports:
 - name: github.com/chzyer/readline
   version: 62c6fe6193755f722b8b8788aa7357be55a50ff1
@@ -73,6 +73,10 @@ imports:
   - ast
   - parse
   - pm
+- name: golang.org/x/crypto
+  version: adbae1b6b6fb4b02448a0fc0dbbc9ba2b95b294d
+  subpackages:
+  - bcrypt
 - name: golang.org/x/net
   version: f2499483f923065a842d38eb4c7f1927e6fc6e6d
   subpackages:
