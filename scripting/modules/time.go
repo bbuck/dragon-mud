@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -19,11 +20,28 @@ import (
 //     day: number = the day in which the instant is to be set; default: 1,
 //     hour: number = the hour (0-23) of the instant; default: 0,
 //     min: number = the minute (0-59) of the instant; default: 0,
+//     minute: number = alias for min
 //     sec: number = the second (0-59) of the instant; default: 0,
+//     second: number = alias for sec
+//     milli: number = the number of milliseconds (past the second) of the
+//       instant; defualt 0
+//     millisecond: number = alias for milli
 //     nano: number = the number of nanoseconds (past the second) of the
 //       instant; default: 0,
+//     nanosecond: number = alias for nano
 //     zone: string = the name of the time zone for the instant in anything
 //       other than "UTC"; default: UTC
+//   }
+//   durationData: table = {
+//     nanosecond: number = number of nanoseconds in this duration,
+//     millisecond: number = number of milliseconds in this duration,
+//     second: number = number of seconds in this duration,
+//     minute: number = number of minutes in this duration,
+//     hour: number = number of hours in this duration,
+//     day: number = number of days in this duration (assumed 24 hours),
+//     week: number = number of weeks in this duration (assumed 7 days),
+//     month: number = number of months in this duration (assumed 30 days),
+//     year: number = number of years in this duration (assumed 365 days)
 //   }
 //   now(): time.Instant
 //     returns an instant value representing the current time in the UTC time
@@ -47,6 +65,21 @@ import (
 //     @param timestamp: number = a Unix timestamp value used to generate an
 //       instant value for the given date based on the rules of unix timestamps.
 //     this method generates a time.Instant value based on the give timestamp.
+//   duration(generator): number
+//     @param generator: table(durationData) | number | string = either a table
+//       defining the values in the duration, a string encoding of the duration
+//       or a numeric value that is the duration.
+//     this method generates a duration value, it's range is roughly -290..290
+//     years. forcing beyond this boundary is undefined and should be avoided at
+//     all costs.
+//   duration_parts(duration): table
+//     @param duration: number = the number of nanoseconds representing a period
+//       an arbitrary passing of time with no start point
+//     take a duration value and break it into a map containing the named
+//     components, like a duration of "1w" would come back with {weeks = 1}.
+//     given the nature of durations being numbers, if a generated duration has
+//     overlapping periods you can expect to get different components back, for
+//     example "8d" (8 days) = {weeks = 1, days = 1}
 //   time.Instant
 //     format(format): string
 //       @param format: string = the format that will be used to produce a
@@ -65,15 +98,42 @@ import (
 //       return the name of the time zone (not 100% accurate) used for the
 //       instant's current time zone. It's not super accurate becuase if you
 //       use 'local' you get 'local' back.
+//     add(duration): time.Instant
+//       @param duration: number = the number of nanonseconds that need to be
+//         to the current instant.
+//       add a fixed duration to the given date and return the results as a new
+//       date value.
+//     sub(duration): time.Instant
+//       @param duration: number = the number of nanonseconds that need to be
+//         to the current instant.
+//       much the same as :add, however this method will negate the duration.
+//     sub_date(oinstant): number
+//       @param oinstant: time.Instant = the instant you wish to subtract from the
+//         current instant.
+//       returns the duration, or nanosecond difference, between the original
+//       instant and the instant you're subtracting from.
+//     is_before(oinstant): boolean
+//       @param oinstant: time.Instant = the other instant you're comparing
+//         this instant too.
+//       returns true if the current instant occurred _before_ the other
+//       instant.
+//     is_after(oinstant): boolean
+//       @param oinstant: time.Instant = the other instant you're comparing
+//         this instant too.
+//       the opposite of :is_before, this checks to see if this instant occurred
+//       _after_ the other.
 //     inspect(): string
 //       returns a string that represents a debug output, primarily for use in
 //       the REPL.
 var Time = lua.TableMap{
+	// return current instant
 	"now": func() *instantValue {
 		t := instantValue(time.Now().UTC())
 
 		return &t
 	},
+	// parse a string, based on format and return instant represented by string
+	// or nil
 	"parse": func(fmt, date string) *instantValue {
 		t, err := time.Parse(fmt, date)
 		if err != nil {
@@ -83,6 +143,7 @@ var Time = lua.TableMap{
 
 		return &iv
 	},
+	// create a new instant in time based on a given set of input
 	"create": func(engine *lua.Engine) int {
 		if engine.StackSize() < 1 {
 			engine.RaiseError("a map of date information is required")
@@ -104,11 +165,86 @@ var Time = lua.TableMap{
 
 		return 1
 	},
+	// return an instant in time represented by the unix timestamp
 	"unix": func(ts int64) *instantValue {
 		t := time.Unix(ts, 0).UTC()
 		iv := instantValue(t)
 
 		return &iv
+	},
+	// create a duration based on the given value
+	"duration": func(eng *lua.Engine) int {
+		if eng.StackSize() == 0 {
+			eng.ArgumentError(1, "expected an argument, but received none")
+
+			return 0
+		}
+
+		val := eng.PopValue()
+		var dur float64
+		switch {
+		case val.IsNumber():
+			dur = val.AsNumber()
+		case val.IsTable():
+			dur = durationFromMap(val.AsMapStringInterface())
+		case val.IsString():
+			dur = durationFromString(val.AsString())
+		}
+
+		eng.PushValue(float64(floatToDuration(dur)))
+
+		return 1
+	},
+	// break a duration apart and return the components of it
+	"duration_parts": func(f float64) map[string]float64 {
+		if f > math.MaxInt64 || f < math.MinInt64 {
+			return map[string]float64{
+				"out_of_range": f,
+			}
+		}
+
+		dur := floatToDuration(f)
+		durMap := make(map[string]float64)
+
+		year := durationMap["year"]
+		temp := dur / year
+		dur %= year
+		durMap["years"] = float64(temp)
+
+		month := durationMap["month"]
+		temp = dur / month
+		dur %= month
+		durMap["months"] = float64(temp)
+
+		week := durationMap["week"]
+		temp = dur / week
+		dur %= week
+		durMap["weeks"] = float64(temp)
+
+		day := durationMap["day"]
+		temp = dur / day
+		dur %= day
+		durMap["days"] = float64(temp)
+
+		temp = dur / time.Hour
+		dur %= time.Hour
+		durMap["hours"] = float64(temp)
+
+		temp = dur / time.Minute
+		dur %= time.Minute
+		durMap["minutes"] = float64(temp)
+
+		temp = dur / time.Second
+		dur %= time.Second
+		durMap["seconds"] = float64(temp)
+
+		temp = dur / time.Millisecond
+		dur %= time.Millisecond
+		durMap["milliseconds"] = float64(temp)
+
+		durMap["nanoseconds"] = float64(dur)
+
+		return durMap
 	},
 }
 
@@ -156,6 +292,54 @@ func (iv *instantValue) Zone() string {
 	return t.Location().String()
 }
 
+// Add a duration period to the given date.
+func (iv *instantValue) Add(duration float64) *instantValue {
+	dur := floatToDuration(duration)
+	t := time.Time(*iv)
+	ot := t.Add(dur)
+	oiv := instantValue(ot)
+
+	return &oiv
+}
+
+// Sub a duration period to the given date.
+func (iv *instantValue) Sub(duration float64) *instantValue {
+	dur := floatToDuration(duration)
+	t := time.Time(*iv)
+	ot := t.Add(-dur)
+	oiv := instantValue(ot)
+
+	return &oiv
+}
+
+// SubData will subtract a given instant from the instant called on and return
+// a duration representing the time difference between the instants.
+func (iv *instantValue) SubDate(oiv *instantValue) float64 {
+	t := time.Time(*iv)
+	ot := time.Time(*oiv)
+	dur := t.Sub(ot)
+
+	return float64(dur)
+}
+
+// IsBefore determines whether or not the given date occurs before the time
+// this metohd is called on.
+func (iv *instantValue) IsBefore(oiv *instantValue) bool {
+	t := time.Time(*iv)
+	ot := time.Time(*oiv)
+
+	return t.Before(ot)
+}
+
+// IsAfter determine whether or not the given date occurse after the time this
+// method is called on.
+func (iv *instantValue) IsAfter(oiv *instantValue) bool {
+	t := time.Time(*iv)
+	ot := time.Time(*oiv)
+
+	return t.After(ot)
+}
+
 // map 3-letter and full month names to `time.Month` values
 var monthMap = map[string]time.Month{
 	"jan":       time.January,
@@ -183,6 +367,8 @@ var monthMap = map[string]time.Month{
 	"december":  time.December,
 }
 
+// generated and return an instant based on the values configured in the
+// provided map
 func instantFromMap(m map[string]interface{}) (*instantValue, error) {
 	year := time.Now().Year()
 	month := time.January
@@ -213,12 +399,32 @@ func instantFromMap(m map[string]interface{}) (*instantValue, error) {
 		min = toInt(imi)
 	}
 
+	if imi, ok := m["minutes"]; ok {
+		min = toInt(imi)
+	}
+
 	if is, ok := m["sec"]; ok {
 		sec = toInt(is)
 	}
 
+	if is, ok := m["seconds"]; ok {
+		sec = toInt(is)
+	}
+
+	if ins, ok := m["milli"]; ok {
+		nsec += toInt(ins) * int(time.Millisecond)
+	}
+
+	if ins, ok := m["millisecond"]; ok {
+		nsec += toInt(ins) * int(time.Millisecond)
+	}
+
 	if ins, ok := m["nano"]; ok {
-		nsec = toInt(ins)
+		nsec += toInt(ins)
+	}
+
+	if ins, ok := m["nanoseconds"]; ok {
+		nsec += toInt(ins)
 	}
 
 	var err error
@@ -316,4 +522,84 @@ func toInt(i interface{}) int {
 	}
 
 	return 0
+}
+
+// convert a float to a duration, doing bound checking
+func floatToDuration(f float64) time.Duration {
+	if f > math.MaxInt64 {
+		f = math.MaxInt64
+	} else if f < math.MinInt64 {
+		f = math.MinInt64
+	}
+
+	return time.Duration(round(f))
+}
+
+// map duration names to values for quick conversions. this map represents all
+// the values names that duration components can be named.
+var durationMap = map[string]time.Duration{
+	"nanosecond":   time.Nanosecond,
+	"nanoseconds":  time.Nanosecond,
+	"ns":           time.Nanosecond,
+	"millisecond":  time.Millisecond,
+	"milliseconds": time.Millisecond,
+	"ms":           time.Millisecond,
+	"second":       time.Second,
+	"seconds":      time.Second,
+	"s":            time.Second,
+	"minute":       time.Minute,
+	"minutes":      time.Minute,
+	"m":            time.Minute,
+	"hour":         time.Hour,
+	"hours":        time.Hour,
+	"h":            time.Hour,
+	"day":          time.Hour * 24,
+	"days":         time.Hour * 24,
+	"d":            time.Hour * 24,
+	"week":         time.Hour * 24 * 7,
+	"weeks":        time.Hour * 24 * 7,
+	"w":            time.Hour * 24 * 7,
+	"month":        time.Hour * 24 * 30,
+	"months":       time.Hour * 24 * 30,
+	"M":            time.Hour * 24 * 30,
+	"year":         (time.Hour * 24 * 7 * 52) + (time.Hour * 24),
+	"years":        (time.Hour * 24 * 7 * 52) + (time.Hour * 24),
+	"y":            (time.Hour * 24 * 7 * 52) + (time.Hour * 24),
+}
+
+// generate a duration based on the components in the given map and referencing
+// durationMap to map keys to base values.
+func durationFromMap(m map[string]interface{}) float64 {
+	var duration float64
+
+	for k, v := range m {
+		if dur, ok := durationMap[k]; ok {
+			if f, fok := v.(float64); fok {
+				f = round(f)
+				duration += float64(dur) * f
+			}
+		}
+	}
+
+	return duration
+}
+
+// regular expression defining the expected format of a string that can be
+// parsed into a duration. Strings like "10h32m" for "10 hours and 32 minutes"
+var durationStringRx = regexp.MustCompile(`(-?\d+)(ns|ms|s|m|h|d|w|M|y)`)
+
+// generate a duration number from the given input string, breaking the string
+// into component parts based on the durationStringRx.
+func durationFromString(s string) float64 {
+	var duration float64
+
+	matches := durationStringRx.FindAllStringSubmatch(s, -1)
+	for _, match := range matches {
+		if dur, ok := durationMap[match[2]]; ok {
+			f, _ := strconv.ParseFloat(match[1], 64)
+			duration += float64(dur) * f
+		}
+	}
+
+	return duration
 }
