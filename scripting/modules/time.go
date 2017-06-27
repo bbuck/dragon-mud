@@ -126,11 +126,14 @@ import (
 //       returns a string that represents a debug output, primarily for use in
 //       the REPL.
 var Time = lua.TableMap{
+	// return current instant
 	"now": func() *instantValue {
 		t := instantValue(time.Now().UTC())
 
 		return &t
 	},
+	// parse a string, based on format and return instant represented by string
+	// or nil
 	"parse": func(fmt, date string) *instantValue {
 		t, err := time.Parse(fmt, date)
 		if err != nil {
@@ -140,6 +143,7 @@ var Time = lua.TableMap{
 
 		return &iv
 	},
+	// create a new instant in time based on a given set of input
 	"create": func(engine *lua.Engine) int {
 		if engine.StackSize() < 1 {
 			engine.RaiseError("a map of date information is required")
@@ -161,12 +165,14 @@ var Time = lua.TableMap{
 
 		return 1
 	},
+	// return an instant in time represented by the unix timestamp
 	"unix": func(ts int64) *instantValue {
 		t := time.Unix(ts, 0).UTC()
 		iv := instantValue(t)
 
 		return &iv
 	},
+	// create a duration based on the given value
 	"duration": func(eng *lua.Engine) int {
 		if eng.StackSize() == 0 {
 			eng.ArgumentError(1, "expected an argument, but received none")
@@ -189,6 +195,7 @@ var Time = lua.TableMap{
 
 		return 1
 	},
+	// break a duration apart and return the components of it
 	"duration_parts": func(f float64) map[string]float64 {
 		if f > math.MaxInt64 || f < math.MinInt64 {
 			return map[string]float64{
@@ -305,6 +312,8 @@ func (iv *instantValue) Sub(duration float64) *instantValue {
 	return &oiv
 }
 
+// SubData will subtract a given instant from the instant called on and return
+// a duration representing the time difference between the instants.
 func (iv *instantValue) SubDate(oiv *instantValue) float64 {
 	t := time.Time(*iv)
 	ot := time.Time(*oiv)
@@ -358,6 +367,8 @@ var monthMap = map[string]time.Month{
 	"december":  time.December,
 }
 
+// generated and return an instant based on the values configured in the
+// provided map
 func instantFromMap(m map[string]interface{}) (*instantValue, error) {
 	year := time.Now().Year()
 	month := time.January
@@ -524,6 +535,8 @@ func floatToDuration(f float64) time.Duration {
 	return time.Duration(round(f))
 }
 
+// map duration names to values for quick conversions. this map represents all
+// the values names that duration components can be named.
 var durationMap = map[string]time.Duration{
 	"nanosecond":   time.Nanosecond,
 	"nanoseconds":  time.Nanosecond,
@@ -554,6 +567,8 @@ var durationMap = map[string]time.Duration{
 	"y":            (time.Hour * 24 * 7 * 52) + (time.Hour * 24),
 }
 
+// generate a duration based on the components in the given map and referencing
+// durationMap to map keys to base values.
 func durationFromMap(m map[string]interface{}) float64 {
 	var duration float64
 
@@ -569,8 +584,12 @@ func durationFromMap(m map[string]interface{}) float64 {
 	return duration
 }
 
+// regular expression defining the expected format of a string that can be
+// parsed into a duration. Strings like "10h32m" for "10 hours and 32 minutes"
 var durationStringRx = regexp.MustCompile(`(-?\d+)(ns|ms|s|m|h|d|w|M|y)`)
 
+// generate a duration number from the given input string, breaking the string
+// into component parts based on the durationStringRx.
 func durationFromString(s string) float64 {
 	var duration float64
 
