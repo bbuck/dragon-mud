@@ -1,2 +1,5 @@
 vendor/
 *.todo
+# shouldn't be here anyway, but who knows
+.repl-history
+

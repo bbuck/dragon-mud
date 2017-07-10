@@ -1,6 +1,0 @@
-tmpl = require("tmpl")
-tmpl
-exit
-.exit
-ls
-.exit
