@@ -7,14 +7,14 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var testTemplate = "Hello, {{Name}}!"
+var testTemplate = "Hello, [[Name]]!"
 
 var _ = Describe("Templates", func() {
 	Describe("Register", func() {
 		var err error
 
 		BeforeEach(func() {
-			err = Register(testTemplate, "test")
+			err = Register("test", testTemplate)
 		})
 
 		AfterEach(func() {
@@ -34,7 +34,7 @@ var _ = Describe("Templates", func() {
 
 		Context("with a registered template", func() {
 			BeforeEach(func() {
-				Register(testTemplate, "test")
+				Register("test", testTemplate)
 				r, err = Template("test")
 			})
 

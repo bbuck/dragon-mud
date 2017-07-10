@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var templateWithBraces = "{{This}} should have {braces}"
+var templateWithBraces = "[[This]] should have [brackets]"
 
 var _ = Describe("Renderer", func() {
 	Describe("Render", func() {
@@ -24,7 +24,7 @@ var _ = Describe("Renderer", func() {
 				err1, err2       error
 			)
 
-			Register(testTemplate, "test")
+			Register("test", testTemplate)
 			r, _ = Template("test")
 
 			BeforeEach(func() {
@@ -56,7 +56,7 @@ var _ = Describe("Renderer", func() {
 				}
 			)
 
-			Register(templateWithBraces, "otherTest")
+			Register("otherTest", templateWithBraces)
 			r, _ = Template("otherTest")
 
 			BeforeEach(func() {
@@ -68,7 +68,7 @@ var _ = Describe("Renderer", func() {
 			})
 
 			It("renders correctly", func() {
-				Ω(result).Should(Equal("This should have {braces}"))
+				Ω(result).Should(Equal("This should have [brackets]"))
 			})
 		})
 
@@ -85,7 +85,7 @@ var _ = Describe("Renderer", func() {
 			)
 
 			BeforeEach(func() {
-				Register(testTemplate, "test")
+				Register("test", testTemplate)
 				r, _ = Template("test")
 				result, err = r.Render(data)
 			})
