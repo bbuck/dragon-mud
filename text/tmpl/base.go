@@ -12,15 +12,15 @@ import (
 )
 
 const (
-	openTemplateTags  = "{{"
-	closeTemplateTags = "}}"
+	openTemplateTags  = "[["
+	closeTemplateTags = "]]"
 )
 
 var compiledTemplates = make(map[string]Renderer)
 
 // Register will compile and register a template using the string given and
 // store the compiled template in the map.
-func Register(contents, name string) error {
+func Register(name, contents string) error {
 	r, err := getRenderer(contents)
 	if err != nil {
 		return err
@@ -32,7 +32,7 @@ func Register(contents, name string) error {
 
 // RegisterFile will compile and register a template using the contents of a
 // file and storing by name in the compiled map.
-func RegisterFile(filename, name string) error {
+func RegisterFile(name, filename string) error {
 	file, err := os.Open(filename)
 	if err != nil {
 		return err
