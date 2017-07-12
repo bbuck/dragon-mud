@@ -58,9 +58,9 @@ var _ = Describe("Console", func() {
 
 	Context("colored text", func() {
 		var (
-			coloredStr     = "{r}this is {g}colored{x} text"
+			coloredStr     = "[r]this is [g]colored[x] text"
 			result         = ansi.Colorize(coloredStr)
-			xtermStr       = "{c001}this is red{x}"
+			xtermStr       = "[c001]this is red[x]"
 			xtermResult    = ansi.Colorize(xtermStr)
 			fallbackResult = ansi.ColorizeWithFallback(xtermStr, true)
 		)
@@ -109,7 +109,7 @@ var _ = Describe("Console", func() {
 			Context("ColorMono support", func() {
 				BeforeEach(func() {
 					console.ColorSupport = ColorMono
-					console.Printf("%s", "{r}testing{x}")
+					console.Printf("%s", "[r]testing[x]")
 				})
 
 				It("prints the text given to it", func() {
@@ -149,7 +149,7 @@ var _ = Describe("Console", func() {
 			Context("ColorMono support", func() {
 				BeforeEach(func() {
 					console.ColorSupport = ColorMono
-					fmt.Fprintf(console, "%s", "{r}testing{x}")
+					fmt.Fprintf(console, "%s", "[r]testing[x]")
 				})
 
 				It("writes the text to the buffer without color", func() {
