@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/bbuck/dragon-mud/logger"
+	"github.com/bbuck/dragon-mud/plugins"
 	"github.com/bbuck/dragon-mud/scripting"
 	"github.com/spf13/viper"
 )
@@ -25,6 +26,9 @@ func Run() {
 	}
 
 	log = logger.NewWithSource("server(telnet)")
+	if err := plugins.LoadViews(); err != nil {
+		log.WithError(err).Error("Failed to load views")
+	}
 	serverRunning = true
 	host := viper.GetString("telnet.interface")
 	port := viper.GetString("telnet.port")

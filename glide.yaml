@@ -22,6 +22,7 @@ import:
 - package: golang.org/x/crypto
   subpackages:
   - bcrypt
+- package: github.com/mattn/go-zglob
 testImport:
 - package: github.com/jinzhu/gorm
   version: ^1.0.0

@@ -12,8 +12,8 @@ import (
 // ANSI color escape codes in it.
 type ColorizeFunc func(string) string
 
-// var colorRx = regexp.MustCompile(`(?m)([^\\]|^)\{(.+?)\}`)
-var colorRx = regexp.MustCompile(`(?m)\{(\{?.{1,5}?\}?)\}`)
+// colorRx matches single- or double-bracketed color codes, like [r] or [c123].
+var colorRx = regexp.MustCompile(`(?m)\[(\[?-?[a-zA-Z0-9]{1,4}?\]?)\]`)
 
 var (
 	colorMap = map[string]string{
@@ -132,16 +132,22 @@ func Colorize(text string) string {
 func ColorizeWithFallback(text string, fallback bool) string {
 	final := colorRx.ReplaceAllStringFunc(text, func(s string) string {
 		match := colorRx.FindStringSubmatch(s)
-		if strings.HasPrefix(match[1], "{") && strings.HasSuffix(match[1], "}") {
-			return match[1]
+		escaped := false
+		code := match[1]
+		if strings.HasPrefix(code, "[") && strings.HasSuffix(code, "]") {
+			escaped = true
+			code = code[1 : len(code)-1]
 		}
 
-		code := match[1]
 		if fallback {
 			code = FallbackColor(code)
 		}
 
 		if color, ok := colorToANSI[code]; ok {
+			if escaped {
+				return match[1]
+			}
+
 			return color
 		}
 
@@ -165,7 +171,7 @@ func FallbackColor(code string) string {
 func Purge(text string) string {
 	final := colorRx.ReplaceAllStringFunc(text, func(s string) string {
 		match := colorRx.FindStringSubmatch(s)
-		if strings.HasPrefix(match[1], "{") && strings.HasSuffix(match[1], "}") {
+		if strings.HasPrefix(match[1], "[") && strings.HasSuffix(match[1], "]") {
 			return match[1]
 		}
 

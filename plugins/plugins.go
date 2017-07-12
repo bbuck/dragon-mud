@@ -12,6 +12,7 @@ import (
 	"github.com/bbuck/dragon-mud/errs"
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/scripting/lua"
+	"github.com/bbuck/dragon-mud/text/tmpl"
 )
 
 var (
@@ -53,7 +54,9 @@ func init() {
 		os.Exit(errs.ErrPluginLoad)
 	}
 	for _, p := range Paths {
-		Names = append(Names, strings.Replace(p, PluginRoot+string(filepath.Separator), "", 1))
+		name, _ := filepath.Rel(PluginRoot, p)
+		Names = append(Names, name)
+		// Names = append(Names, strings.Replace(p, PluginRoot+string(filepath.Separator), "", 1))
 	}
 }
 
@@ -70,6 +73,45 @@ func GetScriptLoadPaths() []string {
 	}
 
 	return loadPaths
+}
+
+// LoadViews will read all plugin views and compile them, then perform the
+// sam eoperation on root views. Root view definitions can overwrite
+func LoadViews() error {
+	fileSep := string(filepath.Separator)
+	filepath.Walk(PluginRoot, func(path string, f os.FileInfo, err error) error {
+		if filepath.Ext(path) == ".view" && strings.Contains(path, "views") {
+			relPath, _ := filepath.Rel(PluginRoot, path)
+			key := strings.Replace(relPath[:len(relPath)-5], fileSep, ".", -1)
+			key = strings.Replace(key, ".views", "", 1)
+			fmt.Println(key)
+
+			if err := tmpl.RegisterFile(key, path); err != nil {
+				log := logger.NewWithSource("view_loader")
+				log.WithError(err).WithField("path", path).Error("Failed to render template.")
+			}
+		}
+
+		return nil
+	})
+
+	rootViewPath := filepath.Join(Root, "views")
+	filepath.Walk(rootViewPath, func(path string, _ os.FileInfo, _ error) error {
+		if filepath.Ext(path) == ".view" {
+			relPath, _ := filepath.Rel(rootViewPath, path)
+			key := strings.Replace(relPath[:len(relPath)-5], fileSep, ".", -1)
+			fmt.Println(key)
+
+			if err := tmpl.RegisterFile(key, path); err != nil {
+				log := logger.NewWithSource("view_loader")
+				log.WithError(err).WithField("path", path).Error("Failed to render template.")
+			}
+		}
+
+		return nil
+	})
+
+	return nil
 }
 
 // LoadCommands runs all the init.lua files for commands in the users codebase

@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	openTemplateTags  = "[["
-	closeTemplateTags = "]]"
+	openTemplateTags  = "{{"
+	closeTemplateTags = "}}"
 )
 
 var compiledTemplates = make(map[string]Renderer)
@@ -43,7 +43,7 @@ func RegisterFile(name, filename string) error {
 		return err
 	}
 
-	return Register(string(contents), name)
+	return Register(name, string(contents))
 }
 
 // Unregister removes a previously compiled template, normally only used for

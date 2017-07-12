@@ -10,6 +10,7 @@ import (
 
 	"github.com/bbuck/dragon-mud/ansi"
 	"github.com/bbuck/dragon-mud/logger"
+	"github.com/bbuck/dragon-mud/plugins"
 	"github.com/bbuck/dragon-mud/scripting"
 	"github.com/bbuck/dragon-mud/scripting/lua"
 )
@@ -20,8 +21,8 @@ var (
 		Use:   "console",
 		Short: "Run a REPL at the requested security level allowing for access to Lua code.",
 		Long: `Provide real time access to a Lua engine via a Read-Eval-Print-Loop method
-	giving access to the plugins at the given security level and the various built
-	in libraries for quick testing.`,
+giving access to the plugins at the given security level and the various built
+in libraries for quick testing.`,
 		Aliases: []string{"repl", "c"},
 		Run: func(*cobra.Command, []string) {
 			log := logger.NewWithSource("cmd(repl)")
@@ -30,6 +31,10 @@ var (
 			dragon := getRandomDragonDetails()
 			log = log.WithField("color", dragon.name)
 			log.Debug("A dragon has appeared to handle your Lua code.")
+
+			if err := plugins.LoadViews(); err != nil {
+				log.WithError(err).Error("Failed to load views")
+			}
 
 			// TODO: Add security level specic engine creation here
 			eng := lua.NewEngine(lua.EngineOptions{
