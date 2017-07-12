@@ -1,10 +1,8 @@
-hash: 1601d0ece7cb8d08103dfab3f1e966760cd27f8600af67bc1d35eb4e13f4aec6
-updated: 2017-06-26T20:55:36.223976622-05:00
+hash: 77126eee0bb538614835846936edf8f8748a017915b482560f6f769bbe81ace9
+updated: 2017-07-10T22:30:10.505984829-05:00
 imports:
 - name: github.com/chzyer/readline
   version: 62c6fe6193755f722b8b8788aa7357be55a50ff1
-- name: github.com/dchest/blake2b
-  version: 3c8c640cd7bea3ca78209d812b5854442ab92fed
 - name: github.com/fatih/structs
   version: a720dfa8df582c51dee1b36feabb906bde1588bd
 - name: github.com/fsnotify/fsnotify
@@ -33,6 +31,8 @@ imports:
   - structures/messages
 - name: github.com/magiconair/properties
   version: b3b15ef068fd0b17ddf408a23669f20811d194d2
+- name: github.com/mattn/go-zglob
+  version: 95345c4e1c0ebc9d16a3284177f09360f4d20fab
 - name: github.com/mgutz/ansi
   version: c286dcecd19ff979eeb73ea444e479b903f2cfcb
 - name: github.com/mitchellh/mapstructure
@@ -41,8 +41,6 @@ imports:
   version: df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d
 - name: github.com/pelletier/go-toml
   version: a1f048ba24490f9b0674a67e1ce995d685cddf4a
-- name: github.com/pzduniak/argon2
-  version: 8cea0f78645de325eba7e52b7d6076fbbe748b01
 - name: github.com/satori/go.uuid
   version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: github.com/Sirupsen/logrus
@@ -74,9 +72,10 @@ imports:
   - parse
   - pm
 - name: golang.org/x/crypto
-  version: adbae1b6b6fb4b02448a0fc0dbbc9ba2b95b294d
+  version: 3627ff35f31987174dbee61d9d1dcc1c643e7174
   subpackages:
   - bcrypt
+  - blowfish
 - name: golang.org/x/net
   version: f2499483f923065a842d38eb4c7f1927e6fc6e6d
   subpackages:

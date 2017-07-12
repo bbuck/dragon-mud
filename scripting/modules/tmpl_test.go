@@ -11,7 +11,7 @@ import (
 var script = `
     local tmpl = require("tmpl")
 
-    tmpl.register("lua_test", "Hello, [[name]]!")
+    tmpl.register("lua_test", "Hello, {{name}}!")
 
     function test_template()
         result = tmpl.render("lua_test", {name = "World"})
@@ -19,7 +19,7 @@ var script = `
 		return result
     end
 
-	tmpl.register("simple_layout", "layout: [[content]]")
+	tmpl.register("simple_layout", "layout: {{content}}")
 
 	function test_simple_layout()
 		result = tmpl.render_in_layout("simple_layout", "lua_test", {name = "World"})
@@ -27,9 +27,9 @@ var script = `
 		return result
 	end
 
-	tmpl.register("complex_layout", "first: [[first]], second: [[second]]")
-	tmpl.register("first", "[[fvalue]]")
-	tmpl.register("second", "[[svalue]]")
+	tmpl.register("complex_layout", "first: {{first}}, second: {{second}}")
+	tmpl.register("first", "{{fvalue}}")
+	tmpl.register("second", "{{svalue}}")
 
 	function test_complex_layout()
 		result = tmpl.render_in_layout("complex_layout", {first = "first", second = "second"}, {fvalue = "one", svalue = "two"})
