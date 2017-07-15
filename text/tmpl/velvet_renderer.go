@@ -37,6 +37,8 @@ type velvetRenderer struct {
 // Render will render the velvet handlebar template with the given data as it's
 // context.
 func (vr *velvetRenderer) Render(data interface{}) (string, error) {
+	fmt.Printf("\n\n%+v\n\n", data)
+
 	var ctx *velvet.Context
 	switch t := data.(type) {
 	case map[string]interface{}:

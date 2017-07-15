@@ -22,7 +22,7 @@ information will be processed.`,
 		dragon := getRandomDragonDetails()
 		log.WithField("color", dragon.name).Info("A dragon arrives to serve you today.")
 		if !config.Loaded {
-			log.Fatal("No configuration file detected. Make sure you run {W}dragon init{x} first.")
+			log.Fatal("No configuration file detected. Make sure you run [W]dragon init[x] first.")
 		}
 		log.WithField("env", viper.GetString("env")).Info("Configuration loaded")
 

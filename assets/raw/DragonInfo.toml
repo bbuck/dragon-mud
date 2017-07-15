@@ -1,8 +1,8 @@
-# {{plugin_name}} configuration file
+# {{ plugin_name }} configuration file
 
-name = "{{plugin_name}}"
+name = "{{ plugin_name }}"
 version = "0.0.0"
-description = "Describe {{plugin_name}} here."
+description = "Describe {{ plugin_name }} here."
 
 # This section details requirements that should be met for this plugin to work.
 # Such as required minimum DragonMUD version, or dependencies, or other

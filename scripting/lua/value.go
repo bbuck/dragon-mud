@@ -58,7 +58,9 @@ func (v *Value) AsRaw() interface{} {
 
 // Inspect is similar to AsString except that it's designed to display values
 // for debug purposes.
-func (v *Value) Inspect() string {
+func (v *Value) Inspect(indent string) string {
+	nextIndent := indent + "  "
+
 	switch v.lval.Type() {
 	case lua.LTString:
 		return fmt.Sprintf("%q", v.AsString())
@@ -101,15 +103,17 @@ func (v *Value) Inspect() string {
 			buf := new(bytes.Buffer)
 			buf.WriteString("{\n")
 			v.ForEach(func(key, val *Value) {
-				buf.WriteString(fmt.Sprintf("  [%s] = %s", key.Inspect(), val.Inspect()))
+				buf.WriteString(nextIndent)
+				buf.WriteString(fmt.Sprintf("[%s] = %s", key.Inspect(nextIndent), val.Inspect(nextIndent)))
 				buf.WriteString(",\n")
 			})
+			buf.WriteString(indent)
 			buf.WriteString("}")
 
 			return buf.String()
 		}
 
-		return vals[0].Inspect()
+		return vals[0].Inspect(nextIndent)
 	case lua.LTFunction:
 		return "<function>"
 	}
@@ -141,14 +145,19 @@ func (v *Value) AsBool() bool {
 }
 
 // AsMapStringInterface will work on a Lua Table to convert it into a go
-// map[string]interface.
+// map[string]interface. This method is not safe for cyclic objects! You have
+// been warned.
 func (v *Value) AsMapStringInterface() map[string]interface{} {
 	if v.IsTable() {
 		result := make(map[string]interface{})
 		v.ForEach(func(key, value *Value) {
 			var val interface{} = value.AsRaw()
 			if value.IsTable() {
-				val = value
+				if value.IsMaybeList() {
+					val = value.AsSliceInterface()
+				} else {
+					val = value.AsMapStringInterface()
+				}
 			}
 			result[key.AsString()] = val
 		})
@@ -169,7 +178,11 @@ func (v *Value) AsSliceInterface() []interface{} {
 			lv := v.Get(i)
 			var val interface{} = lv.AsRaw()
 			if lv.IsTable() {
-				val = lv
+				if lv.IsMaybeList() {
+					val = lv.AsSliceInterface()
+				} else {
+					val = lv.AsMapStringInterface()
+				}
 			}
 			s = append(s, val)
 		}
@@ -229,6 +242,22 @@ func (v *Value) IsString() bool {
 // IsTable returns true if the stored value is a table.
 func (v *Value) IsTable() bool {
 	return v.lval.Type() == lua.LTTable
+}
+
+// IsMaybeList will try and determine if the table _might_ be used as a list.
+// This basically checks the first index (looking for something at 1) so  it's
+// not 100% accurate, hence 'Maybe.' Also a list that starts with 'nil' will
+// report as not a list.
+func (v *Value) IsMaybeList() bool {
+	if v.IsTable() {
+		if v.RawGet(1).IsNil() {
+			return false
+		}
+
+		return true
+	}
+
+	return false
 }
 
 // The following methods allow LTable values to be modified through Go.
