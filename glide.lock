@@ -1,132 +1,42 @@
-hash: 77126eee0bb538614835846936edf8f8748a017915b482560f6f769bbe81ace9
-updated: 2017-07-10T22:30:10.505984829-05:00
+hash: fced42b62cde6d7b979916691ebbd0dedec127df9fbd5e74a5de085324849ed6
+updated: 2017-07-14T21:39:46.273971214-05:00
 imports:
 - name: github.com/chzyer/readline
   version: 62c6fe6193755f722b8b8788aa7357be55a50ff1
 - name: github.com/fatih/structs
   version: a720dfa8df582c51dee1b36feabb906bde1588bd
-- name: github.com/fsnotify/fsnotify
-  version: a904159b9206978bb6d53fcc7a769e5cd726c737
-- name: github.com/hashicorp/hcl
-  version: db4f0768927a665a06c32855186e1bc762bcc8f5
-  subpackages:
-  - hcl/ast
-  - hcl/parser
-  - hcl/scanner
-  - hcl/strconv
-  - hcl/token
-  - json/parser
-  - json/scanner
-  - json/token
-- name: github.com/inconshreveable/mousetrap
-  version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/johnnadratowski/golang-neo4j-bolt-driver
   version: 2387cc1f01254d3a0055e034f5716278a1f420c7
   subpackages:
-  - encoding
-  - errors
-  - log
-  - structures
   - structures/graph
-  - structures/messages
-- name: github.com/magiconair/properties
-  version: b3b15ef068fd0b17ddf408a23669f20811d194d2
 - name: github.com/mattn/go-zglob
   version: 95345c4e1c0ebc9d16a3284177f09360f4d20fab
-- name: github.com/mgutz/ansi
-  version: c286dcecd19ff979eeb73ea444e479b903f2cfcb
 - name: github.com/mitchellh/mapstructure
   version: db1efb556f84b25a0a13a04aad883943538ad2e0
-- name: github.com/pelletier/go-buffruneio
-  version: df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d
-- name: github.com/pelletier/go-toml
-  version: a1f048ba24490f9b0674a67e1ce995d685cddf4a
 - name: github.com/satori/go.uuid
   version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: github.com/Sirupsen/logrus
   version: d26492970760ca5d33129d2d799e34be5c4782eb
-- name: github.com/spf13/afero
-  version: 72b31426848c6ef12a7a8e216708cb0d1530f074
-  subpackages:
-  - mem
-- name: github.com/spf13/cast
-  version: d1139bab1c07d5ad390a65e7305876b3c1a8370b
 - name: github.com/spf13/cobra
   version: c29ece4386f74084680e5e6d02d7b943ae630f63
-- name: github.com/spf13/jwalterweatherman
-  version: fa7ca7e836cf3a8bb4ebf799f472c12d7e903d66
-- name: github.com/spf13/pflag
-  version: a9a634f3de0a7529baded7ad6b0c7467d5c6eca7
 - name: github.com/spf13/viper
   version: 5ed0fc31f7f453625df314d8e66b9791e8d13003
-- name: github.com/valyala/bytebufferpool
-  version: e746df99fe4a3986f4d4f79e13c1e0117ce9c2f7
-- name: github.com/valyala/fasttemplate
-  version: d090d65668a286d9a180d43a19dfdc5dcad8fe88
 - name: github.com/x-cray/logrus-prefixed-formatter
   version: a35e641b1da09880f6432c2c7e814ef0817663f7
 - name: github.com/yuin/gopher-lua
   version: b402f3114ec730d8bddb074a6c137309f561aa78
-  subpackages:
-  - ast
-  - parse
-  - pm
 - name: golang.org/x/crypto
   version: 3627ff35f31987174dbee61d9d1dcc1c643e7174
   subpackages:
   - bcrypt
-  - blowfish
-- name: golang.org/x/net
-  version: f2499483f923065a842d38eb4c7f1927e6fc6e6d
-  subpackages:
-  - context
-- name: golang.org/x/sys
-  version: d75a52659825e75fff6158388dddc6a5b04f9ba5
-  subpackages:
-  - unix
-- name: golang.org/x/text
-  version: ece019dcfd29abcf65d0d1dfe145e8faad097640
-  subpackages:
-  - transform
-  - unicode/norm
-- name: gopkg.in/yaml.v2
-  version: 4c78c975fe7c825c6d1466c42be594d1d6f3aba6
 - name: layeh.com/gopher-luar
   version: 16281577dff29557258daa8ca9bc9b2e05f451f2
 testImports:
 - name: github.com/jinzhu/gorm
-  version: 5174cc5c242a728b435ea2be8a2f7f998e15429b
+  version: ""
 - name: github.com/onsi/ginkgo
-  version: bb93381d543b0e5725244abe752214a110791d01
+  version: ""
   subpackages:
-  - config
   - extensions/table
-  - internal/codelocation
-  - internal/containernode
-  - internal/failer
-  - internal/leafnodes
-  - internal/remote
-  - internal/spec
-  - internal/specrunner
-  - internal/suite
-  - internal/testingtproxy
-  - internal/writer
-  - reporters
-  - reporters/stenographer
-  - reporters/stenographer/support/go-colorable
-  - reporters/stenographer/support/go-isatty
-  - types
 - name: github.com/onsi/gomega
-  version: e85f63af4302dc0e4277c6008ecf803f1d80e4f0
-  subpackages:
-  - format
-  - internal/assertion
-  - internal/asyncassertion
-  - internal/oraclematcher
-  - internal/testingtsupport
-  - matchers
-  - matchers/support/goraph/bipartitegraph
-  - matchers/support/goraph/edge
-  - matchers/support/goraph/node
-  - matchers/support/goraph/util
-  - types
+  version: ""
