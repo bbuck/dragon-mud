@@ -133,7 +133,7 @@ var Sutil = lua.TableMap{
 	},
 	"inspect_value": func(eng *lua.Engine) int {
 		val := eng.PopValue()
-		eng.PushValue(val.Inspect())
+		eng.PushValue(val.Inspect(""))
 
 		return 1
 	},

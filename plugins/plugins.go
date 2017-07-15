@@ -84,7 +84,6 @@ func LoadViews() error {
 			relPath, _ := filepath.Rel(PluginRoot, path)
 			key := strings.Replace(relPath[:len(relPath)-5], fileSep, ".", -1)
 			key = strings.Replace(key, ".views", "", 1)
-			fmt.Println(key)
 
 			if err := tmpl.RegisterFile(key, path); err != nil {
 				log := logger.NewWithSource("view_loader")
@@ -100,7 +99,6 @@ func LoadViews() error {
 		if filepath.Ext(path) == ".view" {
 			relPath, _ := filepath.Rel(rootViewPath, path)
 			key := strings.Replace(relPath[:len(relPath)-5], fileSep, ".", -1)
-			fmt.Println(key)
 
 			if err := tmpl.RegisterFile(key, path); err != nil {
 				log := logger.NewWithSource("view_loader")

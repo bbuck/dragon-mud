@@ -137,7 +137,7 @@ func (r *REPL) Execute(src string) {
 		if len(results) > 0 {
 			var strs []string
 			for i := 0; i < len(results); i++ {
-				strs = append(strs, results[i].Inspect())
+				strs = append(strs, results[i].Inspect("    "))
 			}
 
 			fmt.Printf(" => %s\n", strings.Join(strs, ", "))

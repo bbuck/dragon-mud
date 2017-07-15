@@ -1,9 +1,9 @@
-# {{game_title}} base configuration file
+# {{ game_title }} base configuration file
 
-name = "{{game_title}}"
+name = "{{ game_title }}"
 version = "0.0.0"
 
-# {{game_title}} network configuration.
+# {{ game_title }} network configuration.
 [telnet]
 
   # Interface is the address you want the server to bind to. By default it's
@@ -11,7 +11,7 @@ version = "0.0.0"
   # to be accessible from outside the server.
   interface = "localhost"
 
-  # Change the port that {{game_title}} runs on
+  # Change the port that {{ game_title }} runs on
   port = 8080
 
   # Change the port the server private port runs on. This private port is only

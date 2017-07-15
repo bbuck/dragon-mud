@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/bbuck/dragon-mud/logger"
-	"github.com/valyala/fasttemplate"
+	"github.com/gobuffalo/velvet"
 )
 
 const (
@@ -21,7 +21,7 @@ var compiledTemplates = make(map[string]Renderer)
 // Register will compile and register a template using the string given and
 // store the compiled template in the map.
 func Register(name, contents string) error {
-	r, err := getRenderer(contents)
+	r, err := getVelvetRenderer(contents)
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func Unregister(name string) {
 // RenderOnce bypasses storing the saved templates. Tihs should only be used
 // if the template is only ever going to be compiled and rendered _one time_.
 func RenderOnce(contents string, data interface{}) (string, error) {
-	r, err := getRenderer(contents)
+	r, err := getVelvetRenderer(contents)
 	if err != nil {
 		return "", err
 	}
@@ -86,10 +86,11 @@ func Template(name string) (Renderer, error) {
 	return nil, fmt.Errorf("No template has been registered with the name \"%s\"", name)
 }
 
-func getRenderer(contents string) (Renderer, error) {
-	template, err := fasttemplate.NewTemplate(contents, openTemplateTags, closeTemplateTags)
+func getVelvetRenderer(contents string) (Renderer, error) {
+	template, err := velvet.NewTemplate(contents)
 	if err != nil {
 		return nil, err
 	}
-	return &fastTemplateRenderer{template}, nil
+
+	return &velvetRenderer{template}, nil
 }

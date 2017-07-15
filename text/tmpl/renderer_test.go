@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var templateWithBraces = "{{This}} should have [brackets]"
+var templateWithBraces = "{{ This }} should have {brackets}"
 
 var _ = Describe("Renderer", func() {
 	Describe("Render", func() {
@@ -68,7 +68,7 @@ var _ = Describe("Renderer", func() {
 			})
 
 			It("renders correctly", func() {
-				Ω(result).Should(Equal("This should have [brackets]"))
+				Ω(result).Should(Equal("This should have {brackets}"))
 			})
 		})
 
@@ -96,6 +96,31 @@ var _ = Describe("Renderer", func() {
 
 			It("renders the correct string", func() {
 				Ω(result).Should(Equal("Hello, Mundo!"))
+			})
+		})
+
+		Context("calling custom helpers", func() {
+			var (
+				template = "{{purge content}}"
+				data     = map[string]interface{}{
+					"content": "[r]red text![x]",
+				}
+				result string
+				err    error
+			)
+
+			BeforeEach(func() {
+				Register("helper.test", template)
+				t, _ := Template("helper.test")
+				result, err = t.Render(data)
+			})
+
+			It("doesn't fail", func() {
+				Ω(err).Should(BeNil())
+			})
+
+			It("renders the correct value", func() {
+				Ω(result).Should(Equal("red text!"))
 			})
 		})
 	})

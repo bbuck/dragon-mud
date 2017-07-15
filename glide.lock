@@ -1,12 +1,20 @@
-hash: 77126eee0bb538614835846936edf8f8748a017915b482560f6f769bbe81ace9
-updated: 2017-07-10T22:30:10.505984829-05:00
+hash: 2a3f6e1521172142641297ff4fb3e8889edb5c77c27023a0b6ace27e4dbbf133
+updated: 2017-07-15T05:47:12.426178645-05:00
 imports:
+- name: github.com/aymerick/raymond
+  version: 72acac2207479d21dd45898c2a4264246c818148
+  subpackages:
+  - ast
+  - lexer
+  - parser
 - name: github.com/chzyer/readline
   version: 62c6fe6193755f722b8b8788aa7357be55a50ff1
 - name: github.com/fatih/structs
   version: a720dfa8df582c51dee1b36feabb906bde1588bd
 - name: github.com/fsnotify/fsnotify
   version: a904159b9206978bb6d53fcc7a769e5cd726c737
+- name: github.com/gobuffalo/velvet
+  version: d97471bf5d8fd758ba0ecc7a085796b71ffc8957
 - name: github.com/hashicorp/hcl
   version: db4f0768927a665a06c32855186e1bc762bcc8f5
   subpackages:
@@ -31,20 +39,46 @@ imports:
   - structures/messages
 - name: github.com/magiconair/properties
   version: b3b15ef068fd0b17ddf408a23669f20811d194d2
+- name: github.com/markbates/inflect
+  version: 6cacb66d100482ef7cc366289ccb156020e57e76
 - name: github.com/mattn/go-zglob
   version: 95345c4e1c0ebc9d16a3284177f09360f4d20fab
 - name: github.com/mgutz/ansi
   version: c286dcecd19ff979eeb73ea444e479b903f2cfcb
+- name: github.com/microcosm-cc/bluemonday
+  version: e79763773ab6222ca1d5a7cbd9d62d83c1f77081
 - name: github.com/mitchellh/mapstructure
   version: db1efb556f84b25a0a13a04aad883943538ad2e0
 - name: github.com/pelletier/go-buffruneio
   version: df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d
 - name: github.com/pelletier/go-toml
   version: a1f048ba24490f9b0674a67e1ce995d685cddf4a
+- name: github.com/pkg/errors
+  version: c605e284fe17294bda444b34710735b29d1a9d90
+- name: github.com/russross/blackfriday
+  version: 067529f716f4c3f5e37c8c95ddd59df1007290ae
 - name: github.com/satori/go.uuid
   version: 879c5887cd475cd7864858769793b2ceb0d44feb
+- name: github.com/sergi/go-diff
+  version: feef008d51ad2b3778f85d387ccf91735543008d
+  subpackages:
+  - diffmatchpatch
+- name: github.com/shurcooL/github_flavored_markdown
+  version: 3c64cb3ce00a3f4feae0c53ce7c2cc2fdacba14b
+- name: github.com/shurcooL/highlight_diff
+  version: 09bb4053de1b1d872a9f25dc21378fa71dca4e4e
+- name: github.com/shurcooL/highlight_go
+  version: 78fb10f4a5f89e812a5e26ab723b954a51226086
+- name: github.com/shurcooL/octiconssvg
+  version: 1aed2117d2aa8eed76a052936e468e5354750701
+- name: github.com/shurcooL/sanitized_anchor_name
+  version: 541ff5ee47f1dddf6a5281af78307d921524bcb5
 - name: github.com/Sirupsen/logrus
   version: d26492970760ca5d33129d2d799e34be5c4782eb
+- name: github.com/sourcegraph/annotate
+  version: f4cad6c6324d3f584e1743d8b3e0e017a5f3a636
+- name: github.com/sourcegraph/syntaxhighlight
+  version: bd320f5d308e1a3c4314c678d8227a0d72574ae7
 - name: github.com/spf13/afero
   version: 72b31426848c6ef12a7a8e216708cb0d1530f074
   subpackages:
@@ -59,10 +93,6 @@ imports:
   version: a9a634f3de0a7529baded7ad6b0c7467d5c6eca7
 - name: github.com/spf13/viper
   version: 5ed0fc31f7f453625df314d8e66b9791e8d13003
-- name: github.com/valyala/bytebufferpool
-  version: e746df99fe4a3986f4d4f79e13c1e0117ce9c2f7
-- name: github.com/valyala/fasttemplate
-  version: d090d65668a286d9a180d43a19dfdc5dcad8fe88
 - name: github.com/x-cray/logrus-prefixed-formatter
   version: a35e641b1da09880f6432c2c7e814ef0817663f7
 - name: github.com/yuin/gopher-lua
@@ -80,6 +110,8 @@ imports:
   version: f2499483f923065a842d38eb4c7f1927e6fc6e6d
   subpackages:
   - context
+  - html
+  - html/atom
 - name: golang.org/x/sys
   version: d75a52659825e75fff6158388dddc6a5b04f9ba5
   subpackages:
