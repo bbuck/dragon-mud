@@ -2,11 +2,22 @@ package tmpl
 
 import (
 	"fmt"
+	"html/template"
 	"io"
 
+	"github.com/bbuck/dragon-mud/ansi"
 	"github.com/fatih/structs"
 	"github.com/gobuffalo/velvet"
 )
+
+// define velvet Helpers
+func init() {
+	velvet.Helpers.Add("purge", func(s string) template.HTML {
+		s = ansi.Purge(s)
+
+		return template.HTML(s)
+	})
+}
 
 // InvalidDataError represents that a data value was provided of an unexpected
 // type.

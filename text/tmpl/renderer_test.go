@@ -98,5 +98,30 @@ var _ = Describe("Renderer", func() {
 				Ω(result).Should(Equal("Hello, Mundo!"))
 			})
 		})
+
+		Context("calling custom helpers", func() {
+			var (
+				template = "{{purge content}}"
+				data     = map[string]interface{}{
+					"content": "[r]red text![x]",
+				}
+				result string
+				err    error
+			)
+
+			BeforeEach(func() {
+				Register("helper.test", template)
+				t, _ := Template("helper.test")
+				result, err = t.Render(data)
+			})
+
+			It("doesn't fail", func() {
+				Ω(err).Should(BeNil())
+			})
+
+			It("renders the correct value", func() {
+				Ω(result).Should(Equal("red text!"))
+			})
+		})
 	})
 })
