@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/bbuck/dragon-mud/logger"
+	"github.com/gobuffalo/velvet"
 	"github.com/valyala/fasttemplate"
 )
 
@@ -21,7 +22,7 @@ var compiledTemplates = make(map[string]Renderer)
 // Register will compile and register a template using the string given and
 // store the compiled template in the map.
 func Register(name, contents string) error {
-	r, err := getRenderer(contents)
+	r, err := getVelvetRenderer(contents)
 	if err != nil {
 		return err
 	}
@@ -92,4 +93,13 @@ func getRenderer(contents string) (Renderer, error) {
 		return nil, err
 	}
 	return &fastTemplateRenderer{template}, nil
+}
+
+func getVelvetRenderer(contents string) (Renderer, error) {
+	template, err := velvet.NewTemplate(contents)
+	if err != nil {
+		return nil, err
+	}
+
+	return &velvetRenderer{template}, nil
 }

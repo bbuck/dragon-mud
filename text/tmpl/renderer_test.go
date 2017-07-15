@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var templateWithBraces = "{{This}} should have [brackets]"
+var templateWithBraces = "{{ This }} should have {brackets}"
 
 var _ = Describe("Renderer", func() {
 	Describe("Render", func() {
@@ -68,7 +68,7 @@ var _ = Describe("Renderer", func() {
 			})
 
 			It("renders correctly", func() {
-				Ω(result).Should(Equal("This should have [brackets]"))
+				Ω(result).Should(Equal("This should have {brackets}"))
 			})
 		})
 
