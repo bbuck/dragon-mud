@@ -16,7 +16,7 @@ var dragonColors = []dragonDetails{
 	{name: "[B]blue[x]", color: "[B]"},
 	{name: "[c202]copper[x]", color: "[c202]"},
 	{name: "[W]white[x]", color: "[W]"},
-	{name: "[c250]{u}silver[x]", color: "[c250][u]"},
+	{name: "[c250][u]silver[x]", color: "[c250][u]"},
 }
 
 func getRandomDragonDetails() dragonDetails {

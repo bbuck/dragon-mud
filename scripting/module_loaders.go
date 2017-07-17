@@ -23,6 +23,7 @@ var simpleModuleMap = map[string]lua.TableMap{
 
 var complexModuleMap = map[string]func(*lua.Engine){
 	"talon": modules.TalonLoader,
+	"fn":    modules.ScriptLoader("modules/fn.lua"),
 }
 
 // OpenLibs will open all modules given to the function as defined in the

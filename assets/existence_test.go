@@ -15,4 +15,5 @@ var _ = DescribeTable("Existence",
 	Entry("Dragonfile.toml", "Dragonfile.toml"),
 	Entry("DragonInfo.toml", "DragonInfo.toml"),
 	Entry("test.toml", "test.toml"),
-	Entry("init.lua", "init.lua"))
+	Entry("init.lua", "init.lua"),
+	Entry("modules/fn.lua", "modules/fn.lua"))
