@@ -18,7 +18,7 @@ end
 -- returns:
 --   true if tbl has length > 0
 function is_list(tbl)
-  return #list > 0
+  return #tbl > 0
 end
 
 function sum_reducer(sum, current)
@@ -49,7 +49,7 @@ local fn = {
   each = function(tbl, action)
     if is_valid_params(tbl, action) then
       if is_list(tbl) then
-        for i = 1, #list do
+        for i = 1, #tbl do
           action(tbl[i], i)
         end
       else
@@ -82,7 +82,7 @@ local fn = {
       local new_list = {}
 
       if is_list(tbl) then
-        for i = 1, #list do
+        for i = 1, #tbl do
           table.insert(new_list, mapper(tbl[i], i))
         end
       else
@@ -116,7 +116,7 @@ local fn = {
   reduce = function(tbl, val, reducer)
     if is_valid_params(tbl, reducer) then
       if is_list(tbl) then
-        for i = 1, #list do
+        for i = 1, #tbl do
           val = reducer(val, list[i], i)
         end
       else
@@ -161,7 +161,7 @@ local fn = {
     if is_valid_params(tbl, filter) then
       local new_list = {}
       if is_list(tbl) then
-        for i = 1, #list do
+        for i = 1, #tbl do
           if filter(tbl[i], i) then
             table.insert(new_list, list[i])
           end
@@ -199,7 +199,7 @@ local fn = {
   find = function(tbl, finder)
     if is_valid_params(tbl, finder) then
       if is_list(tbl) then
-        for i = 1, #list do
+        for i = 1, #tbl do
           if finder(tbl[i], i) then
             return list[i]
           end
@@ -236,7 +236,7 @@ local fn = {
   any = function(tbl, tester)
     if is_valid_params(tbl, tester) then
       if is_list(tbl) then
-        for i = 1, #list do
+        for i = 1, #tbl do
           if tester(tbl[i], i) then
             return true
           end
@@ -275,7 +275,7 @@ local fn = {
   all = function(tbl, tester)
     if is_valid_params(tbl, tester) then
       if is_list(tbl) then
-        for i = 1, #list do
+        for i = 1, #tbl do
           if not tester(tbl[i], i) then
             return false
           end
@@ -312,7 +312,7 @@ local fn = {
     if amount > 0 and is_valid_params(tbl, fn.ident) then
       if is_list(tbl) then
         for i = 1, amount do
-          if i <= #list then
+          if i <= #tbl then
             table.insert(new_list, list[i])
           end
         end
@@ -351,7 +351,7 @@ local fn = {
     -- no fn required, so we used ident as a 'always true' value
     if is_valid_params(tbl, fn.ident) then
       if is_list(tbl) then
-        for i = (amount + 1), #list do
+        for i = (amount + 1), #tbl do
           table.insert(new_list, list[i])
         end
       else
@@ -594,7 +594,7 @@ end
 --   a new Value wrapping the given table that functional methods can be
 --   used on
 function fn.value(tbl)
-  local val = {_table = list}
+  local val = {_table = tbl}
   setmetatable(val, {__index = Value})
 
   return val
