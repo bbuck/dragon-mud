@@ -4,6 +4,7 @@
 // assets/raw/DragonInfo.toml
 // assets/raw/Dragonfile.toml
 // assets/raw/init.lua
+// assets/raw/modules/fn.lua
 // assets/raw/test.toml
 // DO NOT EDIT!
 
@@ -103,6 +104,24 @@ func initLua() (*asset, error) {
 	return a, err
 }
 
+// modulesFnLua reads file data from disk. It returns an error on failure.
+func modulesFnLua() (*asset, error) {
+	path := "/Users/izuriel/Dev/go/src/github.com/bbuck/dragon-mud/assets/raw/modules/fn.lua"
+	name := "modules/fn.lua"
+	bytes, err := bindataRead(path, name)
+	if err != nil {
+		return nil, err
+	}
+
+	fi, err := os.Stat(path)
+	if err != nil {
+		err = fmt.Errorf("Error reading asset info %s at %s: %v", name, path, err)
+	}
+
+	a := &asset{bytes: bytes, info: fi}
+	return a, err
+}
+
 // testToml reads file data from disk. It returns an error on failure.
 func testToml() (*asset, error) {
 	path := "/Users/izuriel/Dev/go/src/github.com/bbuck/dragon-mud/assets/raw/test.toml"
@@ -177,6 +196,7 @@ var _bindata = map[string]func() (*asset, error){
 	"DragonInfo.toml": dragoninfoToml,
 	"Dragonfile.toml": dragonfileToml,
 	"init.lua": initLua,
+	"modules/fn.lua": modulesFnLua,
 	"test.toml": testToml,
 }
 
@@ -224,6 +244,9 @@ var _bintree = &bintree{nil, map[string]*bintree{
 	"DragonInfo.toml": &bintree{dragoninfoToml, map[string]*bintree{}},
 	"Dragonfile.toml": &bintree{dragonfileToml, map[string]*bintree{}},
 	"init.lua": &bintree{initLua, map[string]*bintree{}},
+	"modules": &bintree{nil, map[string]*bintree{
+		"fn.lua": &bintree{modulesFnLua, map[string]*bintree{}},
+	}},
 	"test.toml": &bintree{testToml, map[string]*bintree{}},
 }}
 
