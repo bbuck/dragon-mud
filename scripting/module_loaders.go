@@ -21,9 +21,15 @@ var simpleModuleMap = map[string]lua.TableMap{
 	"uuid":     modules.UUID,
 }
 
-var complexModuleMap = map[string]func(*lua.Engine){
-	"talon": modules.TalonLoader,
-	"fn":    modules.ScriptLoader("modules/fn.lua"),
+// ModuleLoader represents a function that takes a lua engine and loads a
+// module into it, such that is available for use by any script wishing to
+// import the module.
+type ModuleLoader func(*lua.Engine)
+
+var complexModuleMap = map[string]ModuleLoader{
+	"talon":  modules.TalonLoader,
+	"fn":     ScriptLoader("modules/fn.lua"),
+	"entity": modules.EntityLoader,
 }
 
 // OpenLibs will open all modules given to the function as defined in the

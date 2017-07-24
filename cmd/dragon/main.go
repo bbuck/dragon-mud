@@ -31,7 +31,10 @@ func main() {
 func getCommandEngine() *lua.Engine {
 	log := logger.NewWithSource("command_engine")
 
-	eng := lua.NewEngine()
+	eng := lua.NewEngine(lua.EngineOptions{
+		FieldNaming:  lua.SnakeCaseNames,
+		MethodNaming: lua.SnakeCaseNames,
+	})
 	eng.OpenLibs()
 	scripting.OpenLibs(eng, "*", "-events")
 	eng.Meta[keys.RootCmd] = cli.RootCmd

@@ -22,6 +22,12 @@ var regexpCache = make(map[string]*regexp.Regexp)
 //     @param joiner: string = a string value that should act as the glue
 //       between all values in (words) from ealier.
 //     combine the input list of strings with the joiner
+//   count(needle, haystack): number
+//     @param needle: string = the string value to count occurrences of in the
+//       haystack.
+//     @param haystack: string = the source string to count occurences within.
+//     count the number of occurrences of the needle inside the source string,
+//     for example, sutil.count("-", "this-test-string") == 2
 //   test_rx(needle, haystack): boolean
 //     @param needle: pattern = A Go regular expressoin pattern used to test
 //       against the given string value?
@@ -73,6 +79,9 @@ var Sutil = lua.TableMap{
 		eng.PushValue(strings.Join(strs, joiner))
 
 		return 1
+	},
+	"count": func(needle, haystack string) int {
+		return strings.Count(haystack, needle)
 	},
 	"test_rx": func(eng *lua.Engine) int {
 		haystack := eng.PopString()

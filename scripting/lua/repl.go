@@ -98,10 +98,6 @@ func (r *REPL) Run() error {
 			return err
 		}
 
-		if line == ".exit" {
-			return nil
-		}
-
 		r.Execute(line)
 
 		r.lineNumber++

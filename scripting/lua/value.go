@@ -15,7 +15,7 @@ import (
 // goal with Inspecter over fmt.Stringer is to provide debug information in
 // the string output rather than (potentially) user facing output.
 type Inspecter interface {
-	Inspect() string
+	Inspect(string) string
 }
 
 // Value is a utility wrapper for lua.LValue that provies conveinient methods
@@ -83,7 +83,7 @@ func (v *Value) Inspect(indent string) string {
 		iface := v.Interface()
 		switch it := iface.(type) {
 		case Inspecter:
-			return it.Inspect()
+			return it.Inspect(indent)
 		case fmt.Stringer:
 			return it.String()
 		default:
@@ -203,7 +203,7 @@ func (v *Value) Equals(o interface{}) bool {
 
 // IsNil will only return true if the Value wraps LNil.
 func (v *Value) IsNil() bool {
-	return v.lval.Type() == lua.LTNil
+	return v == nil || v.lval == nil || v.lval.Type() == lua.LTNil
 }
 
 // IsFalse is similar to AsBool except it returns if the Lua value would be
@@ -269,8 +269,8 @@ func (v *Value) asTable() (t *lua.LTable) {
 	return
 }
 
-// isUserData returns a bool if the Value is an LUserData
-func (v *Value) isUserData() bool {
+// IsUserData returns a bool if the Value is an LUserData
+func (v *Value) IsUserData() bool {
 	return v.lval.Type() == lua.LTUserData
 }
 
@@ -371,7 +371,6 @@ func getLValue(e *Engine, item interface{}) lua.LValue {
 
 	if e != nil {
 		return e.ValueFor(item).lval
-		// return luar.New(e.state, item)
 	}
 
 	return lua.LNil
@@ -390,14 +389,12 @@ func (v *Value) Get(key interface{}) *Value {
 	return nil
 }
 
-// Set sets the value of a given key on the table, this method checks for
-// validity of array keys and handles them accordingly.
+// Set will assign the field on the object to the given value.
 func (v *Value) Set(goKey interface{}, val interface{}) {
 	if v.IsTable() {
-		key := getLValue(v.owner, goKey)
-		lval := getLValue(v.owner, val)
+		key := v.owner.ValueFor(goKey)
 
-		v.asTable().RawSet(key, lval)
+		v.owner.SetField(v, key.AsString(), val)
 	}
 }
 
@@ -437,7 +434,7 @@ func (v *Value) RawGet(goKey interface{}) *Value {
 
 // Interface returns the value of the LUserData
 func (v *Value) Interface() interface{} {
-	if v.isUserData() {
+	if v.IsUserData() {
 		t := v.asUserData()
 
 		return t.Value

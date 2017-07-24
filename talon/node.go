@@ -6,6 +6,9 @@ import (
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
 )
 
+// UnsetID is an ID used when a blank node is created.
+const UnsetID = -1
+
 // Node represents a Neo4j Node type.
 type Node struct {
 	ID         int64
@@ -27,6 +30,27 @@ func wrapBoltNode(n bolt.Node) (*Node, error) {
 		Labels:     n.Labels,
 		Properties: p,
 	}, nil
+}
+
+// NewNode creates a new instance of a node with an unset ID, no labels and
+// an empty set of properties.
+func NewNode() *Node {
+	return &Node{
+		ID:         UnsetID,
+		Labels:     make([]string, 0),
+		Properties: make(Properties),
+	}
+}
+
+// IsNewRecord returns true if the nodes identifier is unset (meaning it hasn't
+// been saved yet).
+func (n *Node) IsNewRecord() bool {
+	return n.ID == UnsetID
+}
+
+// AddLabel appends a label to the list of labels this node has.
+func (n *Node) AddLabel(lbl string) {
+	n.Labels = append(n.Labels, lbl)
 }
 
 // Get will fetch the property assocaited with the node, returning a bool

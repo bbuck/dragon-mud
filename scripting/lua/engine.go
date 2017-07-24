@@ -50,12 +50,12 @@ func NewEngine(opts ...EngineOptions) *Engine {
 func (e *Engine) configureFromOptions(options []EngineOptions) {
 	openedLibs := false
 
+	config := luar.GetConfig(e.state)
 	for _, opt := range options {
 		if !openedLibs && opt.OpenLibs {
 			e.OpenLibs()
 		}
 
-		config := luar.GetConfig(e.state)
 		switch opt.FieldNaming {
 		case SnakeCaseExportedNames:
 			config.FieldNames = nil
@@ -470,6 +470,14 @@ func (e *Engine) RegisterClassWithCtor(name string, typ interface{}, cons interf
 	table.RawSet("new", lcons)
 
 	e.state.SetGlobal(name, table.lval)
+}
+
+// MetatableFor returns the Lua metatable for a given type, allowing it to be
+// modified.
+func (e *Engine) MetatableFor(goVal interface{}) *Value {
+	mt := luar.MT(e.state, goVal)
+
+	return e.newValue(mt.LTable)
 }
 
 // ValueFor takes a Go type and creates a lua equivalent Value for it.

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -42,6 +43,9 @@ in libraries for quick testing.`,
 				MethodNaming: lua.SnakeCaseNames,
 			})
 			scripting.OpenLibs(eng, "*")
+			eng.SetGlobal("exit", func() {
+				os.Exit(0)
+			})
 
 			name := strings.ToLower(viper.GetString("name"))
 			repl := lua.NewREPLWithConfig(lua.REPLConfig{
@@ -51,7 +55,7 @@ in libraries for quick testing.`,
 				HistoryFilePath: ".repl-history",
 			})
 
-			fmt.Printf("\n  type '.exit' to quit.\n\n")
+			fmt.Printf("\n  use 'exit()' to quit.\n\n")
 			err := repl.Run()
 			if err != nil {
 				log.WithError(err).Error("Encountered error running Console.")

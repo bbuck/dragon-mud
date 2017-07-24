@@ -14,7 +14,7 @@ import (
 //     @param password: string = a plaintext password value
 //     hashes the plain text password using the bcrypt algorithm for hasing
 //     passwords and the configured cost in Dragonfile.toml.
-//   isValid(password: string, hash: string): string
+//   is_valid(password: string, hash: string): string
 //     @param password string = the plain text password entered by the user that
 //       will be compared against the hash
 //     @param hash: string = a hash of an encrypted password that the new
