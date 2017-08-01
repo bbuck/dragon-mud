@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/bbuck/dragon-mud/utils"
 	"github.com/yuin/gopher-lua"
 )
 
@@ -90,7 +91,9 @@ func (v *Value) Inspect(indent string) string {
 			ud := v.asUserData()
 			val := v.owner.ValueFor(ud.Metatable)
 
-			vals, err := val.Invoke("inspect", 1, v)
+			vals, err := val.Invoke("inspect", 1, v, indent+"  ")
+			utils.WTFIsThis(vals)
+			utils.WTFIsThis(err)
 			if err != nil || len(vals) == 0 {
 				return fmt.Sprintf("%T(%+v)", iface, iface)
 			}
@@ -458,7 +461,16 @@ func (v *Value) FuncLocalName(regno, pc int) (string, bool) {
 // Invoke will fetch a funtion value on the table (if we're working with a
 // table, and then attempt to invoke it if it's a function.
 func (v *Value) Invoke(key interface{}, retCount int, argList ...interface{}) ([]*Value, error) {
-	val := v.Get(key)
+	var val *Value
+	if v.IsUserData() {
+		ud := v.lval.(*lua.LUserData)
+		mtbl := v.owner.ValueFor(ud.Metatable)
+		val = mtbl.Get(key)
+		fmt.Printf("\n\n%+v\n\n", val)
+	} else {
+		val = v.Get(key)
+	}
+
 	if val == nil || val.IsNil() || !val.IsFunction() {
 		return nil, fmt.Errorf("value doesn't exist or is not a function")
 	}

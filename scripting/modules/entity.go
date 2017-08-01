@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"sync"
@@ -27,12 +28,6 @@ func (em *entityMaster) New() *entity {
 		master: em,
 		node:   node,
 	}
-}
-
-// Inspect presents a friendly value for the REPL representing that this is
-// an entity master.
-func (em *entityMaster) Inspect(indent string) string {
-	return fmt.Sprintf("entity master %q", em.label)
 }
 
 // Entity can represent anything within the game. The Entity itself is a base
@@ -126,7 +121,8 @@ var specialProperties = map[string]propertyFunc{
 // lists. The properties here are used to determine what properties can actually
 // be set and a type for that string.
 type ComponentMap struct {
-	fns          map[string]*lua.Value
+	methods      map[string]*lua.Value
+	statics      map[string]*lua.Value
 	props        map[string]typeFunc
 	components   []string
 	unnamedCount int
@@ -165,11 +161,13 @@ func EntityLoader(engine *lua.Engine) {
 	engine.RegisterModule("entity", EntityModule)
 
 	emmt := engine.MetatableFor(&entityMaster{})
-	emmt.RawGet("ptr_methods").RawSet("register_component", entityMasterRegisterComponent)
-	emmt.RawGet("ptr_methods").RawSet("extend", entityMasterExtend)
+	ptrMethods := emmt.RawGet("ptr_methods")
+	ptrMethods.RawSet("register_component", entityMasterRegisterComponent)
+	ptrMethods.RawSet("extend", entityMasterExtend)
+	ptrMethods.RawSet("inspect", entityMasterInspect)
 	emmt.RawSet("__eq", entityMasterEq)
 	emmt.RawSet("__call", entityMasterCall)
-	emmt.RawSet("__tostring", goToString)
+	emmt.RawSet("__tostring", goLuaToString(entityMasterInspect))
 
 	emt := engine.MetatableFor(entity{})
 	emt.RawSet("__index", entityIndex)
@@ -228,7 +226,7 @@ func entityIndex(engine *lua.Engine) int {
 
 	// begin fn search
 	cm := getComponentMap(engine, e.master.label)
-	if lfn, isSet := cm.fns[key]; isSet {
+	if lfn, isSet := cm.methods[key]; isSet {
 		engine.PushValue(lfn)
 
 		return 1
@@ -270,6 +268,29 @@ func entityEq(engine *lua.Engine) int {
 		!e2.node.IsNewRecord() &&
 		e1.master.label == e2.master.label &&
 		e1.node.ID == e2.node.ID)
+
+	return 1
+}
+
+func entityMasterInspect(engine *lua.Engine) int {
+	indent := engine.PopString()
+	em := engine.PopValue().Interface().(*entityMaster)
+
+	buf := new(bytes.Buffer)
+	buf.WriteString("<Entity \"")
+	buf.WriteString(em.label)
+	buf.WriteString("\">\n")
+
+	cm := getComponentMap(engine, em.label)
+
+	for _, comp := range cm.components {
+		buf.WriteString(indent)
+		buf.WriteString("  -> \"")
+		buf.WriteString(comp)
+		buf.WriteString("\"\n")
+	}
+
+	engine.PushValue(buf.String())
 
 	return 1
 }
@@ -370,7 +391,18 @@ func mapComponentTable(em *entityMaster, cm *ComponentMap, tbl *lua.Value) {
 
 	tbl.Get("methods").ForEach(func(key, val *lua.Value) {
 		if val.IsFunction() {
-			cm.fns[key.AsString()] = val
+			cm.methods[key.AsString()] = val
+		} else {
+			log("entity").WithFields(logger.Fields{
+				"entity":   em.label,
+				"function": key.AsString(),
+			}).Warn("Component function is not a function")
+		}
+	})
+
+	tbl.Get("static").ForEach(func(key, val *lua.Value) {
+		if val.IsFunction() {
+			cm.statics[key.AsString()] = val
 		} else {
 			log("entity").WithFields(logger.Fields{
 				"entity":   em.label,
@@ -407,7 +439,7 @@ func getComponentMap(engine *lua.Engine, entityLabel string) *ComponentMap {
 	}
 
 	ecm := &ComponentMap{
-		fns:        make(map[string]*lua.Value),
+		methods:    make(map[string]*lua.Value),
 		props:      make(map[string]typeFunc),
 		components: make([]string, 0),
 		mutex:      new(sync.Mutex),
