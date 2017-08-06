@@ -253,7 +253,7 @@ var Time = lua.TableMap{
 type instantValue time.Time
 
 // Inspect prints a pretty format for a time for use in the REPL.
-func (iv *instantValue) Inspect() string {
+func (iv *instantValue) Inspect(string) string {
 	return fmt.Sprintf("time.Instant(%q)", iv.Format(time.UnixDate))
 }
 

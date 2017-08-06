@@ -59,30 +59,61 @@ func (e *entity) Inspect(indent string) string {
 	return fmt.Sprintf("entity %q #%d", e.master.label, e.node.ID)
 }
 
-// typeFunc converts a lua value into a go type, there are a few valid type
+// entityType converts a lua value into a go type, there are a few valid type
 // functions.
-type typeFunc func(*lua.Value) interface{}
+type entityType struct {
+	toGo  func(*lua.Value) interface{}
+	toLua func(interface{}) interface{}
+}
 
-var typeFuncMap = map[string]typeFunc{
-	"string": func(val *lua.Value) interface{} {
-		return val.AsString()
+var typeFuncMap = map[string]*entityType{
+	"string": &entityType{
+		toGo: func(val *lua.Value) interface{} {
+			return val.AsString()
+		},
+		toLua: func(iface interface{}) interface{} {
+			return iface
+		},
 	},
-	"number": func(val *lua.Value) interface{} {
-		return val.AsNumber()
+	"number": &entityType{
+		toGo: func(val *lua.Value) interface{} {
+			return val.AsNumber()
+		},
+		toLua: func(iface interface{}) interface{} {
+			return iface
+		},
 	},
-	"time": func(val *lua.Value) interface{} {
-		var t time.Time
-		if iv, ok := val.Interface().(*instantValue); ok {
-			t = time.Time(*iv)
-		}
+	"time": &entityType{
+		toGo: func(val *lua.Value) interface{} {
+			var t time.Time
+			if iv, ok := val.Interface().(*instantValue); ok {
+				t = time.Time(*iv)
+			}
 
-		return t
+			return t
+		},
+		toLua: func(iface interface{}) interface{} {
+			t := iface.(time.Time)
+			iv := instantValue(t)
+
+			return &iv
+		},
 	},
-	"table": func(val *lua.Value) interface{} {
-		return val.AsMapStringInterface()
+	"table": &entityType{
+		toGo: func(val *lua.Value) interface{} {
+			return val.AsMapStringInterface()
+		},
+		toLua: func(iface interface{}) interface{} {
+			return iface
+		},
 	},
-	"boolean": func(val *lua.Value) interface{} {
-		return val.AsBool()
+	"boolean": &entityType{
+		toGo: func(val *lua.Value) interface{} {
+			return val.AsBool()
+		},
+		toLua: func(iface interface{}) interface{} {
+			return iface
+		},
 	},
 }
 
@@ -123,7 +154,7 @@ var specialProperties = map[string]propertyFunc{
 type ComponentMap struct {
 	methods      map[string]*lua.Value
 	statics      map[string]*lua.Value
-	props        map[string]typeFunc
+	props        map[string]*entityType
 	components   []string
 	unnamedCount int
 	mutex        *sync.Mutex
@@ -168,6 +199,7 @@ func EntityLoader(engine *lua.Engine) {
 	emmt.RawSet("__eq", entityMasterEq)
 	emmt.RawSet("__call", entityMasterCall)
 	emmt.RawSet("__tostring", goLuaToString(entityMasterInspect))
+	emmt.RawSet("__index", entityMasterIndex(emmt.RawGet("__index")))
 
 	emt := engine.MetatableFor(entity{})
 	emt.RawSet("__index", entityIndex)
@@ -188,16 +220,16 @@ func entityNewIndex(engine *lua.Engine) int {
 	e := etbl.Interface().(*entity)
 	cm := getComponentMap(engine, e.master.label)
 	var (
-		typeFn typeFunc
+		typ    *entityType
 		isProp bool
 	)
-	if typeFn, isProp = cm.props[key]; !isProp {
+	if typ, isProp = cm.props[key]; !isProp {
 		engine.PushValue(nil)
 
 		return 0
 	}
 
-	e.node.Properties[key] = typeFn(val)
+	e.node.Properties[key] = typ.toGo(val)
 
 	engine.PushValue(val)
 
@@ -217,15 +249,16 @@ func entityIndex(engine *lua.Engine) int {
 		return 1
 	}
 
+	cm := getComponentMap(engine, e.master.label)
 	if val, isSet := e.node.Properties[key]; isSet {
-		engine.PushValue(val)
+		typ := cm.props[key]
+		engine.PushValue(typ.toLua(val))
 
 		return 1
 	}
 	// end property search
 
 	// begin fn search
-	cm := getComponentMap(engine, e.master.label)
 	if lfn, isSet := cm.methods[key]; isSet {
 		engine.PushValue(lfn)
 
@@ -293,6 +326,29 @@ func entityMasterInspect(engine *lua.Engine) int {
 	engine.PushValue(buf.String())
 
 	return 1
+}
+
+func entityMasterIndex(idxFn *lua.Value) lua.ScriptFunction {
+	return func(engine *lua.Engine) int {
+		key := engine.PopString()
+		self := engine.PopValue()
+
+		em := self.Interface().(*entityMaster)
+		cm := getComponentMap(engine, em.label)
+
+		if val, ok := cm.statics[key]; ok {
+			engine.PushValue(val)
+		} else {
+			vals, err := idxFn.Call(1, self, key)
+			if err != nil || len(vals) == 0 {
+				engine.PushValue(nil)
+			} else {
+				engine.PushValue(vals[0])
+			}
+		}
+
+		return 1
+	}
 }
 
 func entityMasterEq(engine *lua.Engine) int {
@@ -400,7 +456,7 @@ func mapComponentTable(em *entityMaster, cm *ComponentMap, tbl *lua.Value) {
 		}
 	})
 
-	tbl.Get("static").ForEach(func(key, val *lua.Value) {
+	tbl.Get("statics").ForEach(func(key, val *lua.Value) {
 		if val.IsFunction() {
 			cm.statics[key.AsString()] = val
 		} else {
@@ -440,7 +496,8 @@ func getComponentMap(engine *lua.Engine, entityLabel string) *ComponentMap {
 
 	ecm := &ComponentMap{
 		methods:    make(map[string]*lua.Value),
-		props:      make(map[string]typeFunc),
+		statics:    make(map[string]*lua.Value),
+		props:      make(map[string]*entityType),
 		components: make([]string, 0),
 		mutex:      new(sync.Mutex),
 	}

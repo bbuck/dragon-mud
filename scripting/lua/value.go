@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/bbuck/dragon-mud/utils"
 	"github.com/yuin/gopher-lua"
 )
 
@@ -91,9 +90,18 @@ func (v *Value) Inspect(indent string) string {
 			ud := v.asUserData()
 			val := v.owner.ValueFor(ud.Metatable)
 
-			vals, err := val.Invoke("inspect", 1, v, indent+"  ")
-			utils.WTFIsThis(vals)
-			utils.WTFIsThis(err)
+			mt := v.owner.MetatableFor(ud.Value)
+			vals, err := mt.RawGet("ptr_methods").Invoke("inspect", 1, v, indent)
+			if err == nil && len(vals) > 0 {
+				return vals[0].AsString()
+			}
+
+			vals, err = mt.Invoke("inspect", 1, v, indent)
+			if err == nil && len(vals) > 0 {
+				return vals[0].AsString()
+			}
+
+			vals, err = val.Invoke("inspect", 1, v, indent)
 			if err != nil || len(vals) == 0 {
 				return fmt.Sprintf("%T(%+v)", iface, iface)
 			}
