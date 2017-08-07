@@ -12,5 +12,5 @@ const (
 	TalonRowMetatable  = "talon row metatable"
 	TalonRowsMetatable = "talon rows metatable"
 
-	EntityComponentMapping = "entity component mapping"
+	EntityToComponentMapping = "entity component mapping"
 )

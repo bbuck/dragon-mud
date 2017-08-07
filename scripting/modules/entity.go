@@ -49,16 +49,6 @@ func (e *entity) Is(lbl string) bool {
 	return e.master.label == lbl
 }
 
-// Inspect returns a friendly view for the Lua REPL that displays details about
-// this type.
-func (e *entity) Inspect(indent string) string {
-	if e.node.IsNewRecord() {
-		return fmt.Sprintf("new entity %q", e.master.label)
-	}
-
-	return fmt.Sprintf("entity %q #%d", e.master.label, e.node.ID)
-}
-
 // entityType converts a lua value into a go type, there are a few valid type
 // functions.
 type entityType struct {
@@ -160,10 +150,10 @@ type ComponentMap struct {
 	mutex        *sync.Mutex
 }
 
-// ComponentMapping maps an Entity (by name) to a set of component functions.
+// EntityToComponentMap maps an Entity (by name) to a set of component functions.
 // Component functions are mapped to provide quick access when looking up
 // extend functions.
-type ComponentMapping map[string]*ComponentMap
+type EntityToComponentMap map[string]*ComponentMap
 
 // EntityModule represents the entity library with in the Lua plugin system.
 // The EntityModule is a set of methods used to access/return entities around,
@@ -202,12 +192,52 @@ func EntityLoader(engine *lua.Engine) {
 	emmt.RawSet("__index", entityMasterIndex(emmt.RawGet("__index")))
 
 	emt := engine.MetatableFor(entity{})
+	emt.RawSet("inspect", entityInspect)
 	emt.RawSet("__index", entityIndex)
 	emt.RawSet("__newindex", entityNewIndex)
 	emt.RawSet("__eq", entityEq)
-	emt.RawSet("__tostring", goToString)
+	emt.RawSet("__tostring", goLuaToString(entityInspect))
 }
 
+// inspect displays the entity details (like if it's a new entity) and it's
+// property values
+func entityInspect(engine *lua.Engine) int {
+	indent := engine.PopString()
+	etbl := engine.PopValue()
+
+	e := etbl.Interface().(*entity)
+	cm := getComponentMap(engine, e.master.label)
+
+	buf := new(bytes.Buffer)
+	if e.node.IsNewRecord() {
+		buf.WriteString("new entity \"")
+		buf.WriteString(e.master.label)
+		buf.WriteString("\"\n")
+	} else {
+		buf.WriteString("entity \"")
+		buf.WriteString(e.master.label)
+		buf.WriteString("\" #")
+		buf.WriteString(fmt.Sprintf("%d", e.node.ID))
+		buf.WriteRune('\n')
+	}
+
+	for name, propType := range cm.props {
+		buf.WriteString(indent)
+		buf.WriteString("  ")
+		buf.WriteString(name)
+		buf.WriteString(" => ")
+		val := engine.ValueFor(propType.toLua(e.node.Properties[name]))
+		buf.WriteString(val.Inspect(indent + "  "))
+		buf.WriteRune('\n')
+	}
+
+	engine.PushValue(buf.String())
+
+	return 1
+}
+
+// newindex overrides __newindex and allows new assignments only to
+// configured properties as specified by all associated components.
 func entityNewIndex(engine *lua.Engine) int {
 	val := engine.PopValue()
 	key := engine.PopString()
@@ -236,6 +266,8 @@ func entityNewIndex(engine *lua.Engine) int {
 	return 1
 }
 
+// index overrides __index and looks up properties and methods from all the
+// associated components and extensions.
 func entityIndex(engine *lua.Engine) int {
 	key := engine.PopString()
 	etbl := engine.PopValue()
@@ -271,6 +303,9 @@ func entityIndex(engine *lua.Engine) int {
 	return 1
 }
 
+// eq overrides __eq for entities. An entity is equal to another entity if
+// neither is a new record and they have same Node ID and they have the same
+// label.
 func entityEq(engine *lua.Engine) int {
 	o2 := engine.PopValue()
 	o1 := engine.PopValue()
@@ -305,6 +340,8 @@ func entityEq(engine *lua.Engine) int {
 	return 1
 }
 
+// inspect allows a display for REPL behaviors listing the applied extentions
+// and components on the entity.
 func entityMasterInspect(engine *lua.Engine) int {
 	indent := engine.PopString()
 	em := engine.PopValue().Interface().(*entityMaster)
@@ -328,6 +365,8 @@ func entityMasterInspect(engine *lua.Engine) int {
 	return 1
 }
 
+// index overrides __index and will look up static methods, before falling back
+// to the magical special __index added by the Lua engine.
 func entityMasterIndex(idxFn *lua.Value) lua.ScriptFunction {
 	return func(engine *lua.Engine) int {
 		key := engine.PopString()
@@ -351,6 +390,9 @@ func entityMasterIndex(idxFn *lua.Value) lua.ScriptFunction {
 	}
 }
 
+// eq overrides __eq on the entity master to enable comparison. An entity master
+// is equal to another entity master if they both represent the same entity --
+// if the label matches up.
 func entityMasterEq(engine *lua.Engine) int {
 	o2 := engine.PopValue()
 	o1 := engine.PopValue()
@@ -382,6 +424,9 @@ func entityMasterEq(engine *lua.Engine) int {
 	return 1
 }
 
+// call lets you use the Entity master as a function to create a new instance,
+// this is a syntactic alternative to new, so Entity:new() and Entity() do the
+// same thing.
 func entityMasterCall(engine *lua.Engine) int {
 	emtbl := engine.PopValue()
 
@@ -391,6 +436,8 @@ func entityMasterCall(engine *lua.Engine) int {
 	return 1
 }
 
+// register_component is the heavy hitter, designed to add a complete set of
+// functionality to an entity, properties, relationships and methods.
 func entityMasterRegisterComponent(engine *lua.Engine) int {
 	comp := engine.PopValue()
 	emtbl := engine.PopValue()
@@ -400,16 +447,20 @@ func entityMasterRegisterComponent(engine *lua.Engine) int {
 
 	compName := comp.Get("name").AsString()
 	if compName == "" {
-		compName = fmt.Sprintf("unnamed_component_%d", cm.unnamedCount)
+		compName = fmt.Sprintf("Unnamed Component %d", cm.unnamedCount)
 		cm.unnamedCount++
 	}
 	cm.components = append(cm.components, compName)
 
-	mapComponentTable(em, cm, comp)
+	mapComponentTable(em, cm, comp, true)
 
 	return 0
 }
 
+// extend the entity with the table, same format as a component. The core
+// difference between extend and register_component is that extend doesn't
+// allow anything other than methods ('methods' and 'statics' keys). The
+// 'properties' and 'relationships' will be ignored.
 func entityMasterExtend(engine *lua.Engine) int {
 	ext := engine.PopValue()
 	emtbl := engine.PopValue()
@@ -419,31 +470,33 @@ func entityMasterExtend(engine *lua.Engine) int {
 
 	extName := ext.Get("name").AsString()
 	if extName == "" {
-		extName = fmt.Sprintf("unnamed_extension_%d", cm.unnamedCount)
+		extName = fmt.Sprintf("Unnamed Extension %d", cm.unnamedCount)
 		cm.unnamedCount++
 	} else {
 		extName += " (extension)"
 	}
 	cm.components = append(cm.components, extName)
 
-	mapComponentTable(em, cm, ext)
+	mapComponentTable(em, cm, ext, false)
 
 	return 0
 }
 
-func mapComponentTable(em *entityMaster, cm *ComponentMap, tbl *lua.Value) {
-	tbl.Get("properties").ForEach(func(key, val *lua.Value) {
-		typ := val.AsString()
-		if tf, ok := typeFuncMap[typ]; ok {
-			cm.props[key.AsString()] = tf
-		} else {
-			log("entity").WithFields(logger.Fields{
-				"entity":   em.label,
-				"property": key.AsString(),
-				"type":     typ,
-			}).Warn("Component property has an unknown type")
-		}
-	})
+func mapComponentTable(em *entityMaster, cm *ComponentMap, tbl *lua.Value, isComponent bool) {
+	if isComponent {
+		tbl.Get("properties").ForEach(func(key, val *lua.Value) {
+			typ := val.AsString()
+			if tf, ok := typeFuncMap[typ]; ok {
+				cm.props[key.AsString()] = tf
+			} else {
+				log("entity").WithFields(logger.Fields{
+					"entity":   em.label,
+					"property": key.AsString(),
+					"type":     typ,
+				}).Warn("Component property has an unknown type")
+			}
+		})
+	}
 
 	tbl.Get("methods").ForEach(func(key, val *lua.Value) {
 		if val.IsFunction() {
@@ -472,36 +525,37 @@ func mapComponentTable(em *entityMaster, cm *ComponentMap, tbl *lua.Value) {
 // be the same across engines (i.e. entity "a" has components "b" and "c" in
 // all engines) but since lua.Value is not safe outside of the context of an
 // engine this map has to exist seperately for every engine instance (YIKES).
-func getComponentMapping(engine *lua.Engine) ComponentMapping {
-	if iecm, ok := engine.Meta[keys.EntityComponentMapping]; ok {
-		if ecm, ok := iecm.(ComponentMapping); ok {
-			return ecm
+func getEntityToComponentMapping(engine *lua.Engine) EntityToComponentMap {
+	if ietcm, ok := engine.Meta[keys.EntityToComponentMapping]; ok {
+		if etcm, ok := ietcm.(EntityToComponentMap); ok {
+			return etcm
 		}
 	}
 
-	ecm := make(ComponentMapping)
-	engine.Meta[keys.EntityComponentMapping] = ecm
+	etcm := make(EntityToComponentMap)
+	engine.Meta[keys.EntityToComponentMapping] = etcm
 
-	return ecm
+	return etcm
 }
 
 // fetch the component map for the given entity label, for caching on an
 // entity
 func getComponentMap(engine *lua.Engine, entityLabel string) *ComponentMap {
 
-	cm := getComponentMapping(engine)
-	if ecm, ok := cm[entityLabel]; ok {
-		return ecm
+	etcm := getEntityToComponentMapping(engine)
+	if cm, ok := etcm[entityLabel]; ok {
+		return cm
 	}
 
-	ecm := &ComponentMap{
-		methods:    make(map[string]*lua.Value),
-		statics:    make(map[string]*lua.Value),
-		props:      make(map[string]*entityType),
-		components: make([]string, 0),
-		mutex:      new(sync.Mutex),
+	cm := &ComponentMap{
+		methods:      make(map[string]*lua.Value),
+		statics:      make(map[string]*lua.Value),
+		props:        make(map[string]*entityType),
+		components:   make([]string, 0),
+		mutex:        new(sync.Mutex),
+		unnamedCount: 1,
 	}
-	cm[entityLabel] = ecm
+	etcm[entityLabel] = cm
 
-	return ecm
+	return cm
 }
