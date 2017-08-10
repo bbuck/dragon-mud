@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/bbuck/dragon-mud/utils"
 	"github.com/yuin/gopher-lua"
 )
 
@@ -95,6 +96,7 @@ func (v *Value) Inspect(indent string) string {
 			if err == nil && len(vals) > 0 {
 				return vals[0].AsString()
 			}
+			utils.WTFIsThis(err.Error())
 
 			vals, err = mt.Invoke("inspect", 1, v, indent)
 			if err == nil && len(vals) > 0 {

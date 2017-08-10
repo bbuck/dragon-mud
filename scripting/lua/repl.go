@@ -68,6 +68,13 @@ func NewREPLWithConfig(config REPLConfig) *REPL {
 		repl.historyPath = config.HistoryFilePath
 	}
 
+	repl.engine.SetGlobal("inspect", func(eng *Engine) int {
+		val := eng.PopValue()
+		eng.PushValue(val.Inspect(""))
+
+		return 1
+	})
+
 	return repl
 }
 

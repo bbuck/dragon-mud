@@ -3,6 +3,9 @@
 package talon
 
 import (
+	"bytes"
+	"strings"
+
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
 )
 
@@ -151,4 +154,49 @@ func (n *Node) GetBool(key string) (bool, bool) {
 // Set will assign the given value to the associated Key.
 func (n *Node) Set(key string, val interface{}) {
 	n.Properties[key] = val
+}
+
+// Save will persist this node in the Neo4j database provided. An important
+// note to make about Save is that by default it just creates new nodes, in
+// order for a node to be properly be persisted as a unique record you
+// should provide your own 'id' property which will be automatically used
+// in the query for uniqueness matters.
+func (n *Node) Save(db *DB) error {
+	_, hasId := n.Properties["id"]
+	buf := new(bytes.Buffer)
+	if hasId {
+		buf.WriteString("MERGE (n:")
+	} else {
+		buf.WriteString("CREATE (n:")
+	}
+	buf.WriteString(strings.Join(n.Labels, ":"))
+	if hasId {
+		buf.WriteString(" {id: $id}")
+	}
+	buf.WriteString(") SET ")
+
+	i := 0
+	for key := range n.Properties {
+		if strings.ToLower(key) == "id" {
+			i++
+			continue
+		}
+		buf.WriteString("n.")
+		buf.WriteString(key)
+		buf.WriteString(" = $")
+		buf.WriteString(key)
+		if i < len(n.Properties)-1 {
+			buf.WriteString(",")
+		}
+		i++
+	}
+
+	cypher := buf.String()
+	query, err := db.CypherP(cypher, n.Properties)
+	if err != nil {
+		return err
+	}
+	_, err = query.Exec()
+
+	return err
 }

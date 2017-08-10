@@ -7,10 +7,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bbuck/dragon-mud/data"
 	"github.com/bbuck/dragon-mud/logger"
 	"github.com/bbuck/dragon-mud/scripting/keys"
 	"github.com/bbuck/dragon-mud/scripting/lua"
 	"github.com/bbuck/dragon-mud/talon"
+	uuid "github.com/satori/go.uuid"
 )
 
 // entityMaster  represents the "static" version of the Entity, allowing
@@ -23,6 +25,7 @@ type entityMaster struct {
 func (em *entityMaster) New() *entity {
 	node := talon.NewNode()
 	node.AddLabel(em.label)
+	node.Properties["id"] = uuid.NewV4().String()
 
 	return &entity{
 		master: em,
@@ -47,6 +50,18 @@ func (e *entity) Is(lbl string) bool {
 	lbl = strings.ToLower(lbl)
 
 	return e.master.label == lbl
+}
+
+func (e *entity) Save() bool {
+	err := e.node.Save(data.DB())
+	if err != nil {
+		log("entity").WithFields(logger.Fields{
+			"type":       e.master.label,
+			"properties": e.node.Properties,
+		}).WithError(err).Error("Failed to persist the entity in the database.")
+	}
+
+	return err == nil
 }
 
 // entityType converts a lua value into a go type, there are a few valid type
@@ -83,6 +98,10 @@ var typeFuncMap = map[string]*entityType{
 			return t
 		},
 		toLua: func(iface interface{}) interface{} {
+			if iface == nil {
+				return nil
+			}
+
 			t := iface.(time.Time)
 			iv := instantValue(t)
 
@@ -113,9 +132,6 @@ type propertyFunc func(engine *lua.Engine, e *entity) interface{}
 // specialProperties defines a set of special meta properties that can be
 // fetched from entities.
 var specialProperties = map[string]propertyFunc{
-	"__id__": func(engine *lua.Engine, e *entity) interface{} {
-		return e.node.ID
-	},
 	"__properties__": func(engine *lua.Engine, e *entity) interface{} {
 		cm := getComponentMap(engine, e.master.label)
 		props := make([]string, len(cm.props))
@@ -192,8 +208,9 @@ func EntityLoader(engine *lua.Engine) {
 	emmt.RawSet("__index", entityMasterIndex(emmt.RawGet("__index")))
 
 	emt := engine.MetatableFor(entity{})
-	emt.RawSet("inspect", entityInspect)
-	emt.RawSet("__index", entityIndex)
+	ptrMethods = emt.RawGet("ptr_methods")
+	ptrMethods.RawSet("inspect", entityInspect)
+	emt.RawSet("__index", entityIndex(emt.RawGet("__index")))
 	emt.RawSet("__newindex", entityNewIndex)
 	emt.RawSet("__eq", entityEq)
 	emt.RawSet("__tostring", goLuaToString(entityInspect))
@@ -268,39 +285,48 @@ func entityNewIndex(engine *lua.Engine) int {
 
 // index overrides __index and looks up properties and methods from all the
 // associated components and extensions.
-func entityIndex(engine *lua.Engine) int {
-	key := engine.PopString()
-	etbl := engine.PopValue()
+func entityIndex(idxFn *lua.Value) lua.ScriptFunction {
+	return func(engine *lua.Engine) int {
+		key := engine.PopString()
+		etbl := engine.PopValue()
 
-	e := etbl.Interface().(*entity)
+		e := etbl.Interface().(*entity)
 
-	// begin property search
-	if propFn, isSpecial := specialProperties[key]; isSpecial {
-		engine.PushValue(propFn(engine, e))
+		// begin property search
+		if propFn, isSpecial := specialProperties[key]; isSpecial {
+			engine.PushValue(propFn(engine, e))
+
+			return 1
+		}
+
+		cm := getComponentMap(engine, e.master.label)
+		if val, isSet := e.node.Properties[key]; isSet {
+			typ := cm.props[key]
+			engine.PushValue(typ.toLua(val))
+
+			return 1
+		}
+		// end property search
+
+		// begin fn search
+		if lfn, isSet := cm.methods[key]; isSet {
+			engine.PushValue(lfn)
+
+			return 1
+		}
+		// end fn search
+
+		vals, err := idxFn.Call(1, etbl, key)
+		if err != nil || len(vals) == 0 {
+			engine.PushValue(nil)
+
+			return 1
+		}
+
+		engine.PushValue(vals[0])
 
 		return 1
 	}
-
-	cm := getComponentMap(engine, e.master.label)
-	if val, isSet := e.node.Properties[key]; isSet {
-		typ := cm.props[key]
-		engine.PushValue(typ.toLua(val))
-
-		return 1
-	}
-	// end property search
-
-	// begin fn search
-	if lfn, isSet := cm.methods[key]; isSet {
-		engine.PushValue(lfn)
-
-		return 1
-	}
-	// end fn search
-
-	engine.PushValue(nil)
-
-	return 1
 }
 
 // eq overrides __eq for entities. An entity is equal to another entity if
@@ -541,7 +567,6 @@ func getEntityToComponentMapping(engine *lua.Engine) EntityToComponentMap {
 // fetch the component map for the given entity label, for caching on an
 // entity
 func getComponentMap(engine *lua.Engine, entityLabel string) *ComponentMap {
-
 	etcm := getEntityToComponentMapping(engine)
 	if cm, ok := etcm[entityLabel]; ok {
 		return cm
@@ -555,6 +580,7 @@ func getComponentMap(engine *lua.Engine, entityLabel string) *ComponentMap {
 		mutex:        new(sync.Mutex),
 		unnamedCount: 1,
 	}
+	cm.props["id"] = typeFuncMap["string"]
 	etcm[entityLabel] = cm
 
 	return cm
