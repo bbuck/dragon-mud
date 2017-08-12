@@ -124,6 +124,17 @@ func (r *Rows) Next() (*Row, error) {
 	return row, err
 }
 
+// MustNext performs a Next call and panics on error, otherwise it returns
+// the next row in the document.
+func (r *Rows) MustNext() *Row {
+	row, err := r.Next()
+	if err != nil {
+		panic(err)
+	}
+
+	return row
+}
+
 // All returns all the rows up front instead of using the streaming API.
 func (r *Rows) All() ([]*Row, error) {
 	all, _, err := r.boltRows.All()

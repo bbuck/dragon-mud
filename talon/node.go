@@ -162,41 +162,46 @@ func (n *Node) Set(key string, val interface{}) {
 // should provide your own 'id' property which will be automatically used
 // in the query for uniqueness matters.
 func (n *Node) Save(db *DB) error {
-	_, hasId := n.Properties["id"]
 	buf := new(bytes.Buffer)
-	if hasId {
-		buf.WriteString("MERGE (n:")
-	} else {
-		buf.WriteString("CREATE (n:")
-	}
+	buf.WriteString("MERGE (n:")
 	buf.WriteString(strings.Join(n.Labels, ":"))
-	if hasId {
-		buf.WriteString(" {id: $id}")
+	buf.WriteString(" {id: $id})")
+
+	if len(n.Properties) > 0 {
+		buf.WriteString(" SET ")
 	}
-	buf.WriteString(") SET ")
 
 	i := 0
 	for key := range n.Properties {
-		if strings.ToLower(key) == "id" {
-			i++
+		i++
+		if key == "id" {
 			continue
 		}
 		buf.WriteString("n.")
 		buf.WriteString(key)
 		buf.WriteString(" = $")
 		buf.WriteString(key)
-		if i < len(n.Properties)-1 {
+		if i < len(n.Properties) {
 			buf.WriteString(",")
 		}
-		i++
 	}
+	buf.WriteString(" RETURN id(n) AS identity")
 
 	cypher := buf.String()
 	query, err := db.CypherP(cypher, n.Properties)
 	if err != nil {
 		return err
 	}
-	_, err = query.Exec()
+	rows, err := query.Query()
+	if err != nil {
+		return err
+	}
+	row := rows.MustNext()
+	id, exists := row.GetColumn("identity")
+	if exists {
+		n.ID = id.(int64)
+	}
+	rows.Close()
 
-	return err
+	return nil
 }

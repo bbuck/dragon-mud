@@ -3,6 +3,7 @@ package modules
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"strings"
 	"sync"
 	"time"
@@ -33,6 +34,103 @@ func (em *entityMaster) New() *entity {
 	}
 }
 
+func (em *entityMaster) Find(id string) *entity {
+	buf := new(bytes.Buffer)
+	buf.WriteString("MATCH (n:")
+	buf.WriteString(em.label)
+	buf.WriteString(") WHERE n.id = $id RETURN n")
+
+	db := data.DB()
+	query, err := db.CypherP(buf.String(), talon.Properties{"id": id})
+	if err != nil {
+		log("entity").WithError(err).WithFields(logger.Fields{
+			"id":    id,
+			"label": em.label,
+		}).Error("Failed to find entity with given ID")
+
+		return nil
+	}
+
+	rows, err := query.Query()
+	if err != nil {
+		log("entity").WithError(err).WithFields(logger.Fields{
+			"id":    id,
+			"label": em.label,
+		}).Error("Failed to find entity with given ID")
+
+		return nil
+	}
+
+	row, err := rows.Next()
+	if err != nil && err != io.EOF {
+		log("entity").WithError(err).WithFields(logger.Fields{
+			"id":    id,
+			"label": em.label,
+		}).Error("Failed to find entity with given ID")
+
+		return nil
+	}
+
+	if err != io.EOF && row != nil {
+		niface, exists := row.GetColumn("n")
+		if exists {
+			n := niface.(*talon.Node)
+			e := em.New()
+			e.node = n
+
+			return e
+		}
+	}
+
+	buf = new(bytes.Buffer)
+	buf.WriteString("MATCH (n:")
+	buf.WriteString(em.label)
+	buf.WriteString(") WHERE n.id STARTS WITH $id RETURN n")
+
+	query, err = db.CypherP(buf.String(), talon.Properties{"id": id})
+	if err != nil {
+		log("entity").WithError(err).WithFields(logger.Fields{
+			"id":    id,
+			"label": em.label,
+		}).Error("Failed to find entity with given ID")
+
+		return nil
+	}
+
+	rows, err = query.Query()
+	if err != nil {
+		log("entity").WithError(err).WithFields(logger.Fields{
+			"id":    id,
+			"label": em.label,
+		}).Error("Failed to find entity with given ID")
+
+		return nil
+	}
+
+	row, err = rows.Next()
+	if err != nil && err != io.EOF {
+		log("entity").WithError(err).WithFields(logger.Fields{
+			"id":    id,
+			"label": em.label,
+		}).Error("Failed to find entity with given ID")
+
+		return nil
+	}
+
+	if err != io.EOF && row != nil {
+		niface, exists := row.GetColumn("n")
+		if exists {
+			n := niface.(*talon.Node)
+			e := em.New()
+			e.node = n
+
+			return e
+		}
+	}
+
+	return nil
+}
+
 // Entity can represent anything within the game. The Entity itself is a base
 // for accessing the Neo4j storage system and creating/accessing database
 // values as well as managing relationships, etc... Entities have complex
@@ -52,7 +150,13 @@ func (e *entity) Is(lbl string) bool {
 	return e.master.label == lbl
 }
 
+// Save will persist the entity in the database.
 func (e *entity) Save() bool {
+	now := time.Now()
+	if e.node.IsNewRecord() {
+		e.node.Properties["created_at"] = now
+	}
+	e.node.Properties["updated_at"] = now
 	err := e.node.Save(data.DB())
 	if err != nil {
 		log("entity").WithFields(logger.Fields{
@@ -62,6 +166,11 @@ func (e *entity) Save() bool {
 	}
 
 	return err == nil
+}
+
+// Touch will set the updated_at value to the current time.
+func (e *entity) Touch() {
+	e.node.Properties["updated_at"] = time.Now()
 }
 
 // entityType converts a lua value into a go type, there are a few valid type
@@ -102,10 +211,19 @@ var typeFuncMap = map[string]*entityType{
 				return nil
 			}
 
-			t := iface.(time.Time)
-			iv := instantValue(t)
+			switch t := iface.(type) {
+			case time.Time:
+				iv := instantValue(t)
 
-			return &iv
+				return &iv
+			case int64:
+				tt := time.Unix(t, 0)
+				iv := instantValue(tt)
+
+				return &iv
+			}
+
+			return nil
 		},
 	},
 	"table": &entityType{
@@ -202,6 +320,7 @@ func EntityLoader(engine *lua.Engine) {
 	ptrMethods.RawSet("register_component", entityMasterRegisterComponent)
 	ptrMethods.RawSet("extend", entityMasterExtend)
 	ptrMethods.RawSet("inspect", entityMasterInspect)
+	ptrMethods.RawSet("from", entityMasterFrom)
 	emmt.RawSet("__eq", entityMasterEq)
 	emmt.RawSet("__call", entityMasterCall)
 	emmt.RawSet("__tostring", goLuaToString(entityMasterInspect))
@@ -233,9 +352,7 @@ func entityInspect(engine *lua.Engine) int {
 	} else {
 		buf.WriteString("entity \"")
 		buf.WriteString(e.master.label)
-		buf.WriteString("\" #")
-		buf.WriteString(fmt.Sprintf("%d", e.node.ID))
-		buf.WriteRune('\n')
+		buf.WriteString("\"\n")
 	}
 
 	for name, propType := range cm.props {
@@ -275,7 +392,6 @@ func entityNewIndex(engine *lua.Engine) int {
 
 		return 0
 	}
-
 	e.node.Properties[key] = typ.toGo(val)
 
 	engine.PushValue(val)
@@ -462,6 +578,27 @@ func entityMasterCall(engine *lua.Engine) int {
 	return 1
 }
 
+// create a new entity instance seeded with the properties from the given
+// table.
+func entityMasterFrom(engine *lua.Engine) int {
+	tbl := engine.PopValue()
+	emval := engine.PopValue()
+
+	em := emval.Interface().(*entityMaster)
+	e := em.New()
+	cm := getComponentMap(engine, em.label)
+
+	tbl.ForEach(func(key, val *lua.Value) {
+		pkey := key.AsString()
+		if propType, exists := cm.props[pkey]; exists {
+			e.node.Properties[pkey] = propType.toGo(val)
+		}
+	})
+	engine.PushValue(e)
+
+	return 1
+}
+
 // register_component is the heavy hitter, designed to add a complete set of
 // functionality to an entity, properties, relationships and methods.
 func entityMasterRegisterComponent(engine *lua.Engine) int {
@@ -572,6 +709,13 @@ func getComponentMap(engine *lua.Engine, entityLabel string) *ComponentMap {
 		return cm
 	}
 
+	go func() {
+		err := data.DB().CreateIndex(entityLabel, []string{"id"})
+		if err != nil {
+			log("entity").WithError(err).WithField("label", entityLabel).Error("Failed to creat an index for the new entity label.")
+		}
+	}()
+
 	cm := &ComponentMap{
 		methods:      make(map[string]*lua.Value),
 		statics:      make(map[string]*lua.Value),
@@ -581,6 +725,8 @@ func getComponentMap(engine *lua.Engine, entityLabel string) *ComponentMap {
 		unnamedCount: 1,
 	}
 	cm.props["id"] = typeFuncMap["string"]
+	cm.props["created_at"] = typeFuncMap["time"]
+	cm.props["updated_at"] = typeFuncMap["time"]
 	etcm[entityLabel] = cm
 
 	return cm
