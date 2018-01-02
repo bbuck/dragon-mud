@@ -13,11 +13,11 @@ import (
 type ColorizeFunc func(string) string
 
 // colorRx matches single- or double-bracketed color codes, like [r] or [c123].
-var colorRx = regexp.MustCompile(`(?m)\[(\[?-?[a-zA-Z0-9]{1,4}?\]?)\]`)
+var colorRx = regexp.MustCompile(`(?m)\[(\[?-?[a-zA-Z0-9~]{1,4}?\]?)\]`)
 
 var (
 	colorMap = map[string]string{
-		"l": "0",
+		"l": "0;22",
 		"L": "0;1",
 		"r": "1;22",
 		"R": "1;1",
@@ -37,6 +37,7 @@ var (
 	colorToANSI = map[string]string{
 		"x": "\033[0m",
 		"u": "\033[4m",
+		"~": "\033[7m",
 	}
 	fallbackColors = make(map[string]string)
 )
@@ -134,9 +135,21 @@ func ColorizeWithFallback(text string, fallback bool) string {
 		match := colorRx.FindStringSubmatch(s)
 		escaped := false
 		code := match[1]
-		if strings.HasPrefix(code, "[") && strings.HasSuffix(code, "]") {
+		swb := strings.HasPrefix(code, "[")
+		ewb := strings.HasSuffix(code, "]")
+		prefix := ""
+		suffix := ""
+
+		switch {
+		case swb && ewb:
 			escaped = true
 			code = code[1 : len(code)-1]
+		case swb && !ewb:
+			prefix = "["
+			code = code[1:]
+		case !swb && ewb:
+			suffix = "]"
+			code = code[:len(code)-1]
 		}
 
 		if fallback {
@@ -148,7 +161,7 @@ func ColorizeWithFallback(text string, fallback bool) string {
 				return match[1]
 			}
 
-			return color
+			return prefix + color + suffix
 		}
 
 		return match[0]
