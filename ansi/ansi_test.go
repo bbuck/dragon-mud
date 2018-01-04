@@ -55,6 +55,8 @@ var _ = Describe("Color", func() {
 			withXterm           = "[c001]This is Xterm colored[x]"
 			xtermResult         = "\033[38;5;1mThis is Xterm colored\033[0m"
 			xtermFallbackResult = "\033[31;22mThis is Xterm colored\033[0m"
+			withFlip            = "[r][-b]This is [~]Flipped[x]"
+			withFlipResult      = "\033[31;22m\033[44;22mThis is \033[7mFlipped\033[0m"
 		)
 
 		It("processes all color codes in a string", func() {
@@ -84,6 +86,10 @@ var _ = Describe("Color", func() {
 		It("falls back to ASCII from xterm when told to", func() {
 			Ω(ColorizeWithFallback(withXterm, true)).Should(Equal(xtermFallbackResult))
 		})
+
+		It("colorizes with the [~] flip color code", func() {
+			Ω(Colorize(withFlip)).Should(Equal(withFlipResult))
+		})
 	})
 
 	Describe("Purge", func() {
@@ -111,6 +117,23 @@ var _ = Describe("Color", func() {
 
 		It("escapes the ANSI escape sequence", func() {
 			Ω(Escape(Colorize(str))).Should(Equal(result))
+		})
+	})
+
+	Describe("Partially escaped", func() {
+		var (
+			pStr    = "[[r]red[x]"
+			pResult = "[\033[31;22mred\033[0m"
+			sStr    = "[r]]red[x]"
+			sResult = "\033[31;22m]red\033[0m"
+		)
+
+		It("handles extra braces at the start of the color code", func() {
+			Ω(Colorize(pStr)).Should(Equal(pResult))
+		})
+
+		It("handles extra braces at the end of the color code", func() {
+			Ω(Colorize(sStr)).Should(Equal(sResult))
 		})
 	})
 })

@@ -47,11 +47,9 @@ Another special code is [[u]] which [u]underlines[x] text. It's important to rem
 include [[x]] after you underline text otherwise all text following will be
 underlined.
 
-[Y]NOTE:[x] You have to be careful about where you place color codes, like butting
-them up against other braced text, like [C]] will fail to colorize text with
-Cyan becuase technically this is read as "C]" which is not a valid color. The
-best solution would be to put the C code non-adjacent to the brace, like '[[C]] ]'
-which would work.
+If you want to reverse the foreground and color codes, for example like [r][-B]Like[~]here[x]
+then you can use the special code, [[~]] which flips the current values set for foreground
+and background.
 
 `
 )
