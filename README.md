@@ -1,21 +1,11 @@
-# Dragon
+# NOTICE: EXPERIMENTAL BRANCH
 
-**TODO: Add description**
+**This branch is an experiment, and subjec tto sudden and immediate changes as 
+well as potential abandonment and deletion. Do not depend on this branch as anything
+other than the experiment that it is.**
 
-## Installation
+# Dragon MUD
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `dragon` to your list of dependencies in `mix.exs`:
-
-```elixir
-def deps do
-  [
-    {:dragon, "~> 0.1.0"}
-  ]
-end
-```
-
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/dragon](https://hexdocs.pm/dragon).
-
+This is an Elixir port of the DragonMUD engine, while it's Go implementation is
+incomplete (at the time of writing this) this is a potential replacement/continuation
+in Elixir.
