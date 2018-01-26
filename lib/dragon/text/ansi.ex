@@ -37,22 +37,22 @@ defmodule Dragon.Text.ANSI do
       iex> Dragon.Text.ANSI.ansi_code("c")
       "\e[36;22m"
 
-      iex> Dragon.Text.ANSI.parse("[r]red text[x]")
+      iex> Dragon.Text.ANSI.to_ansi("[r]red text[x]")
       "\e[31;22mred text\e[0m"
 
-      iex> Dragon.Text.ANSI.parse("other [c123]color[x]")
+      iex> Dragon.Text.ANSI.to_ansi("other [c123]color[x]")
       "other \e[38;5;123mcolor\e[0m"
 
    You can escape codes by adding another set of square brackets around them
    as mentioned earlier.
 
-      iex> Dragon.Text.ANSI.parse("escaped [[x]] code")
+      iex> Dragon.Text.ANSI.to_ansi("escaped [[x]] code")
       "escaped [x] code"
 
-      iex> Dragon.Text.ANSI.parse("not [[x] escaped")
+      iex> Dragon.Text.ANSI.to_ansi("not [[x] escaped")
       "not [\e[0m escaped"
 
-      iex> Dragon.Text.ANSI.parse("not [x]] escaped")
+      iex> Dragon.Text.ANSI.to_ansi("not [x]] escaped")
       "not \e[0m] escaped"
 
   Note that only the fully escaped is actually escaped in the output. 
@@ -63,7 +63,7 @@ defmodule Dragon.Text.ANSI do
       iex> Dragon.Text.ANSI.escape("[r]red text[x]")
       "[[r]]red text[[x]]"
 
-      iex> Dragon.Text.ANSI.parse(Dragon.Text.ANSI.escape("[r]red text[x]"))
+      iex> Dragon.Text.ANSI.to_ansi(Dragon.Text.ANSI.escape("[r]red text[x]"))
       "[r]red text[x]"
 
   """
@@ -215,13 +215,15 @@ defmodule Dragon.Text.ANSI do
     end
   end
 
-  @spec parse(String.t, boolean()) :: String.t
-  def parse(str, fallback \\ false) do
-    Regex.replace(@dragon_code_rx, str, parse_replacer(fallback))
+  @spec to_ansi(String.t, boolean()) :: String.t
+  def to_ansi(str, fallback \\ false) do
+    Regex.replace(@dragon_code_rx, str, to_ansi_replacer(fallback))
   end
 
-  @spec parse_replacer(boolean()) :: ((String.t(), String.t(), String.t()) -> String.t())
-  defp parse_replacer(fallback) do
+  # replace dragon codes with ansi codes if, and only if, the matched code doesn't
+  # begin and end with double square brackets.
+  @spec to_ansi_replacer(boolean()) :: ((String.t(), String.t(), String.t()) -> String.t())
+  defp to_ansi_replacer(fallback) do
     fn match, simple, xterm ->
       code = if simple == "", do: xterm, else: simple 
       ansi = ansi_code(code, fallback)
@@ -240,10 +242,23 @@ defmodule Dragon.Text.ANSI do
     end
   end
 
+  @doc """
+  Escape will replace dragon codes that would get mutated into ANSI codes if you 
+  passed the same string to `to_ansi` with an equivalent that won't get replaced.
+  This is useful if you have a string with dragon codes in it, but you wish to
+  render it with the codes visible for example.
+
+  As a note, the second argument is unused here, there is no fallback for escape
+  but I wanted to make sure that the functions had the same number of parameters
+  such that you could put them in a place where they can easily be swapped (via
+  an apply) without worry about modifying arguments.
+  """
+  @spec escape(String.t(), boolean()) :: String.t()
   def escape(str, _fallback \\ false) do
     Regex.replace(@dragon_code_rx, str, &escape_replacer/3)
   end
 
+  @spec escape_replacer(String.t(), String.t(), String.t()) :: String.t()
   defp escape_replacer(match, _, _) do 
     starts = String.starts_with?(match, "[[")
     ends = String.starts_with?(match, "]]")
