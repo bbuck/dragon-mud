@@ -1,6 +1,6 @@
 package: github.com/bbuck/dragon-mud
 import:
-- package: github.com/Sirupsen/logrus
+- package: github.com/sirupsen/logrus
   version: 0.11.0
 - package: github.com/fatih/structs
 - package: github.com/johnnadratowski/golang-neo4j-bolt-driver

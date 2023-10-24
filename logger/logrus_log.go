@@ -5,7 +5,7 @@ package logger
 import (
 	"io"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // ****************************************************************************

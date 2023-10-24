@@ -73,7 +73,7 @@ imports:
   version: 1aed2117d2aa8eed76a052936e468e5354750701
 - name: github.com/shurcooL/sanitized_anchor_name
   version: 541ff5ee47f1dddf6a5281af78307d921524bcb5
-- name: github.com/Sirupsen/logrus
+- name: github.com/sirupsen/logrus
   version: d26492970760ca5d33129d2d799e34be5c4782eb
 - name: github.com/sourcegraph/annotate
   version: f4cad6c6324d3f584e1743d8b3e0e017a5f3a636
