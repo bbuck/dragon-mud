@@ -1,6 +1,7 @@
 package scripting
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -32,7 +33,7 @@ func (le *LuaEngine) Register(name string, fn any) error {
 		return fmt.Errorf("expected a function but received: %s", valueType.String())
 	}
 
-	// TODO: let's handle variadic functions seperately
+	// TODO: let's handle variadic functions later
 
 	argCount := valueType.NumIn()
 	var inputTypes []reflect.Type
@@ -69,71 +70,19 @@ func (le *LuaEngine) Register(name string, fn any) error {
 			luaIndex := i + 1
 
 			switch inputType.Kind() {
-			case reflect.Float32:
-				num, ok := getNumberValue[float32](state, luaIndex)
+			case reflect.Float32, reflect.Float64, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				num, ok := state.ToNumber(luaIndex)
 				if !ok {
-					failArgumentCount(state, luaIndex, "number")
+					le.Fail(fmt.Errorf("expected argument #%d to be a number", luaIndex))
 
 					return 0
 				}
-				args = append(args, reflect.ValueOf(num))
 
-			case reflect.Float64:
-				num, ok := getNumberValue[float64](state, luaIndex)
-				if !ok {
-					failArgumentCount(state, luaIndex, "number")
+				goValue := reflect.ValueOf(num).Convert(inputType)
+				args = append(args, goValue)
 
-					return 0
-				}
-				args = append(args, reflect.ValueOf(num))
-
-			case reflect.Int:
-				num, ok := getNumberValue[int](state, luaIndex)
-				if !ok {
-					failArgumentCount(state, luaIndex, "number")
-
-					return 0
-				}
-				args = append(args, reflect.ValueOf(num))
-
-			case reflect.Int8:
-				num, ok := getNumberValue[int8](state, luaIndex)
-				if !ok {
-					failArgumentCount(state, luaIndex, "number")
-
-					return 0
-				}
-				args = append(args, reflect.ValueOf(num))
-
-			case reflect.Int16:
-				num, ok := getNumberValue[int16](state, luaIndex)
-				if !ok {
-					failArgumentCount(state, luaIndex, "number")
-
-					return 0
-				}
-				args = append(args, reflect.ValueOf(num))
-
-			case reflect.Int32:
-				num, ok := getNumberValue[int32](state, luaIndex)
-				if !ok {
-					failArgumentCount(state, luaIndex, "number")
-
-					return 0
-				}
-				args = append(args, reflect.ValueOf(num))
-
-			case reflect.Int64:
-				num, ok := getNumberValue[int32](state, luaIndex)
-				if !ok {
-					failArgumentCount(state, luaIndex, "number")
-
-					return 0
-				}
-				args = append(args, reflect.ValueOf(num))
 			default:
-				state.PushString(fmt.Sprintf("Unsupported argument type %s", inputType))
-				state.Error()
+				le.Fail(fmt.Errorf("unsupported argument type %s", inputType))
 
 				return 0
 			}
@@ -182,6 +131,48 @@ func (le *LuaEngine) Register(name string, fn any) error {
 	le.state.Register(name, registerFn)
 
 	return nil
+}
+
+func (le *LuaEngine) Fail(err error) {
+	le.state.PushString(err.Error())
+	le.state.Error()
+}
+
+func (le *LuaEngine) pushNumber(value any) error {
+	switch v := value.(type) {
+	case int:
+		le.state.PushInteger(v)
+	case int8:
+		le.state.PushInteger(int(v))
+	case int16:
+		le.state.PushInteger(int(v))
+	case int32:
+		le.state.PushInteger(int(v))
+	case int64:
+		le.state.PushNumber(float64(v))
+	case float32:
+		le.state.PushNumber(float64(v))
+	case float64:
+		le.state.PushNumber(v)
+	default:
+		return errors.New("invalid numeric type pushed to state")
+	}
+
+	return nil
+}
+
+type numeric interface {
+	int | int8 | int16 | int32 | int64 | float32 | float64
+}
+
+func getNumber[TGoType numeric](engine *LuaEngine, index int) (TGoType, error) {
+	if !engine.state.IsNumber(index) {
+		return 0, fmt.Errorf("value at index %d is not an number", index)
+	}
+
+	value, _ := engine.state.ToNumber(index)
+
+	return TGoType(value), nil
 }
 
 func failArgumentCount(state *lua.State, index int, expectedType string) {
