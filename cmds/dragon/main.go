@@ -6,7 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -21,10 +20,16 @@ import (
 	"bbuck.dev/dragon-mud/plugin"
 	"bbuck.dev/dragon-mud/random"
 	"bbuck.dev/dragon-mud/scaffold"
+	"bbuck.dev/dragon-mud/scripting"
 	"bbuck.dev/dragon-mud/scripting/lua"
 	"bbuck.dev/dragon-mud/transport/telnet"
 	"bbuck.dev/dragon-mud/transport/web"
+	"bbuck.dev/dragon-mud/watch"
 )
+
+// reloadInterval is how often the game directory is checked for changed
+// scripts.
+const reloadInterval = 500 * time.Millisecond
 
 const version = "0.1.0-dev"
 
@@ -113,15 +118,18 @@ func runServe(args []string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	engine := lua.New()
-	defer engine.Close()
-
-	g, err := game.New(cfg.Name, engine, log)
+	sources, err := pluginSources(*dir)
 	if err != nil {
 		return err
 	}
 
-	if err := loadPlugins(ctx, g, engine, *dir); err != nil {
+	g, err := game.New(ctx, game.Options{
+		Name:      cfg.Name,
+		NewEngine: func() scripting.Engine { return lua.New() },
+		Plugins:   sources,
+		Log:       log,
+	})
+	if err != nil {
 		return err
 	}
 
@@ -130,6 +138,14 @@ func runServe(args []string) error {
 
 	var tasks []func() error
 	tasks = append(tasks, func() error { return g.Run(ctx) })
+	if gameDir := filepath.Join(*dir, "game"); isDir(gameDir) {
+		tasks = append(tasks, func() error {
+			return watch.Poll(ctx, os.DirFS(gameDir), "*.lua", reloadInterval, func() {
+				log.Info("scripts changed; reloading")
+				g.Reload()
+			})
+		})
+	}
 	if cfg.Telnet.Enabled {
 		tasks = append(tasks, func() error {
 			return telnet.Serve(ctx, cfg.Telnet.Address, g, log)
@@ -144,39 +160,33 @@ func runServe(args []string) error {
 	return runAll(cancel, tasks)
 }
 
-// loadPlugins loads the built-in plugins, then the game's own plugin.
-func loadPlugins(ctx context.Context, g *game.Game, engine *lua.Engine, dir string) error {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
+// pluginSources lists the built-in plugins, then the game's own plugin.
+func pluginSources(dir string) ([]plugin.Source, error) {
+	var sources []plugin.Source
 	for _, name := range builtin.Names {
 		files, err := builtin.FS(name)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		if err := loadPlugin(ctx, g, engine, files, true); err != nil {
-			return fmt.Errorf("built-in plugin %s: %w", name, err)
-		}
+		sources = append(sources, plugin.Source{
+			Origin:  "built-in plugin " + name,
+			Files:   files,
+			Builtin: true,
+		})
 	}
 
 	gameDir := filepath.Join(dir, "game")
-	if _, err := os.Stat(gameDir); errors.Is(err, fs.ErrNotExist) {
-		return nil
-	}
-	if err := loadPlugin(ctx, g, engine, os.DirFS(gameDir), false); err != nil {
-		return fmt.Errorf("%s: %w", gameDir, err)
+	if isDir(gameDir) {
+		sources = append(sources, plugin.Source{Origin: gameDir, Files: os.DirFS(gameDir)})
 	}
 
-	return nil
+	return sources, nil
 }
 
-func loadPlugin(ctx context.Context, g *game.Game, engine *lua.Engine, files fs.FS, isBuiltin bool) error {
-	p, err := plugin.Open(ctx, engine, files, isBuiltin)
-	if err != nil {
-		return err
-	}
+func isDir(path string) bool {
+	info, err := os.Stat(path)
 
-	return g.LoadPlugin(ctx, p)
+	return err == nil && info.IsDir()
 }
 
 // runAll runs tasks until they all return. The first error cancels the rest

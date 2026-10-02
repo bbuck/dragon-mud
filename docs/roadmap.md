@@ -23,7 +23,7 @@ over telnet and the web and talk to each other.
 - [x] Plugin loading: embedded `dragon:basics` plus the game's own plugin.
 - [x] Commands from Lua (`commands.lua` returns a table), with explicit
       `override`.
-- [ ] Hot reload of Lua on file change.
+- [x] Hot reload of Lua on file change.
 
 ## Milestone 2: Core model
 

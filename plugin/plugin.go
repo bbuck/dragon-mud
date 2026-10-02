@@ -25,6 +25,18 @@ type Manifest struct {
 	Version string
 }
 
+// Source is where a plugin's files come from.
+type Source struct {
+	// Origin describes the source in error messages, such as
+	// "built-in plugin basics" or a directory path.
+	Origin string
+
+	Files fs.FS
+
+	// Builtin marks plugins embedded in the engine.
+	Builtin bool
+}
+
 // Plugin is a loaded plugin.
 type Plugin struct {
 	// ID identifies the plugin, such as "dragon:basics" or "game".

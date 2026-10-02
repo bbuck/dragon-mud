@@ -6,6 +6,7 @@ package game
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"regexp"
@@ -23,6 +24,9 @@ import (
 // interrupted.
 const scriptTimeout = 250 * time.Millisecond
 
+// loadTimeout is how long loading every plugin may take.
+const loadTimeout = 10 * time.Second
+
 var playerNameRx = regexp.MustCompile(`^[A-Za-z]{2,20}$`)
 
 // event is something for the game loop to handle.
@@ -37,61 +41,128 @@ type inputEvent struct {
 
 type disconnectEvent struct{ s *session.Session }
 
+type reloadEvent struct{}
+
 // player is a connected session and who it is playing as.
 type player struct {
 	s    *session.Session
 	name string // empty until the player has chosen a name
 }
 
-// Game is a running game. Connect, Input and Disconnect may be called from
-// any goroutine; everything else happens on the loop.
+// Options configures a game.
+type Options struct {
+	// Name is the game's name.
+	Name string
+
+	// NewEngine returns a fresh scripting engine. The game makes a new one
+	// each time it loads plugins.
+	NewEngine func() scripting.Engine
+
+	// Plugins are loaded in precedence order: built-ins first, the game's
+	// own plugin last.
+	Plugins []plugin.Source
+
+	Log *slog.Logger
+}
+
+// Game is a running game. Connect, Input, Disconnect and Reload may be
+// called from any goroutine; everything else happens on the loop.
 type Game struct {
-	name     string
+	name      string
+	newEngine func() scripting.Engine
+	sources   []plugin.Source
+	log       *slog.Logger
+
+	// engine and commands are replaced together on reload: commands hold
+	// functions that belong to engine.
 	engine   scripting.Engine
 	commands *hook.Commands
-	log      *slog.Logger
 
 	events  chan event
 	stopped chan struct{}
 	players map[session.ID]*player
 }
 
-// New returns a game named name that runs scripts on engine.
-func New(name string, engine scripting.Engine, log *slog.Logger) (*Game, error) {
+// New returns a game with its plugins loaded. The game closes its engine
+// when Run returns.
+func New(ctx context.Context, opts Options) (*Game, error) {
 	g := &Game{
-		name:     name,
-		engine:   engine,
-		commands: hook.NewCommands(),
-		log:      log,
-		events:   make(chan event, 1024),
-		stopped:  make(chan struct{}),
-		players:  make(map[session.ID]*player),
+		name:      opts.Name,
+		newEngine: opts.NewEngine,
+		sources:   opts.Plugins,
+		log:       opts.Log,
+		events:    make(chan event, 1024),
+		stopped:   make(chan struct{}),
+		players:   make(map[session.ID]*player),
 	}
 
-	if err := engine.Load(g.module()); err != nil {
+	engine, commands, err := g.load(ctx)
+	if err != nil {
 		return nil, err
 	}
+	g.engine, g.commands = engine, commands
 
 	return g, nil
 }
 
-// LoadPlugin registers everything p provides. Plugins must be loaded in
-// precedence order: built-ins first, the game's own plugin last.
-func (g *Game) LoadPlugin(ctx context.Context, p *plugin.Plugin) error {
-	commands, err := p.Commands(ctx, g.engine)
+// load loads every plugin into a new engine and command registry. On error
+// the new engine is closed and the game is left as it was.
+func (g *Game) load(ctx context.Context) (scripting.Engine, *hook.Commands, error) {
+	ctx, cancel := context.WithTimeout(ctx, loadTimeout)
+	defer cancel()
+
+	engine := g.newEngine()
+	commands := hook.NewCommands()
+
+	err := g.loadInto(ctx, engine, commands)
+	if err != nil {
+		engine.Close()
+		return nil, nil, err
+	}
+
+	return engine, commands, nil
+}
+
+func (g *Game) loadInto(ctx context.Context, engine scripting.Engine, commands *hook.Commands) error {
+	if err := engine.Load(g.module()); err != nil {
+		return err
+	}
+
+	for _, src := range g.sources {
+		if err := g.loadPlugin(ctx, engine, commands, src); err != nil {
+			return fmt.Errorf("%s: %w", src.Origin, err)
+		}
+	}
+
+	return nil
+}
+
+func (g *Game) loadPlugin(ctx context.Context, engine scripting.Engine, commands *hook.Commands, src plugin.Source) error {
+	p, err := plugin.Open(ctx, engine, src.Files, src.Builtin)
 	if err != nil {
 		return err
 	}
 
-	for _, cmd := range commands {
-		if err := g.commands.Register(cmd); err != nil {
+	cmds, err := p.Commands(ctx, engine)
+	if err != nil {
+		return err
+	}
+
+	for _, cmd := range cmds {
+		if err := commands.Register(cmd); err != nil {
 			return err
 		}
 	}
 
-	g.log.Info("loaded plugin", "plugin", p.ID, "version", p.Manifest.Version, "commands", len(commands))
+	g.log.Info("loaded plugin", "plugin", p.ID, "version", p.Manifest.Version, "commands", len(cmds))
 
 	return nil
+}
+
+// Reload asks the game to reload every plugin. If loading fails, the error
+// is logged and the game keeps running the scripts it had.
+func (g *Game) Reload() {
+	g.post(reloadEvent{})
 }
 
 // Connect tells the game a new session has connected.
@@ -119,6 +190,7 @@ func (g *Game) post(e event) {
 // Run runs the game loop until ctx is cancelled.
 func (g *Game) Run(ctx context.Context) error {
 	defer close(g.stopped)
+	defer func() { g.engine.Close() }()
 
 	for {
 		select {
@@ -161,7 +233,26 @@ func (g *Game) handle(ctx context.Context, e event) {
 			g.broadcast(message.Text(p.name+" has left."), p)
 			g.log.Info("player left", "name", p.name)
 		}
+
+	case reloadEvent:
+		g.reload(ctx)
 	}
+}
+
+// reload swaps in freshly loaded plugins. Scripts keep no game state (see
+// docs/design.md §9), so throwing the old engine away loses nothing.
+func (g *Game) reload(ctx context.Context) {
+	engine, commands, err := g.load(ctx)
+	if err != nil {
+		if !errors.Is(err, context.Canceled) {
+			g.log.Error("reload failed; keeping the previous scripts", "error", err)
+		}
+		return
+	}
+
+	g.engine.Close()
+	g.engine, g.commands = engine, commands
+	g.log.Info("reloaded plugins")
 }
 
 // login handles input from a session that hasn't chosen a name yet.

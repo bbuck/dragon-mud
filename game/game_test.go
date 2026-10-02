@@ -12,6 +12,7 @@ import (
 	"bbuck.dev/dragon-mud/builtin"
 	"bbuck.dev/dragon-mud/message"
 	"bbuck.dev/dragon-mud/plugin"
+	"bbuck.dev/dragon-mud/scripting"
 	"bbuck.dev/dragon-mud/scripting/lua"
 	"bbuck.dev/dragon-mud/session"
 )
@@ -85,44 +86,53 @@ func (c *client) login(name string) {
 	c.expect("Welcome, [W]")
 }
 
+// sources returns dragon:basics and, if given, a game plugin.
+func sources(t *testing.T, gameFiles fstest.MapFS) []plugin.Source {
+	t.Helper()
+
+	basics, err := builtin.FS("basics")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sources := []plugin.Source{{Origin: "basics", Files: basics, Builtin: true}}
+	if gameFiles != nil {
+		sources = append(sources, plugin.Source{Origin: "game", Files: gameFiles})
+	}
+
+	return sources
+}
+
+func newGame(t *testing.T, gameFiles fstest.MapFS) (*Game, error) {
+	t.Helper()
+
+	return New(context.Background(), Options{
+		Name:      "Test Realm",
+		NewEngine: func() scripting.Engine { return lua.New() },
+		Plugins:   sources(t, gameFiles),
+		Log:       slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+}
+
 // startGame runs a game with dragon:basics and, if given, a game plugin.
 func startGame(t *testing.T, gameFiles fstest.MapFS) *Game {
 	t.Helper()
 
-	engine := lua.New()
-	t.Cleanup(engine.Close)
-
-	g, err := New("Test Realm", engine, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	g, err := newGame(t, gameFiles)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
-	basicsFS, err := builtin.FS("basics")
-	if err != nil {
-		t.Fatal(err)
-	}
-	basics, err := plugin.Open(ctx, engine, basicsFS, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := g.LoadPlugin(ctx, basics); err != nil {
-		t.Fatal(err)
-	}
-
-	if gameFiles != nil {
-		p, err := plugin.Open(ctx, engine, gameFiles, false)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := g.LoadPlugin(ctx, p); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	runCtx, cancel := context.WithCancel(ctx)
-	t.Cleanup(cancel)
-	go g.Run(runCtx)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		g.Run(ctx)
+		close(done)
+	}()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
 
 	return g
 }
@@ -214,32 +224,12 @@ func TestGamePluginOverridesLook(t *testing.T) {
 }
 
 func TestOverrideMustBeDeclared(t *testing.T) {
-	engine := lua.New()
-	defer engine.Close()
-
-	g, err := New("Test", engine, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ctx := context.Background()
-	basicsFS, _ := builtin.FS("basics")
-	basics, _ := plugin.Open(ctx, engine, basicsFS, true)
-	if err := g.LoadPlugin(ctx, basics); err != nil {
-		t.Fatal(err)
-	}
-
-	p, err := plugin.Open(ctx, engine, fstest.MapFS{
+	_, err := newGame(t, fstest.MapFS{
 		"plugin.lua":   {Data: []byte(`return { name = "game" }`)},
 		"commands.lua": {Data: []byte(`return { look = { execute = function() end } }`)},
-	}, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = g.LoadPlugin(ctx, p)
+	})
 	if err == nil || !strings.Contains(err.Error(), "dragon:basics") {
-		t.Errorf("LoadPlugin error = %v, want a conflict with dragon:basics", err)
+		t.Errorf("New error = %v, want a conflict with dragon:basics", err)
 	}
 }
 
@@ -266,4 +256,46 @@ func TestScriptErrorsAreReported(t *testing.T) {
 	// The game is still running.
 	alice.send("say still here")
 	alice.expect("still here")
+}
+
+func TestReload(t *testing.T) {
+	files := fstest.MapFS{
+		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
+		"commands.lua": {Data: []byte(`
+			return { dance = { execute = function(actor) game.send(actor.id, "You waltz.") end } }
+		`)},
+	}
+	g := startGame(t, files)
+
+	alice := connect(t, g)
+	alice.login("Alice")
+	alice.send("dance")
+	alice.expect("You waltz.")
+
+	// Events are handled in order, so the reload finishes before the next
+	// command runs.
+	files["commands.lua"] = &fstest.MapFile{Data: []byte(`
+		return { dance = { execute = function(actor) game.send(actor.id, "You tango.") end } }
+	`)}
+	g.Reload()
+	alice.send("dance")
+	alice.expect("You tango.")
+}
+
+func TestFailedReloadKeepsScripts(t *testing.T) {
+	files := fstest.MapFS{
+		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
+		"commands.lua": {Data: []byte(`
+			return { dance = { execute = function(actor) game.send(actor.id, "You waltz.") end } }
+		`)},
+	}
+	g := startGame(t, files)
+
+	alice := connect(t, g)
+	alice.login("Alice")
+
+	files["commands.lua"] = &fstest.MapFile{Data: []byte(`return { dance = `)}
+	g.Reload()
+	alice.send("dance")
+	alice.expect("You waltz.")
 }
