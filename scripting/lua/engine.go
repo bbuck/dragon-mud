@@ -141,15 +141,27 @@ func (e *Engine) wrap(name string, fn scripting.Func) *glua.LFunction {
 			state.RaiseError("%s: %v", name, err)
 		}
 
-		lv, err := e.toLua(result, 0)
-		if err != nil {
-			state.RaiseError("%s: return value: %v", name, err)
-		}
-
-		state.Push(lv)
-
-		return 1
+		return e.pushResult(state, name, result)
 	})
+}
+
+// pushResult pushes what a Func or Method returned, expanding Results into
+// separate values, and returns how many values it pushed.
+func (e *Engine) pushResult(state *glua.LState, name string, result any) int {
+	results, ok := result.(scripting.Results)
+	if !ok {
+		results = scripting.Results{result}
+	}
+
+	for i, value := range results {
+		lv, err := e.toLua(value, 0)
+		if err != nil {
+			state.RaiseError("%s: return value #%d: %v", name, i+1, err)
+		}
+		state.Push(lv)
+	}
+
+	return len(results)
 }
 
 // useContext sets ctx on the Lua state so long-running scripts can be

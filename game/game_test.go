@@ -111,18 +111,20 @@ func (c *client) relogin(name, password string) {
 	c.send(password)
 }
 
-// sources returns dragon:basics and, if given, a game plugin.
+// sources returns the built-in plugins and, if given, a game plugin.
 func sources(t *testing.T, gameFiles fstest.MapFS) []plugin.Source {
 	t.Helper()
 
-	basics, err := builtin.FS("basics")
-	if err != nil {
-		t.Fatal(err)
+	var sources []plugin.Source
+	for _, name := range builtin.Names {
+		files, err := builtin.FS(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sources = append(sources, plugin.Source{Origin: name, Files: files, Builtin: true})
 	}
-
-	sources := []plugin.Source{{Origin: "basics", Files: basics, Builtin: true}}
 	if gameFiles != nil {
-		sources = append(sources, plugin.Source{Origin: "game", Files: gameFiles})
+		sources = append(sources, plugin.Source{Origin: "game", Files: gameFiles, Game: true})
 	}
 
 	return sources
@@ -171,7 +173,7 @@ func newGameWith(t *testing.T, db *store.Store, gameFiles fstest.MapFS) (*Game, 
 	})
 }
 
-// startGame runs a game with dragon:basics and, if given, a game plugin.
+// startGame runs a game with the built-in plugins and, if given, a game plugin.
 func startGame(t *testing.T, gameFiles fstest.MapFS) *Game {
 	t.Helper()
 
@@ -218,7 +220,6 @@ func TestPlayersTalk(t *testing.T) {
 
 	alice := connect(t, g)
 	alice.login("alice")
-	alice.expect("The Void")
 
 	bob := connect(t, g)
 	bob.login("BOB")
@@ -375,10 +376,10 @@ func TestGamePluginOverridesLook(t *testing.T) {
 func TestOverrideMustBeDeclared(t *testing.T) {
 	_, err := newGame(t, fstest.MapFS{
 		"plugin.lua":   {Data: []byte(`return { name = "game" }`)},
-		"commands.lua": {Data: []byte(`return { look = { execute = function() end } }`)},
+		"commands.lua": {Data: []byte(`return { say = { execute = function() end } }`)},
 	})
-	if err == nil || !strings.Contains(err.Error(), "dragon:basics") {
-		t.Errorf("New error = %v, want a conflict with dragon:basics", err)
+	if err == nil || !strings.Contains(err.Error(), "dragon:chat") {
+		t.Errorf("New error = %v, want a conflict with dragon:chat", err)
 	}
 }
 
@@ -610,6 +611,17 @@ func TestCreateWithOptions(t *testing.T) {
 					}, " "))
 				end },
 
+				keys = { execute = function(actor)
+					local key = world.create{ properties = { name = "The Magical Key" } }
+					local looted = world.create{ parent = world.create{ parent = key } }
+					local other = world.create{}
+					actor:send(table.concat({
+						tostring(looted:is_a(key)), tostring(key:is_a(key)),
+						tostring(key:is_a(looted)), tostring(other:is_a(key)),
+						tostring(pcall(key.is_a, key, nil)),
+					}, " "))
+				end },
+
 				typo = { execute = function() world.create{ parnet = 1 } end },
 
 				taken = { execute = function(actor)
@@ -626,6 +638,9 @@ func TestCreateWithOptions(t *testing.T) {
 
 	alice.send("forge")
 	alice.expect("1d10 3 true true true")
+
+	alice.send("keys")
+	alice.expect("true true false false false")
 
 	alice.send("typo")
 	alice.expect(`unknown option "parnet"`)
@@ -735,7 +750,7 @@ func TestPluginSlotTypes(t *testing.T) {
 	alice.send("tamper x")
 	alice.expect("can't change the world while resolving input")
 
-	// The game's form joined dragon:basics' say.
+	// The game's form joined dragon:chat's say.
 	alice.send("say hello loudly")
 	alice.expect("You shout: hello")
 	alice.send("say hello")

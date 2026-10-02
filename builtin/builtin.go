@@ -7,11 +7,11 @@ import (
 	"io/fs"
 )
 
-//go:embed basics
+//go:embed chat help presence
 var files embed.FS
 
 // Names lists the built-in plugins in load order.
-var Names = []string{"basics"}
+var Names = []string{"chat", "help", "presence"}
 
 // FS returns the files of the built-in plugin name.
 func FS(name string) (fs.FS, error) {

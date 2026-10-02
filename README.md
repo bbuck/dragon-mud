@@ -7,9 +7,9 @@ extended with Lua.
 - **Modern and classic clients.** Players can use a web client with a text
   feed, tooltips, health bars and action bars, or any telnet MUD client. Both
   play the same game.
-- **Plugins in Lua.** Game rules come from plugins. Their order is declared in
-  manifests and can be rewired by the game author, so unrelated plugins
-  layer predictably.
+- **Plugins in Lua.** Game rules come from plugins. Each plugin declares
+  where its hook handlers run, and the game author can rewire them, so
+  unrelated plugins layer predictably.
 
 DragonMUD is being rebuilt from scratch. It's early: there's one room and a
 handful of commands, but you can already create a game and play it from a

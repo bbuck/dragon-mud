@@ -35,7 +35,7 @@ mapping/
   plugin.lua        manifest: name, version, provides, depends, capabilities
   commands.lua      player commands and their forms
   slots.lua         slot types for command patterns
-  hooks.lua         hook and notification handlers
+  hooks.lua         hook and notification handlers (see design.md §3)
   lua/              other Lua modules
   messages/         message kinds and templates (*.txt.tmpl, *.html.tmpl)
   schema.lua        data types it defines or extends
@@ -50,7 +50,8 @@ mapping/
 
 A game directory has the same layout under `game/`. It's the top-level
 plugin and always wins: its wiring, overrides and templates take precedence
-over every installed plugin.
+over every installed plugin. Only the game has a `wiring.lua`, which
+reorders or disables other plugins' hook handlers.
 
 ```
 mygame/
@@ -64,9 +65,10 @@ mygame/
 
 ## Built-in plugins and kits
 
-Built-in plugins (`dragon:basics`, `dragon:rooms`, `dragon:items`,
-`dragon:mapping`, ...) are embedded in the binary and upgrade with it. They use
-only the public plugin API. `dragon eject <name>` copies one into the game to
+Built-in plugins (`dragon:chat`, `dragon:presence`, `dragon:help`,
+`dragon:rooms`, `dragon:items`, `dragon:mapping`, ...) are embedded in the
+binary and upgrade with it. They use only the public plugin API. Each covers
+one concern and is named for it. `dragon eject <name>` copies one into the game to
 customize it, opting it out of engine upgrades.
 
 **Kits** are curated sets of built-ins plus wiring: `dragon new mygame --kit

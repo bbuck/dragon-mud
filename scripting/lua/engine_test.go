@@ -73,6 +73,8 @@ func TestReturnValuesToLua(t *testing.T) {
 		{"nested", map[string]any{"list": []string{"a"}}, `assert(test.record().list[1] == "a")`},
 		{"nil", nil, `assert(test.record() == nil)`},
 		{"uint", uint8(7), `assert(test.record() == 7)`},
+		{"results", scripting.Results{nil, "why"}, `local v, why = test.record(); assert(v == nil and why == "why")`},
+		{"no results", scripting.Results{}, `assert(select("#", test.record()) == 0)`},
 	}
 
 	for _, tt := range tests {

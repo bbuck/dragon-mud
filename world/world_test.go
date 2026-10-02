@@ -37,6 +37,17 @@ func TestInheritance(t *testing.T) {
 		t.Errorf("damage after delete = %v, want inherited 1d8", v)
 	}
 
+	dagger := w.Create()
+	must(t, dagger.SetParent(blade))
+	switch {
+	case !dagger.IsA(sword), !dagger.IsA(blade), !blade.IsA(sword):
+		t.Error("IsA missed an ancestor")
+	case !sword.IsA(sword):
+		t.Error("an object should be itself")
+	case sword.IsA(blade), blade.IsA(dagger):
+		t.Error("IsA found an ancestor among descendants")
+	}
+
 	if err := sword.SetParent(blade); err == nil {
 		t.Error("an object inherited from its own child")
 	}

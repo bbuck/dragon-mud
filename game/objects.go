@@ -23,6 +23,7 @@ import (
 //	o.contents                 list of objects inside it
 //
 //	o:get(name)                property value, inherited from parents
+//	o:is_a(other)              true if o is other or inherits from it
 //	o:get_own(name)            property value only if o has its own
 //	o:set(name, value)         set a property; objects are stored as refs
 //	o:delete(name)             remove o's own value
@@ -78,6 +79,7 @@ func (g *Game) objectType() *scripting.Type {
 		Methods: map[string]scripting.Method{
 			"get":        g.objectGet((*world.Object).Get),
 			"get_own":    g.objectGet((*world.Object).GetOwn),
+			"is_a":       g.objectIsA,
 			"set":        g.mutating(g.objectSet),
 			"delete":     g.mutating(g.objectDelete),
 			"properties": g.objectProperties,
@@ -422,6 +424,19 @@ func (g *Game) objectMoveTo(key any, args scripting.Args) (any, error) {
 	}
 
 	return nil, o.MoveTo(location)
+}
+
+func (g *Game) objectIsA(key any, args scripting.Args) (any, error) {
+	o, err := g.object(key)
+	if err != nil {
+		return nil, err
+	}
+	ancestor, err := g.objectArg(args, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	return o.IsA(ancestor), nil
 }
 
 func (g *Game) objectSetParent(key any, args scripting.Args) (any, error) {

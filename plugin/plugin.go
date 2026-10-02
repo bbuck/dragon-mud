@@ -27,18 +27,22 @@ type Manifest struct {
 // Source is where a plugin's files come from.
 type Source struct {
 	// Origin describes the source in error messages, such as
-	// "built-in plugin basics" or a directory path.
+	// "built-in plugin chat" or a directory path.
 	Origin string
 
 	Files fs.FS
 
 	// Builtin marks plugins embedded in the engine.
 	Builtin bool
+
+	// Game marks the game's own plugin, the only one that may wire other
+	// plugins' hooks.
+	Game bool
 }
 
 // Plugin is a loaded plugin.
 type Plugin struct {
-	// ID identifies the plugin, such as "dragon:basics" or "game".
+	// ID identifies the plugin, such as "dragon:chat" or "game".
 	ID string
 
 	Manifest Manifest
@@ -90,4 +94,11 @@ func (p *Plugin) eval(ctx context.Context, engine scripting.Engine, file, script
 	}
 
 	return engine.Eval(ctx, scriptName, string(source))
+}
+
+// exists reports whether the plugin has file.
+func (p *Plugin) exists(file string) bool {
+	_, err := fs.Stat(p.files, file)
+
+	return err == nil
 }

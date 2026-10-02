@@ -20,7 +20,7 @@ over telnet and the web and talk to each other.
 - [x] Game loop, sessions, messages.
 - [x] Telnet transport with ANSI color.
 - [x] Web transport: page, WebSocket, htmx client, color as HTML.
-- [x] Plugin loading: embedded `dragon:basics` plus the game's own plugin.
+- [x] Plugin loading: embedded built-ins plus the game's own plugin.
 - [x] Commands from Lua (`commands.lua` returns a table), with explicit
       `override` (now `replace`).
 - [x] Hot reload of Lua on file change.
@@ -32,8 +32,10 @@ over telnet and the web and talk to each other.
 - [x] Objects across the scripting boundary (`player:send(...)`).
 - [ ] Message kinds with entity references, sections and per-transport
       templates.
-- [ ] Hooks and notifications with manifest ordering and game wiring.
-- [ ] `dragon hooks <name>`.
+- [x] Hooks and notifications with plugin ordering (`before`/`after`)
+      and game wiring (`order`, `disable`).
+- [x] `dragon hooks [<name>]`.
+- [ ] Hook redirection in game wiring.
 - [x] Input parser: command forms, slot types (`slots.lua`), maximal
       munch, quoting, additive forms with `replace`.
 - [ ] Input modes (editors, menus, pending prompts); login as a mode, then
@@ -51,6 +53,13 @@ over telnet and the web and talk to each other.
 - [ ] `dragon add/update/remove/list`, `dragon.lock`, vendoring.
 - [ ] Import maps, plugin JS, the `dragon` client API, client events.
 - [ ] `dragon test` with scripted sessions.
+- [ ] Plugin introspection: `dragon plugin <name>` shows everything a
+      plugin provides (commands and forms, slot types, hook handlers, the
+      hooks and notifications it runs, and later messages, schema and
+      tasks), so a game author knows what they can add to, replace or wire
+      from `game/`. Hooks a plugin runs need declaring, since they can't be
+      found statically. The same data generates each plugin's reference
+      docs.
 
 ## Milestone 4: World
 

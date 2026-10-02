@@ -198,7 +198,7 @@ func TestLaterPluginsWinTies(t *testing.T) {
 	// Each form has one literal and one text slot, so only precedence
 	// separates them.
 	r := registry(t, nil,
-		CommandDef{Name: "dance", Plugin: "dragon:basics", Forms: forms("dance <style>")},
+		CommandDef{Name: "dance", Plugin: "dragon:chat", Forms: forms("dance <style>")},
 		CommandDef{Name: "waltz", Plugin: "game", Forms: forms("<step> slowly")},
 	)
 
@@ -209,7 +209,7 @@ func TestLaterPluginsWinTies(t *testing.T) {
 
 func TestAdditiveAndReplace(t *testing.T) {
 	r := registry(t, []SlotType{people("Bob")},
-		CommandDef{Name: "say", Plugin: "dragon:basics", Desc: "Say something.", Forms: forms("say <message>")},
+		CommandDef{Name: "say", Plugin: "dragon:chat", Desc: "Say something.", Forms: forms("say <message>")},
 		CommandDef{Name: "say", Plugin: "game", Forms: forms("say <message> to <target:person:here>")},
 	)
 
@@ -238,7 +238,7 @@ func TestAdditiveAndReplace(t *testing.T) {
 func TestDuplicateFormErrors(t *testing.T) {
 	base := func() *Registry {
 		return registry(t, nil,
-			CommandDef{Name: "say", Plugin: "dragon:basics", Forms: forms("say <message>")},
+			CommandDef{Name: "say", Plugin: "dragon:chat", Forms: forms("say <message>")},
 		)
 	}
 
@@ -248,11 +248,11 @@ func TestDuplicateFormErrors(t *testing.T) {
 	}{
 		{
 			CommandDef{Name: "say", Plugin: "game", Forms: forms("say <words>")},
-			`game: the "say" form "say <words>" matches exactly the same input as "say <message>", already defined by dragon:basics. Remove it from game, or set replace = true on "say" in game`,
+			`game: the "say" form "say <words>" matches exactly the same input as "say <message>", already defined by dragon:chat. Remove it from game, or set replace = true on "say" in game`,
 		},
 		{
 			CommandDef{Name: "talk", Plugin: "game", Forms: forms("SAY <words>")},
-			`from dragon:basics's "say" command. Players couldn't reach one of them; remove it from game`,
+			`from dragon:chat's "say" command. Players couldn't reach one of them; remove it from game`,
 		},
 		{
 			CommandDef{Name: "chat", Plugin: "game", Forms: forms("chat <a>", "chat <b>")},

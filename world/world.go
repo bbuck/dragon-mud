@@ -230,16 +230,26 @@ func (o *Object) SetParent(parent *Object) error {
 	if o.isDestroyed() || (parent != nil && parent.isDestroyed()) {
 		return ErrDestroyed
 	}
-	for p := parent; p != nil; p = p.parent {
-		if p == o {
-			return fmt.Errorf("%s can't inherit from %s: it would inherit from itself", o.id, parent.id)
-		}
+	if parent != nil && parent.IsA(o) {
+		return fmt.Errorf("%s can't inherit from %s: it would inherit from itself", o.id, parent.id)
 	}
 
 	o.parent = parent
 	o.w.touch(o)
 
 	return nil
+}
+
+// IsA reports whether o is ancestor or inherits from it, directly or
+// through its parents.
+func (o *Object) IsA(ancestor *Object) bool {
+	for p := o; p != nil; p = p.parent {
+		if p == ancestor {
+			return true
+		}
+	}
+
+	return false
 }
 
 // Location returns the object that contains o, or nil.

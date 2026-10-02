@@ -6,17 +6,22 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
+	"text/tabwriter"
 	"time"
 
 	"bbuck.dev/dragon-mud/ansi"
 	"bbuck.dev/dragon-mud/builtin"
+	"bbuck.dev/dragon-mud/command"
 	"bbuck.dev/dragon-mud/config"
 	"bbuck.dev/dragon-mud/game"
+	"bbuck.dev/dragon-mud/hook"
 	"bbuck.dev/dragon-mud/plugin"
 	"bbuck.dev/dragon-mud/random"
 	"bbuck.dev/dragon-mud/scaffold"
@@ -40,6 +45,8 @@ const usage = `dragon creates and runs DragonMUD games.
 Usage:
   dragon new <directory> [-name "Game Name"]   create a new game
   dragon serve [-dir <directory>]              run the game in a directory
+  dragon hooks [<name>] [-dir <directory>]     list hooks, or show the order
+                                               a hook's handlers run in
   dragon version                               print the engine version
 `
 
@@ -55,6 +62,8 @@ func main() {
 		err = runNew(os.Args[2:])
 	case "serve":
 		err = runServe(os.Args[2:])
+	case "hooks":
+		err = runHooks(os.Args[2:], os.Stdout)
 	case "version":
 		fmt.Println("dragon", version)
 	case "help", "-h", "--help":
@@ -180,6 +189,117 @@ func runServe(args []string) error {
 	return runAll(cancel, tasks)
 }
 
+func runHooks(args []string, out io.Writer) error {
+	flags := flag.NewFlagSet("hooks", flag.ContinueOnError)
+	dir := flags.String("dir", ".", "the game directory")
+
+	// Allow the hook name before or after flags.
+	var name string
+	if len(args) > 0 && args[0] != "" && args[0][0] != '-' {
+		name, args = args[0], args[1:]
+	}
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if name == "" {
+		name = flags.Arg(0)
+	}
+
+	cfg, err := config.Load(*dir)
+	if err != nil {
+		return err
+	}
+	sources, err := pluginSources(*dir)
+	if err != nil {
+		return err
+	}
+
+	hooks, err := game.Hooks(context.Background(), game.Options{
+		Name:      cfg.Name,
+		NewEngine: func() scripting.Engine { return lua.New() },
+		Plugins:   sources,
+	})
+	if err != nil {
+		return err
+	}
+
+	if name == "" {
+		return listHooks(out, hooks)
+	}
+
+	return showHook(out, hooks, name)
+}
+
+// listHooks prints every hook with handlers and who handles it.
+func listHooks(out io.Writer, hooks *hook.Registry) error {
+	names := hooks.Names()
+	if len(names) == 0 {
+		fmt.Fprintln(out, "No plugin handles any hooks yet. Add handlers in game/hooks.lua.")
+		return nil
+	}
+
+	fmt.Fprintln(out, "Hooks and notifications, with their handlers in the order they run:")
+	fmt.Fprintln(out)
+
+	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
+	for _, name := range names {
+		c, _ := hooks.Chain(name)
+		plugins := make([]string, len(c.Handlers))
+		for i, h := range c.Handlers {
+			plugins[i] = h.Plugin
+		}
+		line := strings.Join(plugins, ", ")
+		if len(c.Disabled) > 0 {
+			line += fmt.Sprintf(" (%d disabled)", len(c.Disabled))
+		}
+		fmt.Fprintf(w, "  %s\t%s\n", name, line)
+	}
+	w.Flush()
+
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Run dragon hooks <name> to see why a hook's handlers run in that order.")
+
+	return nil
+}
+
+// showHook prints one hook's handlers in order and why they're in it.
+func showHook(out io.Writer, hooks *hook.Registry, name string) error {
+	c, ok := hooks.Chain(name)
+	if !ok {
+		names := hooks.Names()
+		if len(names) == 0 {
+			return fmt.Errorf("no plugin handles %q; no plugin handles any hooks yet", name)
+		}
+		return fmt.Errorf("no plugin handles %q.%s Hooks with handlers: %s.",
+			name, command.DidYouMean(name, names), strings.Join(names, ", "))
+	}
+
+	fmt.Fprintf(out, "%s runs these handlers in order:\n\n", name)
+
+	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
+	for i, h := range c.Handlers {
+		why := hooks.Explain(c, h)
+		if why == "" && !c.Wired {
+			why = "load order"
+		}
+		fmt.Fprintf(w, "  %d.\t%s\t%s\t%s\n", i+1, h.Plugin, h.File(), why)
+	}
+	w.Flush()
+
+	if c.Wired {
+		fmt.Fprintf(out, "\nThe order is set in %s.\n", hooks.WiringFile())
+	}
+	if len(c.Disabled) > 0 {
+		plugins := make([]string, len(c.Disabled))
+		for i, h := range c.Disabled {
+			plugins[i] = h.Plugin
+		}
+		fmt.Fprintf(out, "\nDisabled in %s: %s\n", hooks.WiringFile(), strings.Join(plugins, ", "))
+	}
+
+	return nil
+}
+
 // pluginSources lists the built-in plugins, then the game's own plugin.
 func pluginSources(dir string) ([]plugin.Source, error) {
 	var sources []plugin.Source
@@ -197,7 +317,7 @@ func pluginSources(dir string) ([]plugin.Source, error) {
 
 	gameDir := filepath.Join(dir, "game")
 	if isDir(gameDir) {
-		sources = append(sources, plugin.Source{Origin: gameDir, Files: os.DirFS(gameDir)})
+		sources = append(sources, plugin.Source{Origin: gameDir, Files: os.DirFS(gameDir), Game: true})
 	}
 
 	return sources, nil

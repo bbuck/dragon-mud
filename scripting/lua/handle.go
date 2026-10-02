@@ -127,13 +127,7 @@ func (e *Engine) method(t *scripting.Type, name string, method scripting.Method)
 			state.RaiseError("%s: %v", full, err)
 		}
 
-		lv, err := e.toLua(result, 0)
-		if err != nil {
-			state.RaiseError("%s: return value: %v", full, err)
-		}
-		state.Push(lv)
-
-		return 1
+		return e.pushResult(state, full, result)
 	})
 }
 

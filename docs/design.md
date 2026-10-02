@@ -112,19 +112,76 @@ things), which is how a MOO-style game finds verbs on the objects involved.
 can modify the payload the next one sees, or cancel with a reason. The caller
 gets back the final payload and whether it was cancelled.
 
+A plugin's `hooks.lua` returns its handlers, keyed by hook name. Each is a
+function, or a table with the function and its ordering:
+
+```lua
+return {
+  player_entered = function(event) ... end,
+  before_say = {
+    after = { "dragon:chat" },
+    handler = function(event)
+      if muted(event.actor) then return false, "You are muted." end
+      event.message = tidy(event.message)
+      return event
+    end,
+  },
+}
+```
+
+- A hook handler returns nothing to leave the event as it is, the event to
+  change it, or `false` and a reason to cancel. Payloads cross the
+  scripting boundary as copies, so changing the event without returning it
+  changes nothing.
+- A handler that fails stops the hook with an error naming the handler.
+- Code runs a hook with `hooks.run(name, event)`, which returns the event as
+  the handlers left it, or `nil` and the reason one cancelled.
+- A plugin has one handler per hook.
+
 ### Notifications (after the fact)
 
 `player_entered_room`, `mob_died`. Can't modify or cancel. Order is
-deterministic but plugins shouldn't depend on it.
+deterministic but plugins shouldn't depend on it. Handlers are declared in
+`hooks.lua` like hook handlers; what they return is ignored. A failing
+handler is logged and the rest still run. Code sends one with
+`hooks.notify(name, event)`.
+
+The engine sends `player_entered` (`player`, and `reconnected` when the
+player took over their character from another connection) and
+`player_left` (`player`). `dragon:presence` handles both to announce
+arrivals and departures. `dragon:chat` runs `before_say` (`actor`,
+`message`, and `target` when saying something to someone).
 
 ### Ordering
 
-1. **Plugin defaults.** Manifests declare dependencies and `before`/`after`
-   for hooks. Plugins are sorted topologically; cycles and missing
-   dependencies are startup errors. Directory order never matters.
-2. **Game wiring.** The game can reorder, disable or redirect any hook in one
-   place. Wiring is data, so it's validated at startup and the resolved order
-   can be printed (`dragon hooks modify_damage`).
+1. **Plugin defaults.** Handlers run in load order: built-ins, then
+   plugins in dependency order, then the game, so the game sees the payload
+   last and has the final say. A handler's `before` and `after` move it
+   relative to other plugins' handlers for the same hook; plugins that
+   aren't installed or have no handler for it are ignored, so a plugin can
+   order itself against optional ones. Cycles are startup errors that name
+   every step of the cycle. Directory order never matters.
+2. **Game wiring.** The game can reorder or disable any hook's handlers in
+   one place, `game/wiring.lua`. Only the game's plugin may have one.
+   Wiring is data, so it's validated at startup and the resolved order can
+   be printed (`dragon hooks modify_damage`; `dragon hooks` lists every
+   hook).
+
+```lua
+-- game/wiring.lua
+return {
+  hooks = {
+    modify_damage = { order = { "game", "armor", "dragon:combat" } },
+    player_entered = { disable = { "dragon:presence" } },
+  },
+}
+```
+
+`order` replaces the plugins' `before` and `after` for that hook (which also
+settles a cycle) and must list every handler that isn't disabled, so a new
+plugin's handler can't slip into a hand-made order unnoticed. Naming a
+plugin with no handler for the hook is an error with a suggestion.
+Redirecting a hook to a different handler is not built yet.
 
 The same precedence applies everywhere: **the game, then plugins in
 dependency order, then built-ins**.
@@ -368,6 +425,8 @@ else can be added without changing the engine or the modules.
   `location`, `contents`. Properties are read and written with methods
   (`o:get(name)`, `o:set(name, value)`), never as fields, so property names
   can't collide with the API; ergonomic wrappers are a plugin's job.
+  `o:is_a(other)` is true when `o` is `other` or inherits from it at any
+  depth, so a lock that requires a key accepts every copy made from it.
   `o:send(text)` reaches everyone playing `o` and does nothing otherwise.
   The `world` module creates, finds and destroys objects. A command's actor
   is the player's character object.

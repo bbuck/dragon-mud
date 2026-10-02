@@ -263,9 +263,10 @@ func (g *Game) enter(ctx context.Context, p *player, account store.Account) {
 
 	g.log.Info("player arrived", "name", name, "account", account.Name)
 	p.s.Send(message.System(fmt.Sprintf("Welcome, [W]%s[x]! Type [c]help[x] to see what you can do.", name)))
-	if !takeover {
-		g.broadcast(message.Text(name+" has arrived."), p)
-	}
+	g.notify(ctx, "player_entered", map[string]any{
+		"player":      g.handle(character),
+		"reconnected": takeover,
+	})
 
 	if _, ok := g.commands.Lookup("look"); ok {
 		g.dispatch(ctx, p, "look")

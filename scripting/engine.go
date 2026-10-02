@@ -50,8 +50,12 @@ type Module struct {
 }
 
 // Func is a Go function callable from scripts. Returning an error raises it
-// as an error in the script.
+// as an error in the script. Return Results for several values.
 type Func func(args Args) (any, error)
+
+// Results are several values returned at once from a Func or Method, such
+// as a value and a reason: Results{nil, "You can't go that way."}.
+type Results []any
 
 // Function is a script function held by Go, such as a hook handler a plugin
 // registered. It can only be called on the engine that created it.

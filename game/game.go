@@ -15,6 +15,7 @@ import (
 
 	"bbuck.dev/dragon-mud/auth"
 	"bbuck.dev/dragon-mud/command"
+	"bbuck.dev/dragon-mud/hook"
 	"bbuck.dev/dragon-mud/message"
 	"bbuck.dev/dragon-mud/plugin"
 	"bbuck.dev/dragon-mud/scripting"
@@ -131,19 +132,57 @@ type Game struct {
 	// resolving is true while slot resolvers run; the world is read-only.
 	resolving bool
 
-	// engine and commands are replaced together on reload: commands hold
-	// functions that belong to engine.
-	engine   scripting.Engine
-	commands *command.Registry
+	*scripts
 
 	events  chan event
 	stopped chan struct{}
 	players map[session.ID]*player
 }
 
+// scripts is everything loaded from plugins. Its parts are replaced
+// together on reload: commands and hooks hold functions that belong to
+// engine.
+type scripts struct {
+	engine   scripting.Engine
+	commands *command.Registry
+	hooks    *hook.Registry
+}
+
 // New returns a game with its plugins loaded. The game closes its engine
 // when Run returns.
 func New(ctx context.Context, opts Options) (*Game, error) {
+	if opts.Store == nil {
+		return nil, errors.New("game: no store")
+	}
+
+	g := fromOptions(opts)
+	s, err := g.load(ctx)
+	if err != nil {
+		return nil, err
+	}
+	g.scripts = s
+
+	return g, nil
+}
+
+// Hooks loads the plugins in opts without starting a game and returns their
+// hooks, as dragon hooks shows them. Only Name, NewEngine, Plugins and Log
+// are used. The handlers' engine is closed, so they can't be run.
+func Hooks(ctx context.Context, opts Options) (*hook.Registry, error) {
+	if opts.Log == nil {
+		opts.Log = slog.New(slog.DiscardHandler)
+	}
+
+	s, err := fromOptions(opts).load(ctx)
+	if err != nil {
+		return nil, err
+	}
+	s.engine.Close()
+
+	return s.hooks, nil
+}
+
+func fromOptions(opts Options) *Game {
 	g := &Game{
 		name:      opts.Name,
 		newEngine: opts.NewEngine,
@@ -158,9 +197,6 @@ func New(ctx context.Context, opts Options) (*Game, error) {
 		players: make(map[session.ID]*player),
 	}
 
-	if g.store == nil {
-		return nil, errors.New("game: no store")
-	}
 	if g.world == nil {
 		g.world = world.New()
 	}
@@ -169,53 +205,53 @@ func New(ctx context.Context, opts Options) (*Game, error) {
 		g.hasher = auth.NewHasher(auth.DefaultParams, hashConcurrency)
 	}
 
-	engine, commands, err := g.load(ctx)
-	if err != nil {
-		return nil, err
-	}
-	g.engine, g.commands = engine, commands
-
-	return g, nil
+	return g
 }
 
-// load loads every plugin into a new engine and command registry. On error
-// the new engine is closed and the game is left as it was.
-func (g *Game) load(ctx context.Context) (scripting.Engine, *command.Registry, error) {
+// load loads every plugin into a new engine, command registry and hook
+// registry. On error the new engine is closed and the game is left as it
+// was.
+func (g *Game) load(ctx context.Context) (*scripts, error) {
 	ctx, cancel := context.WithTimeout(ctx, loadTimeout)
 	defer cancel()
 
-	engine := g.newEngine()
-	commands := command.NewRegistry()
-
-	err := g.loadInto(ctx, engine, commands)
-	if err != nil {
-		engine.Close()
-		return nil, nil, err
+	s := &scripts{engine: g.newEngine(), commands: command.NewRegistry()}
+	if err := g.loadInto(ctx, s); err != nil {
+		s.engine.Close()
+		return nil, err
 	}
 
-	return engine, commands, nil
+	return s, nil
 }
 
-func (g *Game) loadInto(ctx context.Context, engine scripting.Engine, commands *command.Registry) error {
-	for _, m := range []scripting.Module{g.module(), g.worldModule()} {
-		if err := engine.Load(m); err != nil {
+func (g *Game) loadInto(ctx context.Context, s *scripts) error {
+	for _, m := range []scripting.Module{g.module(), g.worldModule(), g.hooksModule(s)} {
+		if err := s.engine.Load(m); err != nil {
 			return err
 		}
 	}
-	if err := commands.AddSlot(g.objectSlot(), false); err != nil {
+	if err := s.commands.AddSlot(g.objectSlot(), false); err != nil {
 		return err
 	}
 
+	var hooks hook.Config
 	for _, src := range g.sources {
-		if err := g.loadPlugin(ctx, engine, commands, src); err != nil {
+		if err := g.loadPlugin(ctx, s, src, &hooks); err != nil {
 			return fmt.Errorf("%s: %w", src.Origin, err)
 		}
 	}
 
-	return nil
+	var err error
+	s.hooks, err = hook.New(hooks)
+
+	return err
 }
 
-func (g *Game) loadPlugin(ctx context.Context, engine scripting.Engine, commands *command.Registry, src plugin.Source) error {
+// loadPlugin loads src's slots and commands into s, and adds its hook
+// handlers and wiring to hooks.
+func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, hooks *hook.Config) error {
+	engine, commands := s.engine, s.commands
+
 	p, err := plugin.Open(ctx, engine, src.Files, src.Builtin)
 	if err != nil {
 		return err
@@ -241,7 +277,25 @@ func (g *Game) loadPlugin(ctx context.Context, engine scripting.Engine, commands
 		}
 	}
 
-	g.log.Info("loaded plugin", "plugin", p.ID, "version", p.Manifest.Version, "commands", len(cmds), "slots", len(slots))
+	handlers, err := p.Hooks(ctx, engine)
+	if err != nil {
+		return err
+	}
+	hooks.Plugins = append(hooks.Plugins, p.ID)
+	hooks.Handlers = append(hooks.Handlers, handlers...)
+
+	switch {
+	case src.Game:
+		if hooks.Wiring, err = p.Wiring(ctx, engine); err != nil {
+			return err
+		}
+		hooks.WiringFile = p.WiringFile()
+	case p.HasWiring():
+		return fmt.Errorf("%s: only the game's own plugin can wire hooks. A plugin orders its handlers with before and after in hooks.lua, like before_say = { after = { \"dragon:chat\" }, handler = function(event) ... end }.",
+			p.WiringFile())
+	}
+
+	g.log.Info("loaded plugin", "plugin", p.ID, "version", p.Manifest.Version, "commands", len(cmds), "slots", len(slots), "hooks", len(handlers))
 
 	return nil
 }
@@ -348,8 +402,8 @@ func (g *Game) handleEvent(ctx context.Context, e event) {
 		}
 		delete(g.players, e.s.ID())
 		if p.character != nil {
-			g.broadcast(message.Text(p.displayName()+" has left."), p)
 			g.log.Info("player left", "name", p.displayName())
+			g.notify(ctx, "player_left", map[string]any{"player": g.handle(p.character)})
 		}
 
 	case reloadEvent:
@@ -360,7 +414,7 @@ func (g *Game) handleEvent(ctx context.Context, e event) {
 // reload swaps in freshly loaded plugins. Scripts keep no game state (see
 // docs/design.md §9), so throwing the old engine away loses nothing.
 func (g *Game) reload(ctx context.Context) {
-	engine, commands, err := g.load(ctx)
+	s, err := g.load(ctx)
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
 			g.log.Error("reload failed; keeping the previous scripts", "error", err)
@@ -369,17 +423,6 @@ func (g *Game) reload(ctx context.Context) {
 	}
 
 	g.engine.Close()
-	g.engine, g.commands = engine, commands
+	g.scripts = s
 	g.log.Info("reloaded plugins")
-}
-
-// dispatch runs a command a player typed.
-
-// broadcast sends m to every player in the game except skip.
-func (g *Game) broadcast(m message.Message, skip *player) {
-	for _, p := range g.players {
-		if p != skip && p.character != nil {
-			p.s.Send(m)
-		}
-	}
 }
