@@ -266,6 +266,15 @@ transport.
   the loop saves what that event changed in one transaction, so a command's
   changes are saved together or not at all. A failed save is retried after
   the next event.
+- **Accounts are separate from characters.** An account (name, password
+  hash) owns characters, which are ordinary objects. How many characters an
+  account may have, and how a player picks one, is the game's choice; until
+  pending prompts exist, every account gets one character named after it.
+  Passwords are hashed with Argon2id (OWASP's baseline: 19 MiB, two
+  passes) off the game loop, a few at a time so a burst of logins can't
+  exhaust memory. A hash made with older parameters is replaced at the next
+  successful login. Logging in again takes over the
+  character from the old connection.
 - **Properties are rows** (object, name, JSON value). Whole numbers load as
   integers; a float with no fractional part comes back as an integer.
 - **Export is explicit**: `dragon world:export` writes JSONL by default
@@ -339,4 +348,4 @@ supports interruption and coroutines.
 | `scripting/lua`    | The Lua implementation (gopher-lua).                    |
 | `ansi`             | `[r]color[x]` codes to ANSI escapes and HTML.           |
 | `random`           | Seedable random numbers and dice.                       |
-| `auth`             | Password hashing.                                       |
+| `auth`             | Password hashing (Argon2id).                            |

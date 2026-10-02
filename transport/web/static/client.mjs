@@ -25,6 +25,7 @@ function connect() {
       htmx.swap(feed, frame.html, { swapStyle: "none" });
       trimFeed();
       if (stick) feed.scrollTop = feed.scrollHeight;
+      if (frame.secret) setSecret(true);
     }
   });
 
@@ -64,6 +65,16 @@ function echo(line) {
   feed.scrollTop = feed.scrollHeight;
 }
 
+// Secret input, such as a password: hidden as it's typed, not echoed and
+// not kept in history. It lasts for one line.
+let secret = false;
+
+function setSecret(on) {
+  secret = on;
+  input.type = on ? "password" : "text";
+  input.placeholder = on ? "" : "Type a command and press Enter";
+}
+
 // Command history with the up and down arrows.
 const history = [];
 let historyIndex = 0;
@@ -73,6 +84,12 @@ form.addEventListener("submit", (event) => {
   const line = input.value;
   input.value = "";
 
+  if (secret) {
+    setSecret(false);
+    send(line);
+    return;
+  }
+
   echo(line);
   send(line);
 
@@ -81,6 +98,7 @@ form.addEventListener("submit", (event) => {
 });
 
 input.addEventListener("keydown", (event) => {
+  if (secret) return;
   if (event.key === "ArrowUp" && historyIndex > 0) {
     historyIndex--;
   } else if (event.key === "ArrowDown" && historyIndex < history.length) {

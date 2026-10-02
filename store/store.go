@@ -39,6 +39,20 @@ var migrations = []string{
 		PRIMARY KEY (object, name)
 	) WITHOUT ROWID;
 	`,
+	`
+	CREATE TABLE accounts (
+		id            TEXT PRIMARY KEY,
+		name          TEXT NOT NULL UNIQUE COLLATE NOCASE,
+		password_hash TEXT NOT NULL,
+		created       TEXT NOT NULL
+	) WITHOUT ROWID;
+
+	CREATE TABLE characters (
+		account TEXT NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+		object  TEXT NOT NULL UNIQUE REFERENCES objects (id) ON DELETE CASCADE,
+		PRIMARY KEY (account, object)
+	);
+	`,
 }
 
 // Store is a game's database.

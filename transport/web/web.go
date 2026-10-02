@@ -132,6 +132,9 @@ type clientFrame struct {
 type serverFrame struct {
 	T    string `json:"t"`
 	HTML string `json:"html"`
+
+	// Secret asks the client to hide the player's next line.
+	Secret bool `json:"secret,omitempty"`
 }
 
 func serveSocket(w http.ResponseWriter, r *http.Request, g session.Handler, log *slog.Logger) {
@@ -170,7 +173,7 @@ func (c *conn) Write(m message.Message) error {
 	ctx, cancel := context.WithTimeout(context.Background(), writeTimeout)
 	defer cancel()
 
-	return wsjson.Write(ctx, c.ws, serverFrame{T: "html", HTML: render(m)})
+	return wsjson.Write(ctx, c.ws, serverFrame{T: "html", HTML: render(m), Secret: m.Secret})
 }
 
 func (c *conn) Close() error {

@@ -8,7 +8,10 @@ const (
 	sb   = 250 // subnegotiation begin
 	se   = 240 // subnegotiation end
 	will = 251
+	wont = 252
 	dont = 254
+
+	optEcho = 1
 )
 
 // iacFilter strips telnet negotiation from client input so only typed text

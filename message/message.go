@@ -20,6 +20,10 @@ type Message struct {
 
 	// Text is the feed text, which may contain color codes such as [r]...[x].
 	Text string
+
+	// Secret asks the transport not to echo the player's next line, such as
+	// a password.
+	Secret bool
 }
 
 // Text returns a text message.
@@ -30,4 +34,10 @@ func Text(text string) Message {
 // System returns a system message.
 func System(text string) Message {
 	return Message{Kind: KindSystem, Text: text}
+}
+
+// Secret returns a system message asking for secret input, such as a
+// password.
+func Secret(text string) Message {
+	return Message{Kind: KindSystem, Text: text, Secret: true}
 }

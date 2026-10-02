@@ -28,14 +28,15 @@ over telnet and the web and talk to each other.
 ## Milestone 2: Core model
 
 - [x] Objects: id, parent, location, properties; SQLite storage.
-- [ ] Accounts and login with `auth`.
+- [x] Accounts and login with `auth`.
 - [ ] Objects across the scripting boundary (`player:send(...)`).
 - [ ] Message kinds with entity references, sections and per-transport
       templates.
 - [ ] Hooks and notifications with manifest ordering and game wiring.
 - [ ] `dragon hooks <name>`.
 - [ ] Replaceable command dispatcher.
-- [ ] Pending prompts (generalizing the login name prompt).
+- [ ] Pending prompts (generalizing the login prompts), then character
+      select and creation as game-controlled prompts.
 - [ ] Feed message kinds: `room`, `say`, `emote`, `ambient`, `echo`.
 
 ## Milestone 3: Plugins for real

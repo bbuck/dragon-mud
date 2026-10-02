@@ -72,7 +72,7 @@ func (g *Game) scriptBroadcast(args scripting.Args) (any, error) {
 func (g *Game) scriptPlayers(scripting.Args) (any, error) {
 	var players []map[string]any
 	for _, p := range g.players {
-		if p.name != "" {
+		if p.character != nil {
 			players = append(players, map[string]any{"id": int64(p.s.ID()), "name": p.name})
 		}
 	}

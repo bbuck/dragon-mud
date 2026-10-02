@@ -13,11 +13,13 @@ import (
 	"strings"
 	"time"
 
+	"bbuck.dev/dragon-mud/auth"
 	"bbuck.dev/dragon-mud/hook"
 	"bbuck.dev/dragon-mud/message"
 	"bbuck.dev/dragon-mud/plugin"
 	"bbuck.dev/dragon-mud/scripting"
 	"bbuck.dev/dragon-mud/session"
+	"bbuck.dev/dragon-mud/store"
 	"bbuck.dev/dragon-mud/world"
 )
 
@@ -30,6 +32,10 @@ const loadTimeout = 10 * time.Second
 
 // saveTimeout is how long saving one event's changes may take.
 const saveTimeout = 5 * time.Second
+
+// hashConcurrency is how many passwords may be hashed at once by default.
+// Each hash uses auth.DefaultParams.Memory while it runs.
+const hashConcurrency = 4
 
 var playerNameRx = regexp.MustCompile(`^[A-Za-z]{2,20}$`)
 
@@ -47,10 +53,16 @@ type disconnectEvent struct{ s *session.Session }
 
 type reloadEvent struct{}
 
-// player is a connected session and who it is playing as.
+// player is a connected session and who it is playing as. A player is
+// logging in while login is set and in the game while character is set;
+// with neither, its connection is closing.
 type player struct {
-	s    *session.Session
-	name string // empty until the player has chosen a name
+	s     *session.Session
+	login *login
+
+	account   store.Account
+	character *world.Object
+	name      string // the character's name
 }
 
 // Options configures a game.
@@ -69,15 +81,24 @@ type Options struct {
 	// World is every object in the game. Nil starts an empty world.
 	World *world.World
 
-	// Store saves the world after each event. Nil keeps it only in memory.
+	// Store holds accounts and saves the world after each event.
 	Store Store
+
+	// Hasher hashes passwords off the loop. Nil uses auth.DefaultParams,
+	// a few hashes at a time.
+	Hasher *auth.Hasher
 
 	Log *slog.Logger
 }
 
-// Store saves changes to the world.
+// Store holds accounts and saves the world. *store.Store implements it.
 type Store interface {
 	Save(ctx context.Context, changes world.Changes) error
+	Account(ctx context.Context, name string) (store.Account, bool, error)
+	CreateAccount(ctx context.Context, name, passwordHash string) (store.Account, error)
+	SetPasswordHash(ctx context.Context, accountID, passwordHash string) error
+	Characters(ctx context.Context, accountID string) ([]world.ID, error)
+	AddCharacter(ctx context.Context, accountID string, id world.ID) error
 }
 
 // Game is a running game. Connect, Input, Disconnect and Reload may be
@@ -88,6 +109,8 @@ type Game struct {
 	sources   []plugin.Source
 	store     Store
 	log       *slog.Logger
+
+	hasher *auth.Hasher
 
 	world *world.World
 
@@ -110,14 +133,22 @@ func New(ctx context.Context, opts Options) (*Game, error) {
 		sources:   opts.Plugins,
 		store:     opts.Store,
 		log:       opts.Log,
-		world:     opts.World,
-		events:    make(chan event, 1024),
-		stopped:   make(chan struct{}),
-		players:   make(map[session.ID]*player),
+
+		hasher:  opts.Hasher,
+		world:   opts.World,
+		events:  make(chan event, 1024),
+		stopped: make(chan struct{}),
+		players: make(map[session.ID]*player),
 	}
 
+	if g.store == nil {
+		return nil, errors.New("game: no store")
+	}
 	if g.world == nil {
 		g.world = world.New()
+	}
+	if g.hasher == nil {
+		g.hasher = auth.NewHasher(auth.DefaultParams, hashConcurrency)
 	}
 
 	engine, commands, err := g.load(ctx)
@@ -235,10 +266,6 @@ func (g *Game) Run(ctx context.Context) error {
 // save writes what the last event changed. If saving fails, the changes are
 // kept and retried after the next event.
 func (g *Game) save(ctx context.Context) {
-	if g.store == nil {
-		return
-	}
-
 	changes := g.world.Changes()
 	if changes.Empty() {
 		return
@@ -257,19 +284,30 @@ func (g *Game) save(ctx context.Context) {
 func (g *Game) handle(ctx context.Context, e event) {
 	switch e := e.(type) {
 	case connectEvent:
-		g.players[e.s.ID()] = &player{s: e.s}
-		e.s.Send(message.System(fmt.Sprintf("[Y]Welcome to %s![x]\nBy what name shall we know you?", g.name)))
+		p := &player{s: e.s}
+		g.players[e.s.ID()] = p
+		e.s.Send(message.System(fmt.Sprintf("[Y]Welcome to %s![x]", g.name)))
+		g.askName(p)
 
 	case inputEvent:
 		p, ok := g.players[e.s.ID()]
-		if !ok {
-			return
+		switch {
+		case !ok:
+		case p.login != nil:
+			// Not trimmed: passwords may have spaces at either end.
+			g.login(ctx, p, e.line)
+		case p.character != nil:
+			g.dispatch(ctx, p, strings.TrimSpace(e.line))
 		}
-		if p.name == "" {
-			g.login(ctx, p, strings.TrimSpace(e.line))
-			return
-		}
-		g.dispatch(ctx, p, strings.TrimSpace(e.line))
+
+	case checkedEvent:
+		g.checked(ctx, e)
+
+	case hashedEvent:
+		g.hashed(ctx, e)
+
+	case rehashedEvent:
+		g.rehashed(ctx, e)
 
 	case disconnectEvent:
 		p, ok := g.players[e.s.ID()]
@@ -277,7 +315,7 @@ func (g *Game) handle(ctx context.Context, e event) {
 			return
 		}
 		delete(g.players, e.s.ID())
-		if p.name != "" {
+		if p.character != nil {
 			g.broadcast(message.Text(p.name+" has left."), p)
 			g.log.Info("player left", "name", p.name)
 		}
@@ -301,31 +339,6 @@ func (g *Game) reload(ctx context.Context) {
 	g.engine.Close()
 	g.engine, g.commands = engine, commands
 	g.log.Info("reloaded plugins")
-}
-
-// login handles input from a session that hasn't chosen a name yet.
-func (g *Game) login(ctx context.Context, p *player, name string) {
-	if !playerNameRx.MatchString(name) {
-		p.s.Send(message.System("Names are 2 to 20 letters. Try again:"))
-		return
-	}
-
-	name = strings.ToUpper(name[:1]) + strings.ToLower(name[1:])
-	for _, other := range g.players {
-		if strings.EqualFold(other.name, name) {
-			p.s.Send(message.System("Someone by that name is already here. Try another:"))
-			return
-		}
-	}
-
-	p.name = name
-	g.log.Info("player arrived", "name", name)
-	p.s.Send(message.System(fmt.Sprintf("Welcome, [W]%s[x]! Type [c]help[x] to see what you can do.", name)))
-	g.broadcast(message.Text(name+" has arrived."), p)
-
-	if _, ok := g.commands.Lookup("look"); ok {
-		g.dispatch(ctx, p, "look")
-	}
 }
 
 // dispatch runs a command a player typed.
@@ -356,10 +369,10 @@ func (g *Game) dispatch(ctx context.Context, p *player, line string) {
 	}
 }
 
-// broadcast sends m to every named player except skip.
+// broadcast sends m to every player in the game except skip.
 func (g *Game) broadcast(m message.Message, skip *player) {
 	for _, p := range g.players {
-		if p != skip && p.name != "" {
+		if p != skip && p.character != nil {
 			p.s.Send(m)
 		}
 	}
@@ -368,7 +381,7 @@ func (g *Game) broadcast(m message.Message, skip *player) {
 // playerByID returns the named player for a script-facing id.
 func (g *Game) playerByID(id int) (*player, bool) {
 	p, ok := g.players[session.ID(id)]
-	if !ok || p.name == "" {
+	if !ok || p.character == nil {
 		return nil, false
 	}
 

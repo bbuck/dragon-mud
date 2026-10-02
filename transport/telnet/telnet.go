@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"bbuck.dev/dragon-mud/ansi"
@@ -56,7 +57,8 @@ func Serve(ctx context.Context, address string, g session.Handler, log *slog.Log
 func handle(netConn net.Conn, g session.Handler, log *slog.Logger) {
 	log.Debug("telnet connection", "remote", netConn.RemoteAddr().String())
 
-	s := session.New(&conn{conn: netConn})
+	c := &conn{conn: netConn}
+	s := session.New(c)
 	g.Connect(s)
 	defer g.Disconnect(s)
 	defer s.Close()
@@ -65,6 +67,7 @@ func handle(netConn net.Conn, g session.Handler, log *slog.Logger) {
 	scanner.Buffer(make([]byte, 0, 1024), maxLineLength)
 
 	for scanner.Scan() {
+		c.lineRead()
 		g.Input(s, strings.TrimRight(scanner.Text(), "\r"))
 	}
 }
@@ -72,12 +75,43 @@ func handle(netConn net.Conn, g session.Handler, log *slog.Logger) {
 // conn renders messages as ANSI text for one telnet client.
 type conn struct {
 	conn net.Conn
+
+	mu sync.Mutex
+	// hidden is true while the server has asked the client not to echo
+	// input, for secret input such as passwords.
+	hidden bool
 }
 
 func (c *conn) Write(m message.Message) error {
 	text := ansi.Colorize(m.Text + "[x]")
 	text = strings.ReplaceAll(text, "\n", "\r\n") + "\r\n"
 
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if m.Secret && !c.hidden {
+		// The server "will echo", so the client stops echoing; the server
+		// then doesn't, which hides the input.
+		text += string([]byte{iac, will, optEcho})
+		c.hidden = true
+	}
+
+	return c.write(text)
+}
+
+// lineRead turns the client's echo back on after secret input.
+func (c *conn) lineRead() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.hidden {
+		c.hidden = false
+		// The client didn't echo the newline either.
+		c.write(string([]byte{iac, wont, optEcho}) + "\r\n")
+	}
+}
+
+func (c *conn) write(text string) error {
 	if err := c.conn.SetWriteDeadline(time.Now().Add(writeTimeout)); err != nil {
 		return err
 	}

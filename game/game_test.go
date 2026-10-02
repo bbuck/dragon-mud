@@ -4,18 +4,24 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"path/filepath"
 	"strings"
 	"testing"
 	"testing/fstest"
 	"time"
 
+	"bbuck.dev/dragon-mud/auth"
 	"bbuck.dev/dragon-mud/builtin"
 	"bbuck.dev/dragon-mud/message"
 	"bbuck.dev/dragon-mud/plugin"
 	"bbuck.dev/dragon-mud/scripting"
 	"bbuck.dev/dragon-mud/scripting/lua"
 	"bbuck.dev/dragon-mud/session"
+	"bbuck.dev/dragon-mud/store"
 )
+
+// cheapParams keep tests fast; never use them for real passwords.
+var cheapParams = auth.Params{Memory: 64, Time: 1, Threads: 1}
 
 type fakeConn struct {
 	messages chan message.Message
@@ -59,17 +65,17 @@ func (c *client) send(line string) {
 	c.g.Input(c.s, line)
 }
 
-// expect waits for a message containing want.
-func (c *client) expect(want string) {
+// expect waits for a message containing want and returns it.
+func (c *client) expect(want string) message.Message {
 	c.t.Helper()
 
-	timeout := time.After(time.Second)
+	timeout := time.After(2 * time.Second)
 	var seen []string
 	for {
 		select {
 		case m := <-c.conn.messages:
 			if strings.Contains(m.Text, want) {
-				return
+				return m
 			}
 			seen = append(seen, m.Text)
 		case <-timeout:
@@ -78,12 +84,29 @@ func (c *client) expect(want string) {
 	}
 }
 
+// login creates an account called name and enters the game.
 func (c *client) login(name string) {
 	c.t.Helper()
 
 	c.expect("By what name")
 	c.send(name)
+	c.expect("Create a new account?")
+	c.send("yes")
+	c.expect("Choose a password")
+	c.send(" secret pass ")
+	c.expect("Type it again")
+	c.send(" secret pass ")
 	c.expect("Welcome, [W]")
+}
+
+// relogin logs in to an existing account.
+func (c *client) relogin(name, password string) {
+	c.t.Helper()
+
+	c.expect("By what name")
+	c.send(name)
+	c.expect("Password:")
+	c.send(password)
 }
 
 // sources returns dragon:basics and, if given, a game plugin.
@@ -103,13 +126,33 @@ func sources(t *testing.T, gameFiles fstest.MapFS) []plugin.Source {
 	return sources
 }
 
+func openStore(t *testing.T) *store.Store {
+	t.Helper()
+
+	db, err := store.Open(context.Background(), filepath.Join(t.TempDir(), "world.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+
+	return db
+}
+
 func newGame(t *testing.T, gameFiles fstest.MapFS) (*Game, error) {
+	t.Helper()
+
+	return newGameWith(t, openStore(t), gameFiles)
+}
+
+func newGameWith(t *testing.T, db *store.Store, gameFiles fstest.MapFS) (*Game, error) {
 	t.Helper()
 
 	return New(context.Background(), Options{
 		Name:      "Test Realm",
 		NewEngine: func() scripting.Engine { return lua.New() },
 		Plugins:   sources(t, gameFiles),
+		Store:     db,
+		Hasher:    auth.NewHasher(cheapParams, 4),
 		Log:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
 }
@@ -118,7 +161,13 @@ func newGame(t *testing.T, gameFiles fstest.MapFS) (*Game, error) {
 func startGame(t *testing.T, gameFiles fstest.MapFS) *Game {
 	t.Helper()
 
-	g, err := newGame(t, gameFiles)
+	return startGameWith(t, openStore(t), gameFiles)
+}
+
+func startGameWith(t *testing.T, db *store.Store, gameFiles fstest.MapFS) *Game {
+	t.Helper()
+
+	g, err := newGameWith(t, db, gameFiles)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,15 +211,88 @@ func TestPlayersTalk(t *testing.T) {
 func TestLoginValidation(t *testing.T) {
 	g := startGame(t, nil)
 
-	alice := connect(t, g)
-	alice.login("Alice")
+	c := connect(t, g)
+	c.expect("By what name")
+	c.send("x")
+	c.expect("2 to 20 letters")
 
-	imposter := connect(t, g)
-	imposter.expect("By what name")
-	imposter.send("x")
-	imposter.expect("2 to 20 letters")
-	imposter.send("ALICE")
-	imposter.expect("already here")
+	c.send("alice")
+	c.expect("Create a new account?")
+	c.send("maybe")
+	c.expect("yes or no")
+	c.send("no")
+	c.expect("By what name")
+
+	c.send("alice")
+	c.expect("Create a new account?")
+	c.send("y")
+	if m := c.expect("Choose a password"); !m.Secret {
+		t.Error("password prompt isn't secret")
+	}
+	c.send("short")
+	c.expect("at least 8")
+	c.send("long enough")
+	c.send("different")
+	c.expect("didn't match")
+	c.send("long enough")
+	c.send("long enough")
+	c.expect("Welcome, [W]Alice[x]")
+}
+
+func TestReturningPlayer(t *testing.T) {
+	g := startGame(t, nil)
+
+	alice := connect(t, g)
+	alice.login("alice")
+	alice.send("quit")
+	alice.expect("Farewell")
+
+	again := connect(t, g)
+	again.relogin("ALICE", "secret pass")
+	again.expect("Wrong password")
+	again.send(" secret pass ")
+	again.expect("Welcome, [W]Alice[x]")
+}
+
+func TestTooManyWrongPasswords(t *testing.T) {
+	g := startGame(t, nil)
+
+	alice := connect(t, g)
+	alice.login("alice")
+
+	intruder := connect(t, g)
+	intruder.relogin("alice", "guess one")
+	for _, guess := range []string{"guess two", "guess three"} {
+		intruder.expect("Wrong password")
+		intruder.send(guess)
+	}
+	intruder.expect("Too many wrong passwords")
+
+	select {
+	case <-intruder.conn.closed:
+	case <-time.After(time.Second):
+		t.Error("connection not closed")
+	}
+}
+
+func TestLoginTakesOver(t *testing.T) {
+	g := startGame(t, nil)
+
+	alice := connect(t, g)
+	alice.login("alice")
+	bob := connect(t, g)
+	bob.login("bob")
+
+	again := connect(t, g)
+	again.relogin("alice", " secret pass ")
+	again.expect("Welcome, [W]Alice[x]")
+	alice.expect("connected from somewhere else")
+
+	again.send("say back again")
+	bob.expect(`Alice says, "back again"`)
+
+	bob.send("who")
+	bob.expect("2 players.")
 }
 
 func TestUnknownCommand(t *testing.T) {
@@ -298,4 +420,41 @@ func TestFailedReloadKeepsScripts(t *testing.T) {
 	g.Reload()
 	alice.send("dance")
 	alice.expect("You waltz.")
+}
+
+func TestLoginUpgradesOldHashes(t *testing.T) {
+	ctx := context.Background()
+	db := openStore(t)
+
+	old := auth.Params{Memory: 32, Time: 1, Threads: 1}
+	hash, err := auth.HashPassword("old password", old)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.CreateAccount(ctx, "Alice", hash); err != nil {
+		t.Fatal(err)
+	}
+
+	g := startGameWith(t, db, nil)
+	alice := connect(t, g)
+	alice.relogin("alice", "old password")
+	alice.expect("Welcome, [W]Alice[x]")
+
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		account, _, err := db.Account(ctx, "alice")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !auth.NeedsRehash(account.PasswordHash, cheapParams) {
+			if ok, _ := auth.CheckPassword("old password", account.PasswordHash); !ok {
+				t.Fatal("upgraded hash doesn't match the password")
+			}
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("hash was never upgraded")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 }
