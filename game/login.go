@@ -245,19 +245,12 @@ func (g *Game) enter(ctx context.Context, p *player, account store.Account) {
 		return
 	}
 
-	name := account.Name
-	if n, ok := character.Get("name"); ok {
-		if s, ok := n.(string); ok && s != "" {
-			name = s
-		}
-	}
-
 	// Logging in again takes over the character from the old connection.
 	takeover := false
 	for _, other := range g.players {
 		if other != p && other.character == character {
 			other.s.Send(message.System("[Y]You have connected from somewhere else.[x]"))
-			other.character, other.name = nil, ""
+			other.character = nil
 			other.s.Close()
 			takeover = true
 		}
@@ -266,7 +259,7 @@ func (g *Game) enter(ctx context.Context, p *player, account store.Account) {
 	p.login = nil
 	p.account = account
 	p.character = character
-	p.name = name
+	name := p.displayName()
 
 	g.log.Info("player arrived", "name", name, "account", account.Name)
 	p.s.Send(message.System(fmt.Sprintf("Welcome, [W]%s[x]! Type [c]help[x] to see what you can do.", name)))

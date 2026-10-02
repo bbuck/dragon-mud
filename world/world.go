@@ -27,9 +27,20 @@ const (
 )
 
 var (
-	nameRx     = regexp.MustCompile(`^[a-z][a-z0-9_.:-]*$`)
+	keyRx      = regexp.MustCompile(`^[a-z][a-z0-9_.:-]*$`)
 	propertyRx = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_.:-]*$`)
 )
+
+// Ref is a property value that refers to another object, such as the room
+// an exit leads to. A ref to a destroyed object stays as it was; whoever
+// reads it decides what a missing object means.
+type Ref struct {
+	ID ID
+}
+
+// RefKey is the map key that marks a ref in stored JSON, as
+// {"$object": "id"}. Property maps can't use it as a key.
+const RefKey = "$object"
 
 // ErrDestroyed is returned when changing an object that has been destroyed.
 var ErrDestroyed = errors.New("object has been destroyed")
@@ -37,7 +48,7 @@ var ErrDestroyed = errors.New("object has been destroyed")
 // World is every object in the game.
 type World struct {
 	objects map[ID]*Object
-	names   map[string]*Object
+	keys    map[string]*Object
 
 	changed   map[ID]struct{}
 	destroyed map[ID]struct{}
@@ -47,7 +58,7 @@ type World struct {
 func New() *World {
 	return &World{
 		objects:   make(map[ID]*Object),
-		names:     make(map[string]*Object),
+		keys:      make(map[string]*Object),
 		changed:   make(map[ID]struct{}),
 		destroyed: make(map[ID]struct{}),
 	}
@@ -69,9 +80,9 @@ func (w *World) Get(id ID) (*Object, bool) {
 	return o, ok
 }
 
-// Named returns the object a builder named name.
-func (w *World) Named(name string) (*Object, bool) {
-	o, ok := w.names[name]
+// Keyed returns the object a builder gave the key.
+func (w *World) Keyed(key string) (*Object, bool) {
+	o, ok := w.keys[key]
 
 	return o, ok
 }
@@ -99,8 +110,8 @@ func (w *World) Destroy(o *Object) {
 	}
 
 	o.moveTo(nil)
-	if o.name != "" {
-		delete(w.names, o.name)
+	if o.key != "" {
+		delete(w.keys, o.key)
 	}
 	delete(w.objects, o.id)
 	delete(w.changed, o.id)
@@ -162,7 +173,7 @@ type Object struct {
 	w *World // nil once destroyed
 
 	id       ID
-	name     string
+	key      string
 	parent   *Object
 	location *Object
 	contents []*Object
@@ -174,34 +185,35 @@ func (o *Object) ID() ID {
 	return o.id
 }
 
-// Name returns the unique name a builder gave the object, if any.
-func (o *Object) Name() string {
-	return o.name
+// Key returns the unique key a builder gave the object, if any.
+func (o *Object) Key() string {
+	return o.key
 }
 
-// SetName gives the object a unique name, such as "tavern", so scripts and
-// builders can find it without its id. An empty name removes it.
-func (o *Object) SetName(name string) error {
+// SetKey gives the object a unique key, such as "tavern", so scripts and
+// builders can find it without its id. An empty key removes it. Keys are
+// identifiers, not display names; those are ordinary properties.
+func (o *Object) SetKey(key string) error {
 	if o.isDestroyed() {
 		return ErrDestroyed
 	}
-	if name == o.name {
+	if key == o.key {
 		return nil
 	}
-	if name != "" {
-		if !nameRx.MatchString(name) {
-			return fmt.Errorf("invalid name %q (use lowercase letters, digits, _ . : and -)", name)
+	if key != "" {
+		if !keyRx.MatchString(key) {
+			return fmt.Errorf("invalid key %q (use lowercase letters, digits, _ . : and -)", key)
 		}
-		if other, ok := o.w.names[name]; ok {
-			return fmt.Errorf("name %q is already used by %s", name, other.id)
+		if other, ok := o.w.keys[key]; ok {
+			return fmt.Errorf("key %q is already used by %s", key, other.id)
 		}
-		o.w.names[name] = o
+		o.w.keys[key] = o
 	}
-	if o.name != "" {
-		delete(o.w.names, o.name)
+	if o.key != "" {
+		delete(o.w.keys, o.key)
 	}
 
-	o.name = name
+	o.key = key
 	o.w.touch(o)
 
 	return nil
@@ -297,8 +309,9 @@ func (o *Object) Properties() []string {
 }
 
 // Set gives o its own value for the property name, hiding any inherited
-// value. Values are nil, bool, integers, floats, strings, lists ([]any or
-// typed slices) and maps with string keys, nested to any depth.
+// value. Values are nil, bool, integers, floats, strings, refs to objects
+// (Ref or *Object), lists ([]any or typed slices) and maps with string keys,
+// nested to any depth.
 func (o *Object) Set(name string, value any) error {
 	if o.isDestroyed() {
 		return ErrDestroyed
@@ -334,10 +347,10 @@ func (o *Object) Delete(name string) error {
 	return nil
 }
 
-// String returns the object's name and id, for logs and errors.
+// String returns the object's key and id, for logs and errors.
 func (o *Object) String() string {
-	if o.name != "" {
-		return o.name + " (" + string(o.id) + ")"
+	if o.key != "" {
+		return o.key + " (" + string(o.id) + ")"
 	}
 
 	return string(o.id)
@@ -349,7 +362,7 @@ func (o *Object) isDestroyed() bool {
 
 // Record returns the object as plain data for storage or export.
 func (o *Object) Record() Record {
-	r := Record{ID: o.id, Name: o.name, Properties: clone(o.props).(map[string]any)}
+	r := Record{ID: o.id, Key: o.key, Properties: clone(o.props).(map[string]any)}
 	if o.parent != nil {
 		r.Parent = o.parent.id
 	}
@@ -364,7 +377,7 @@ func (o *Object) Record() Record {
 // object has none.
 type Record struct {
 	ID         ID
-	Name       string
+	Key        string
 	Parent     ID
 	Location   ID
 	Properties map[string]any
@@ -431,8 +444,8 @@ func Load(records []Record) (*World, error) {
 			o.location.contents = append(o.location.contents, o)
 		}
 
-		if r.Name != "" {
-			if err := o.SetName(r.Name); err != nil {
+		if r.Key != "" {
+			if err := o.SetKey(r.Key); err != nil {
 				return nil, fmt.Errorf("object %s: %w", r.ID, err)
 			}
 		}
@@ -466,7 +479,7 @@ func checkCycle(o *Object, next func(*Object) *Object, verb string) error {
 }
 
 // Normalize converts value to the property value types: nil, bool, int64,
-// float64, string, []any and map[string]any.
+// float64, string, Ref, []any and map[string]any.
 func Normalize(value any) (any, error) {
 	return normalize(value, 0)
 }
@@ -481,6 +494,16 @@ func normalize(value any, depth int) (any, error) {
 	switch v := value.(type) {
 	case nil, bool, int64, string:
 		return v, nil
+	case Ref:
+		if v.ID == "" {
+			return nil, errors.New("ref has no object id")
+		}
+		return v, nil
+	case *Object:
+		if v == nil {
+			return nil, nil
+		}
+		return Ref{ID: v.id}, nil
 	case float64:
 		if math.IsNaN(v) || math.IsInf(v, 0) {
 			return nil, errors.New("can't store NaN or infinity")
@@ -515,6 +538,9 @@ func normalize(value any, depth int) (any, error) {
 	case map[string]any:
 		m := make(map[string]any, len(v))
 		for key, item := range v {
+			if key == RefKey {
+				return nil, fmt.Errorf("map key %q is reserved for object references", RefKey)
+			}
 			n, err := normalize(item, depth+1)
 			if err != nil {
 				return nil, err

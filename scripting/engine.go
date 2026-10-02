@@ -12,6 +12,7 @@
 //	[]any                 (a list)
 //	map[string]any        (a map)
 //	Function              (a script function, callable from Go)
+//	Handle                (a reference to something Go owns; see Type)
 //
 // Go to script also accepts slices of any supported type, maps with string
 // keys, and Func.
@@ -60,4 +61,8 @@ type Function interface {
 	// returned error wraps ctx.Err(). When called from inside a running
 	// script, the running script's context applies instead of ctx.
 	Call(ctx context.Context, args ...any) (any, error)
+
+	// CallAll is Call returning every result, for functions that return
+	// several values, such as a value and an error message.
+	CallAll(ctx context.Context, args ...any) ([]any, error)
 }

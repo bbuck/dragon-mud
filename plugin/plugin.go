@@ -10,7 +10,6 @@ import (
 	"io/fs"
 	"regexp"
 
-	"bbuck.dev/dragon-mud/hook"
 	"bbuck.dev/dragon-mud/scripting"
 )
 
@@ -78,46 +77,6 @@ func Open(ctx context.Context, engine scripting.Engine, fsys fs.FS, builtin bool
 	}
 
 	return p, nil
-}
-
-// Commands loads the commands the plugin's commands.lua returns. A plugin
-// without commands.lua has no commands.
-func (p *Plugin) Commands(ctx context.Context, engine scripting.Engine) ([]hook.Command, error) {
-	value, err := p.eval(ctx, engine, "commands.lua", p.ID+"/commands.lua")
-	if err != nil || value == nil {
-		return nil, err
-	}
-
-	table, ok := value.(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("%s/commands.lua must return a table, got %s", p.ID, scripting.TypeName(value))
-	}
-
-	var commands []hook.Command
-	for name, raw := range table {
-		def, ok := raw.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("%s/commands.lua: %q must be a table", p.ID, name)
-		}
-
-		execute, ok := def["execute"].(scripting.Function)
-		if !ok {
-			return nil, fmt.Errorf("%s/commands.lua: %q needs an execute function", p.ID, name)
-		}
-
-		desc, _ := def["desc"].(string)
-		override, _ := def["override"].(bool)
-
-		commands = append(commands, hook.Command{
-			Name:     name,
-			Desc:     desc,
-			Plugin:   p.ID,
-			Execute:  execute,
-			Override: override,
-		})
-	}
-
-	return commands, nil
 }
 
 // eval evaluates file from the plugin. A missing file returns nil, nil.

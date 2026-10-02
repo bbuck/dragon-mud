@@ -53,6 +53,9 @@ var migrations = []string{
 		PRIMARY KEY (account, object)
 	);
 	`,
+	`
+	ALTER TABLE objects RENAME COLUMN name TO key;
+	`,
 }
 
 // Store is a game's database.
@@ -117,7 +120,7 @@ func (s *Store) migrate(ctx context.Context) error {
 // Load reads every object.
 func (s *Store) Load(ctx context.Context) ([]world.Record, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, coalesce(name, ''), coalesce(parent, ''), coalesce(location, '')
+		SELECT id, coalesce(key, ''), coalesce(parent, ''), coalesce(location, '')
 		FROM objects ORDER BY id`)
 	if err != nil {
 		return nil, err
@@ -127,7 +130,7 @@ func (s *Store) Load(ctx context.Context) ([]world.Record, error) {
 	index := make(map[world.ID]int)
 	for rows.Next() {
 		var r world.Record
-		if err := rows.Scan(&r.ID, &r.Name, &r.Parent, &r.Location); err != nil {
+		if err := rows.Scan(&r.ID, &r.Key, &r.Parent, &r.Location); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -173,10 +176,10 @@ func (s *Store) Save(ctx context.Context, changes world.Changes) error {
 			}
 		}
 
-		// Names are unique and SQLite checks that immediately, so clear them
-		// first in case two saved objects swapped names.
+		// Keys are unique and SQLite checks that immediately, so clear them
+		// first in case two saved objects swapped keys.
 		for _, r := range changes.Saved {
-			if _, err := tx.ExecContext(ctx, `UPDATE objects SET name = NULL WHERE id = ?`, r.ID); err != nil {
+			if _, err := tx.ExecContext(ctx, `UPDATE objects SET key = NULL WHERE id = ?`, r.ID); err != nil {
 				return err
 			}
 		}
@@ -193,10 +196,10 @@ func (s *Store) Save(ctx context.Context, changes world.Changes) error {
 
 func saveRecord(ctx context.Context, tx *sql.Tx, r world.Record) error {
 	_, err := tx.ExecContext(ctx, `
-		INSERT INTO objects (id, name, parent, location) VALUES (?, ?, ?, ?)
+		INSERT INTO objects (id, key, parent, location) VALUES (?, ?, ?, ?)
 		ON CONFLICT (id) DO UPDATE SET
-			name = excluded.name, parent = excluded.parent, location = excluded.location`,
-		r.ID, nullable(string(r.Name)), nullable(string(r.Parent)), nullable(string(r.Location)))
+			key = excluded.key, parent = excluded.parent, location = excluded.location`,
+		r.ID, nullable(r.Key), nullable(string(r.Parent)), nullable(string(r.Location)))
 	if err != nil {
 		return err
 	}
@@ -206,7 +209,7 @@ func saveRecord(ctx context.Context, tx *sql.Tx, r world.Record) error {
 	}
 
 	for name, value := range r.Properties {
-		data, err := json.Marshal(value)
+		data, err := json.Marshal(encode(value))
 		if err != nil {
 			return fmt.Errorf("property %q: %w", name, err)
 		}
@@ -241,8 +244,31 @@ func nullable(s string) any {
 	return s
 }
 
+// encode replaces refs with their stored form, {"$object": "id"}.
+func encode(value any) any {
+	switch v := value.(type) {
+	case world.Ref:
+		return map[string]any{world.RefKey: string(v.ID)}
+	case []any:
+		list := make([]any, len(v))
+		for i, item := range v {
+			list[i] = encode(item)
+		}
+		return list
+	case map[string]any:
+		m := make(map[string]any, len(v))
+		for key, item := range v {
+			m[key] = encode(item)
+		}
+		return m
+	default:
+		return v
+	}
+}
+
 // decode parses a JSON property value. Whole numbers become int64 and other
-// numbers float64, matching world.Normalize.
+// numbers float64, matching world.Normalize; {"$object": "id"} becomes a
+// world.Ref.
 func decode(data string) (any, error) {
 	d := json.NewDecoder(bytes.NewReader([]byte(data)))
 	d.UseNumber()
@@ -252,10 +278,12 @@ func decode(data string) (any, error) {
 		return nil, err
 	}
 
-	return numbers(value)
+	return decoded(value)
 }
 
-func numbers(value any) (any, error) {
+// decoded converts numbers as decode describes and stored refs back to
+// world.Ref.
+func decoded(value any) (any, error) {
 	switch v := value.(type) {
 	case json.Number:
 		if !strings.ContainsAny(string(v), ".eE") {
@@ -266,15 +294,18 @@ func numbers(value any) (any, error) {
 		return v.Float64()
 	case []any:
 		for i, item := range v {
-			n, err := numbers(item)
+			n, err := decoded(item)
 			if err != nil {
 				return nil, err
 			}
 			v[i] = n
 		}
 	case map[string]any:
+		if id, ok := v[world.RefKey].(string); ok && len(v) == 1 {
+			return world.Ref{ID: world.ID(id)}, nil
+		}
 		for key, item := range v {
-			n, err := numbers(item)
+			n, err := decoded(item)
 			if err != nil {
 				return nil, err
 			}

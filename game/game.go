@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"bbuck.dev/dragon-mud/auth"
-	"bbuck.dev/dragon-mud/hook"
+	"bbuck.dev/dragon-mud/command"
 	"bbuck.dev/dragon-mud/message"
 	"bbuck.dev/dragon-mud/plugin"
 	"bbuck.dev/dragon-mud/scripting"
@@ -62,7 +62,20 @@ type player struct {
 
 	account   store.Account
 	character *world.Object
-	name      string // the character's name
+}
+
+// displayName is the character's name property, falling back to the
+// account name.
+func (p *player) displayName() string {
+	if p.character != nil {
+		if name, ok := p.character.Get("name"); ok {
+			if s, ok := name.(string); ok && s != "" {
+				return s
+			}
+		}
+	}
+
+	return p.account.Name
 }
 
 // Options configures a game.
@@ -112,12 +125,16 @@ type Game struct {
 
 	hasher *auth.Hasher
 
-	world *world.World
+	world   *world.World
+	objType *scripting.Type
+
+	// resolving is true while slot resolvers run; the world is read-only.
+	resolving bool
 
 	// engine and commands are replaced together on reload: commands hold
 	// functions that belong to engine.
 	engine   scripting.Engine
-	commands *hook.Commands
+	commands *command.Registry
 
 	events  chan event
 	stopped chan struct{}
@@ -147,6 +164,7 @@ func New(ctx context.Context, opts Options) (*Game, error) {
 	if g.world == nil {
 		g.world = world.New()
 	}
+	g.objType = g.objectType()
 	if g.hasher == nil {
 		g.hasher = auth.NewHasher(auth.DefaultParams, hashConcurrency)
 	}
@@ -162,12 +180,12 @@ func New(ctx context.Context, opts Options) (*Game, error) {
 
 // load loads every plugin into a new engine and command registry. On error
 // the new engine is closed and the game is left as it was.
-func (g *Game) load(ctx context.Context) (scripting.Engine, *hook.Commands, error) {
+func (g *Game) load(ctx context.Context) (scripting.Engine, *command.Registry, error) {
 	ctx, cancel := context.WithTimeout(ctx, loadTimeout)
 	defer cancel()
 
 	engine := g.newEngine()
-	commands := hook.NewCommands()
+	commands := command.NewRegistry()
 
 	err := g.loadInto(ctx, engine, commands)
 	if err != nil {
@@ -178,8 +196,13 @@ func (g *Game) load(ctx context.Context) (scripting.Engine, *hook.Commands, erro
 	return engine, commands, nil
 }
 
-func (g *Game) loadInto(ctx context.Context, engine scripting.Engine, commands *hook.Commands) error {
-	if err := engine.Load(g.module()); err != nil {
+func (g *Game) loadInto(ctx context.Context, engine scripting.Engine, commands *command.Registry) error {
+	for _, m := range []scripting.Module{g.module(), g.worldModule()} {
+		if err := engine.Load(m); err != nil {
+			return err
+		}
+	}
+	if err := commands.AddSlot(g.objectSlot(), false); err != nil {
 		return err
 	}
 
@@ -192,24 +215,33 @@ func (g *Game) loadInto(ctx context.Context, engine scripting.Engine, commands *
 	return nil
 }
 
-func (g *Game) loadPlugin(ctx context.Context, engine scripting.Engine, commands *hook.Commands, src plugin.Source) error {
+func (g *Game) loadPlugin(ctx context.Context, engine scripting.Engine, commands *command.Registry, src plugin.Source) error {
 	p, err := plugin.Open(ctx, engine, src.Files, src.Builtin)
 	if err != nil {
 		return err
+	}
+
+	slots, err := p.Slots(ctx, engine)
+	if err != nil {
+		return err
+	}
+	for _, def := range slots {
+		if err := commands.AddSlot(g.scriptSlot(p.ID, def), def.Replace); err != nil {
+			return err
+		}
 	}
 
 	cmds, err := p.Commands(ctx, engine)
 	if err != nil {
 		return err
 	}
-
-	for _, cmd := range cmds {
-		if err := commands.Register(cmd); err != nil {
+	for _, def := range cmds {
+		if err := commands.Add(def); err != nil {
 			return err
 		}
 	}
 
-	g.log.Info("loaded plugin", "plugin", p.ID, "version", p.Manifest.Version, "commands", len(cmds))
+	g.log.Info("loaded plugin", "plugin", p.ID, "version", p.Manifest.Version, "commands", len(cmds), "slots", len(slots))
 
 	return nil
 }
@@ -257,7 +289,7 @@ func (g *Game) Run(ctx context.Context) error {
 			g.save(ctx)
 			return nil
 		case e := <-g.events:
-			g.handle(ctx, e)
+			g.handleEvent(ctx, e)
 			g.save(ctx)
 		}
 	}
@@ -281,7 +313,7 @@ func (g *Game) save(ctx context.Context) {
 	}
 }
 
-func (g *Game) handle(ctx context.Context, e event) {
+func (g *Game) handleEvent(ctx context.Context, e event) {
 	switch e := e.(type) {
 	case connectEvent:
 		p := &player{s: e.s}
@@ -316,8 +348,8 @@ func (g *Game) handle(ctx context.Context, e event) {
 		}
 		delete(g.players, e.s.ID())
 		if p.character != nil {
-			g.broadcast(message.Text(p.name+" has left."), p)
-			g.log.Info("player left", "name", p.name)
+			g.broadcast(message.Text(p.displayName()+" has left."), p)
+			g.log.Info("player left", "name", p.displayName())
 		}
 
 	case reloadEvent:
@@ -342,32 +374,6 @@ func (g *Game) reload(ctx context.Context) {
 }
 
 // dispatch runs a command a player typed.
-func (g *Game) dispatch(ctx context.Context, p *player, line string) {
-	if line == "" {
-		return
-	}
-
-	verb, args, _ := strings.Cut(line, " ")
-	if strings.HasPrefix(line, "'") {
-		verb, args = "say", line[1:]
-	}
-	args = strings.TrimSpace(args)
-
-	cmd, ok := g.commands.Lookup(verb)
-	if !ok {
-		p.s.Send(message.System("Huh? Type [c]help[x] for a list of commands."))
-		return
-	}
-
-	callCtx, cancel := context.WithTimeout(ctx, scriptTimeout)
-	defer cancel()
-
-	actor := map[string]any{"id": int64(p.s.ID()), "name": p.name}
-	if _, err := cmd.Execute.Call(callCtx, actor, args); err != nil {
-		g.log.Error("command failed", "command", cmd.Name, "plugin", cmd.Plugin, "error", err)
-		p.s.Send(message.System(fmt.Sprintf("[R]%s (from %s) failed: %v[x]", cmd.Name, cmd.Plugin, err)))
-	}
-}
 
 // broadcast sends m to every player in the game except skip.
 func (g *Game) broadcast(m message.Message, skip *player) {
@@ -376,14 +382,4 @@ func (g *Game) broadcast(m message.Message, skip *player) {
 			p.s.Send(m)
 		}
 	}
-}
-
-// playerByID returns the named player for a script-facing id.
-func (g *Game) playerByID(id int) (*player, bool) {
-	p, ok := g.players[session.ID(id)]
-	if !ok || p.character == nil {
-		return nil, false
-	}
-
-	return p, true
 }

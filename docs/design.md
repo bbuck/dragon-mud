@@ -11,8 +11,9 @@ Very little. The core provides:
 
 - connections, sessions and accounts
 - the game loop
-- **objects**: an id, an optional parent (to inherit properties from), a
-  location (the object that contains it) and properties
+- **objects**: an id, an optional unique key, an optional parent (to
+  inherit properties from), a location (the object that contains it) and
+  properties
 - permissions
 - scripting
 - hooks, notifications and a replaceable command dispatcher
@@ -54,10 +55,56 @@ could interleave. The loop removes that whole class of ordering problem.
 
 ### Commands
 
-The **command dispatcher is replaceable**. The default dispatcher is a
-registry with one owner per command name; a plugin may replace another's
-command only by declaring `override`. A MOO-style kit swaps in a dispatcher
-that finds verbs on the objects involved (`put ball in box`).
+What players type is matched against **forms**: patterns that belong to a
+named command.
+
+```lua
+say = {
+  desc = "Say something.",
+  forms = {
+    { "say <message>", function(actor, args) ... end },
+    { "say <message> to <target:object:here,online>", function(actor, args) ... end },
+    { "'<message>", function(actor, args) ... end },
+  },
+},
+```
+
+- **Patterns** are literal words and slots: `<name>` takes free text,
+  `<name:type>` resolves it through a slot type, and
+  `<name:type:modifier,modifier>` passes modifiers. `[optional parts]`
+  expand into a form with and without them. A leading punctuation
+  character is its own word, so `'<message>` matches `'hi`.
+- **Quotes** escape the parser: `say "hi to bob"` is one value and never
+  matches literal words.
+- **Maximal munch.** Every form is matched against the input, every way it
+  can split. Typed slots are resolved, and a form whose slot fails to
+  resolve drops out. The most specific form left wins: the most literal
+  words, then the most typed slots resolved, then the plugin loaded last
+  (the game beats plugins beats built-ins), then the form written first
+  (commands are taken alphabetically, forms in the order written). Within
+  one form, the earliest split that resolves wins. `say hi to bob` reaches
+  Bob only if Bob is here; otherwise it's said aloud.
+- **No match** reports the most specific near miss's reason ("You don't see
+  'bob' here."), else the usage of commands whose first word matched, else
+  "Huh?".
+- **Slot types** are registered like commands: the engine's `text`, `word`,
+  `number` and `object` (modifiers `here`, `held`, `online`, `anywhere`;
+  `2.sword` picks the second match; ambiguity is an error), and any a
+  plugin's `slots.lua` returns, each with declared `modifiers` and
+  `resolve(actor, text, modifiers)` returning the value, or nil and a
+  reason. Patterns using unknown types or modifiers fail at startup, with a
+  suggestion.
+- **Resolvers only look.** They run speculatively for every candidate, so
+  while they run the world is read-only and any change is an error.
+- **Additive by default.** Defining a command another plugin has adds forms
+  to it; `replace = true` drops every earlier form, and replacing with no
+  forms removes the command. A form matching exactly the same input as
+  another is a startup error that says which to remove.
+
+**Input modes** (planned) let a plugin take over a player's input with its
+own forms (an editor, a menu, a yes/no question); login becomes the first
+mode. Objects in scope will contribute forms too (exits, verbs on held
+things), which is how a MOO-style game finds verbs on the objects involved.
 
 ### Hooks (can veto or modify)
 
@@ -300,8 +347,9 @@ else can be added without changing the engine or the modules.
 - **Modules, not reflection.** The engine exposes a designed API as modules of
   Go functions (`die.roll`, `room.get`). Modules are written once and work in
   every language. Go types are never exposed directly.
-- **Boundary values** are nil, bool, number, string, list, map and script
-  function. `scripting.Args` gives uniform argument errors in every language.
+- **Boundary values** are nil, bool, number, string, list, map, script
+  function and handle. `scripting.Args` gives uniform argument errors in
+  every language.
 - **Script functions held by Go** (hook handlers) are `scripting.Function`
   values tied to the engine that created them.
 - **Every call takes a context.** A script that exceeds its deadline is
@@ -310,9 +358,25 @@ else can be added without changing the engine or the modules.
 - **No game state in script globals.** State lives in objects and plugin data.
   This is what makes hot reload safe: the engine can throw away the script
   state, reload files and re-register, and nothing is lost.
-- **Objects across the boundary** (`player:send(...)`) are still to be
-  designed. Dice objects built from notation (`random.dice("1d8+2")`) come
-  with them.
+- **Handles** are the one way Go-owned things cross the boundary. A
+  `scripting.Type` declares a handle's read-only fields and its methods; each
+  language presents it natively (Lua: userdata, `h.field`, `h:method()`).
+  Handles with the same type and key are the same script value. Scripts
+  can't assign fields or reach the metatable; unknown names are errors.
+- **Objects** are handles holding an object's id, so a handle to a
+  destroyed object raises an error. Fields: `id`, `key`, `parent`,
+  `location`, `contents`. Properties are read and written with methods
+  (`o:get(name)`, `o:set(name, value)`), never as fields, so property names
+  can't collide with the API; ergonomic wrappers are a plugin's job.
+  `o:send(text)` reaches everyone playing `o` and does nothing otherwise.
+  The `world` module creates, finds and destroys objects. A command's actor
+  is the player's character object.
+- **Properties can hold objects.** They're stored as refs
+  (`{"$object": "id"}` in JSON); a ref to a destroyed object reads as nil.
+- **Keys, not names.** An object's unique builder identifier is its `key`
+  (`world.keyed("tavern")`); display names are ordinary `name` properties.
+- Dice objects built from notation (`random.dice("1d8+2")`) will be handles
+  too.
 
 Gopher-lua was chosen because Lua 5.1 is what MUD players already know
 (Mudlet; WoW addons and Luau descend from 5.1), it's maintained, and it
@@ -337,7 +401,8 @@ supports interruption and coroutines.
 | `builtin`          | Built-in plugins, embedded in the binary.               |
 | `game`             | The game loop, events and world ownership.              |
 | `world`            | Objects in memory: ids, parents, locations, properties. |
-| `hook`             | Command registry, hook chains, notifications, ordering. |
+| `command`          | Form patterns, slot types and the input parser.         |
+| `hook`             | Hook chains, notifications, ordering.                   |
 | `plugin`           | Plugin loading, manifests and dependency sorting.       |
 | `message`          | The message type sent to sessions.                      |
 | `session`          | Player sessions and their outgoing queues.              |

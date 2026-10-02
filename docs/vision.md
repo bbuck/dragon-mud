@@ -35,6 +35,12 @@ requires it.
   `say` are plugins. The core assumes only sessions, objects that can contain
   other objects, scripting, and messages. A Diku-style hack-and-slash, a MUSH
   or a MOO can all be built on it.
+- **Errors are part of the product.** Every error a builder or player sees
+  is clear, specific and actionable, in the spirit of Rust's compiler: say
+  what went wrong, where (plugin, file, command, pattern), why, and what to
+  do about it, naming the exact setting or line to change. "Invalid input"
+  is a bug. Startup checks catch mistakes before players do, and errors
+  are tested for their wording, not just for existing.
 - **The plugin API is the product.** Game builders can only do what plugins
   can do. Built-in plugins use the same public API as everyone else.
 - **Predictable composition.** Plugins declare their order and dependencies;

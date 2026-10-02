@@ -33,7 +33,8 @@ A plugin is a directory. Every part is optional except the manifest.
 ```
 mapping/
   plugin.lua        manifest: name, version, provides, depends, capabilities
-  commands.lua      player commands
+  commands.lua      player commands and their forms
+  slots.lua         slot types for command patterns
   hooks.lua         hook and notification handlers
   lua/              other Lua modules
   messages/         message kinds and templates (*.txt.tmpl, *.html.tmpl)
@@ -82,7 +83,8 @@ Only through extension points a plugin offers. **No monkeypatching**: another
 plugin's module is read-only. If a plugin isn't extensible enough, it needs a
 new extension point.
 
-1. **Behavior**: hooks, notifications, command overrides (declared).
+1. **Behavior**: hooks, notifications, command forms (additive; replacing
+   is declared).
 2. **Data**: add fields to another plugin's types. Added fields are namespaced
    by the adding plugin (`room.mapping.coords`), appear in their own admin
    form section, and are included in export.

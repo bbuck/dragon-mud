@@ -22,28 +22,31 @@ over telnet and the web and talk to each other.
 - [x] Web transport: page, WebSocket, htmx client, color as HTML.
 - [x] Plugin loading: embedded `dragon:basics` plus the game's own plugin.
 - [x] Commands from Lua (`commands.lua` returns a table), with explicit
-      `override`.
+      `override` (now `replace`).
 - [x] Hot reload of Lua on file change.
 
 ## Milestone 2: Core model
 
 - [x] Objects: id, parent, location, properties; SQLite storage.
 - [x] Accounts and login with `auth`.
-- [ ] Objects across the scripting boundary (`player:send(...)`).
+- [x] Objects across the scripting boundary (`player:send(...)`).
 - [ ] Message kinds with entity references, sections and per-transport
       templates.
 - [ ] Hooks and notifications with manifest ordering and game wiring.
 - [ ] `dragon hooks <name>`.
-- [ ] Replaceable command dispatcher.
-- [ ] Pending prompts (generalizing the login prompts), then character
-      select and creation as game-controlled prompts.
+- [x] Input parser: command forms, slot types (`slots.lua`), maximal
+      munch, quoting, additive forms with `replace`.
+- [ ] Input modes (editors, menus, pending prompts); login as a mode, then
+      character select and creation as game-controlled modes.
+- [ ] Forms contributed by objects in scope (exits, verbs on held things).
 - [ ] Feed message kinds: `room`, `say`, `emote`, `ambient`, `echo`.
 
 ## Milestone 3: Plugins for real
 
 - [ ] Full manifest: provides, depends, capabilities.
 - [ ] `plugin.require` for plugin APIs.
-- [ ] Schema types and extensions; namespaced added fields.
+- [ ] Schema types and extensions; namespaced added fields. Open: can an
+      object have several types (a bag is an item and a container)?
 - [ ] Tasks (`dragon <plugin>:<task>`, `dragon tasks`).
 - [ ] `dragon add/update/remove/list`, `dragon.lock`, vendoring.
 - [ ] Import maps, plugin JS, the `dragon` client API, client events.

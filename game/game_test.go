@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"bbuck.dev/dragon-mud/scripting/lua"
 	"bbuck.dev/dragon-mud/session"
 	"bbuck.dev/dragon-mud/store"
+	"bbuck.dev/dragon-mud/world"
 )
 
 // cheapParams keep tests fast; never use them for real passwords.
@@ -144,13 +146,25 @@ func newGame(t *testing.T, gameFiles fstest.MapFS) (*Game, error) {
 	return newGameWith(t, openStore(t), gameFiles)
 }
 
+// newGameWith returns a game whose world is loaded from db, as dragon serve
+// does.
 func newGameWith(t *testing.T, db *store.Store, gameFiles fstest.MapFS) (*Game, error) {
 	t.Helper()
+
+	records, err := db.Load(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	w, err := world.Load(records)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	return New(context.Background(), Options{
 		Name:      "Test Realm",
 		NewEngine: func() scripting.Engine { return lua.New() },
 		Plugins:   sources(t, gameFiles),
+		World:     w,
 		Store:     db,
 		Hasher:    auth.NewHasher(cheapParams, 4),
 		Log:       slog.New(slog.NewTextHandler(io.Discard, nil)),
@@ -171,6 +185,14 @@ func startGameWith(t *testing.T, db *store.Store, gameFiles fstest.MapFS) *Game 
 	if err != nil {
 		t.Fatal(err)
 	}
+	runGame(t, g)
+
+	return g
+}
+
+// runGame runs g until the test ends or the returned function is called.
+func runGame(t *testing.T, g *Game) (stop func()) {
+	t.Helper()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
@@ -178,12 +200,17 @@ func startGameWith(t *testing.T, db *store.Store, gameFiles fstest.MapFS) *Game 
 		g.Run(ctx)
 		close(done)
 	}()
-	t.Cleanup(func() {
-		cancel()
-		<-done
-	})
 
-	return g
+	var once sync.Once
+	stop = func() {
+		once.Do(func() {
+			cancel()
+			<-done
+		})
+	}
+	t.Cleanup(stop)
+
+	return stop
 }
 
 func TestPlayersTalk(t *testing.T) {
@@ -323,12 +350,12 @@ func TestGamePluginOverridesLook(t *testing.T) {
 		"commands.lua": {Data: []byte(`
 			return {
 				look = {
-					override = true,
-					execute = function(actor) game.send(actor.id, "A cozy tavern.") end,
+					replace = true,
+					execute = function(actor) actor:send("A cozy tavern.") end,
 				},
 				dance = {
 					desc = "Dance!",
-					execute = function(actor) game.broadcast(actor.name .. " dances.") end,
+					execute = function(actor) game.broadcast(actor:get("name") .. " dances.") end,
 				},
 			}
 		`)},
@@ -384,7 +411,7 @@ func TestReload(t *testing.T) {
 	files := fstest.MapFS{
 		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
 		"commands.lua": {Data: []byte(`
-			return { dance = { execute = function(actor) game.send(actor.id, "You waltz.") end } }
+			return { dance = { execute = function(actor) actor:send("You waltz.") end } }
 		`)},
 	}
 	g := startGame(t, files)
@@ -397,7 +424,7 @@ func TestReload(t *testing.T) {
 	// Events are handled in order, so the reload finishes before the next
 	// command runs.
 	files["commands.lua"] = &fstest.MapFile{Data: []byte(`
-		return { dance = { execute = function(actor) game.send(actor.id, "You tango.") end } }
+		return { dance = { execute = function(actor) actor:send("You tango.") end } }
 	`)}
 	g.Reload()
 	alice.send("dance")
@@ -408,7 +435,7 @@ func TestFailedReloadKeepsScripts(t *testing.T) {
 	files := fstest.MapFS{
 		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
 		"commands.lua": {Data: []byte(`
-			return { dance = { execute = function(actor) game.send(actor.id, "You waltz.") end } }
+			return { dance = { execute = function(actor) actor:send("You waltz.") end } }
 		`)},
 	}
 	g := startGame(t, files)
@@ -456,5 +483,292 @@ func TestLoginUpgradesOldHashes(t *testing.T) {
 			t.Fatal("hash was never upgraded")
 		}
 		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// builder is a game plugin that exercises objects from Lua.
+var builder = fstest.MapFS{
+	"plugin.lua": {Data: []byte(`return { name = "game" }`)},
+	"commands.lua": {Data: []byte(`
+		local function title(o)
+			return o and o:get("title") or "nowhere"
+		end
+
+		return {
+			dig = { forms = { { "dig <title>", function(actor, args)
+				local room = world.create()
+				room:set("title", args.title)
+				actor:set("home", room)
+				actor:move_to(room)
+				actor:send("You dig " .. args.title .. ".")
+			end } } },
+
+			where = { execute = function(actor)
+				actor:send("You are in " .. title(actor.location) .. "; home is " .. title(actor:get("home")) .. ".")
+			end },
+
+			look = { replace = true, execute = function(actor)
+				local names = {}
+				for _, thing in ipairs(actor.location and actor.location.contents or {}) do
+					table.insert(names, thing:get("name") or thing.id)
+				end
+				actor:send("Here: " .. table.concat(names, ", "))
+			end },
+
+			crumble = { execute = function(actor)
+				local room = actor.location
+				actor:move_to(nil)
+				world.destroy(room)
+				actor:send("Home is now " .. tostring(actor:get("home")) .. ".")
+			end },
+
+			stale = { execute = function(actor)
+				local o = world.create()
+				world.destroy(o)
+				o:set("x", 1)
+			end },
+
+			vanish = { execute = function(actor) world.destroy(actor) end },
+
+			poke = { execute = function(actor)
+				world.create():send("nobody hears this")
+				actor:send("poked")
+			end },
+		}
+	`)},
+}
+
+func TestObjectsFromLua(t *testing.T) {
+	g := startGame(t, builder)
+
+	alice := connect(t, g)
+	alice.login("alice")
+	alice.send("dig The Cellar")
+	alice.expect("You dig The Cellar.")
+	alice.send("where")
+	alice.expect("You are in The Cellar; home is The Cellar.")
+
+	bob := connect(t, g)
+	bob.login("bob")
+	bob.send("dig The Attic")
+	bob.expect("You dig The Attic.")
+	bob.send("look")
+	bob.expect("Here: Bob")
+
+	alice.send("stale")
+	alice.expect("object has been destroyed")
+	alice.send("vanish")
+	alice.expect("can't destroy an object someone is playing")
+	alice.send("poke")
+	alice.expect("poked")
+
+	alice.send("crumble")
+	alice.expect("Home is now nil.")
+	alice.send("where")
+	alice.expect("You are in nowhere; home is nowhere.")
+}
+
+func TestObjectsPersist(t *testing.T) {
+	db := openStore(t)
+
+	g, err := newGameWith(t, db, builder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stop := runGame(t, g)
+	alice := connect(t, g)
+	alice.login("alice")
+	alice.send("dig The Cellar")
+	alice.expect("You dig The Cellar.")
+	stop()
+
+	g = startGameWith(t, db, builder)
+	again := connect(t, g)
+	again.relogin("alice", " secret pass ")
+	again.expect("Welcome, [W]Alice[x]")
+	again.send("where")
+	again.expect("You are in The Cellar; home is The Cellar.")
+}
+
+func TestCreateWithOptions(t *testing.T) {
+	g := startGame(t, fstest.MapFS{
+		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
+		"commands.lua": {Data: []byte(`
+			return {
+				forge = { execute = function(actor)
+					local sword = world.create{ properties = { damage = "1d8", weight = 3 } }
+					local blade = world.create{
+						parent = sword,
+						location = actor,
+						key = "blade",
+						properties = { damage = "1d10", owner = actor },
+					}
+					actor:send(table.concat({
+						blade:get("damage"), blade:get("weight"),
+						tostring(blade.location == actor), tostring(blade:get("owner") == actor),
+						tostring(world.keyed("blade") == blade),
+					}, " "))
+				end },
+
+				typo = { execute = function() world.create{ parnet = 1 } end },
+
+				taken = { execute = function(actor)
+					local before = #actor.contents
+					local ok = pcall(world.create, { key = "blade", location = actor })
+					actor:send("failed=" .. tostring(not ok) .. " left=" .. (#actor.contents - before))
+				end },
+			}
+		`)},
+	})
+
+	alice := connect(t, g)
+	alice.login("alice")
+
+	alice.send("forge")
+	alice.expect("1d10 3 true true true")
+
+	alice.send("typo")
+	alice.expect(`unknown option "parnet"`)
+
+	alice.send("taken")
+	alice.expect("failed=true left=0")
+}
+
+func TestSayTo(t *testing.T) {
+	g := startGame(t, nil)
+
+	alice := connect(t, g)
+	alice.login("alice")
+	bob := connect(t, g)
+	bob.login("bob")
+
+	alice.send("say hi to bob")
+	alice.expect(`You say to Bob, "hi"`)
+	bob.expect(`Alice says to you, "hi"`)
+
+	// No one called "the store": the whole line is the message.
+	alice.send("say I went to the store")
+	bob.expect(`Alice says, "I went to the store"`)
+
+	alice.send(`say "hi to bob"`)
+	bob.expect(`Alice says, "hi to bob"`)
+
+	alice.send("'shortcut")
+	bob.expect(`Alice says, "shortcut"`)
+
+	alice.send("say")
+	alice.expect("Usage:")
+
+	alice.send("help say")
+	alice.expect("say <message> to <target:object:here,online>")
+}
+
+// doors is a game plugin with its own slot type.
+var doors = fstest.MapFS{
+	"plugin.lua": {Data: []byte(`return { name = "game" }`)},
+	"slots.lua": {Data: []byte(`
+		local doors = { red = { open = true }, blue = { open = false } }
+		return {
+			door = {
+				desc = "A door by color.",
+				modifiers = { "open" },
+				resolve = function(actor, text, modifiers)
+					local door = doors[text]
+					if not door then
+						return nil, "There's no " .. text .. " door."
+					end
+					if modifiers.open and not door.open then
+						return nil, "The " .. text .. " door is shut."
+					end
+					return text
+				end,
+			},
+			sneaky = {
+				resolve = function(actor, text)
+					actor:set("tampered", true)
+					return text
+				end,
+			},
+		}
+	`)},
+	"commands.lua": {Data: []byte(`
+		return {
+			enter = { forms = {
+				{ "enter <door:door:open>", function(actor, args) actor:send("You step through the " .. args.door .. " door.") end },
+				{ "knock <door:door>", function(actor, args) actor:send("You knock on the " .. args.door .. " door.") end },
+			} },
+			tamper = { forms = { { "tamper <x:sneaky>", function() end } } },
+			say = { forms = {
+				{ "say <message> loudly", function(actor, args) actor:send("You shout: " .. args.message) end },
+			} },
+			get = { forms = {
+				{ "get <thing:object:here>", function(actor, args) actor:send("You get " .. args.thing:get("name") .. " (" .. args.thing:get("n") .. ").") end },
+			} },
+			make = { forms = {
+				{ "make <what>", function(actor, args)
+					for i = 1, 2 do
+						world.create{ location = actor.location, properties = { name = args.what, n = i } }
+					end
+					actor:send("Made two.")
+				end },
+			} },
+			go = { execute = function(actor) actor:move_to(world.create()) actor:send("Moved.") end },
+		}
+	`)},
+}
+
+func TestPluginSlotTypes(t *testing.T) {
+	g := startGame(t, doors)
+
+	alice := connect(t, g)
+	alice.login("alice")
+
+	alice.send("enter red")
+	alice.expect("You step through the red door.")
+	alice.send("enter blue")
+	alice.expect("The blue door is shut.")
+	alice.send("knock blue")
+	alice.expect("You knock on the blue door.")
+	alice.send("enter green")
+	alice.expect("There's no green door.")
+
+	alice.send("tamper x")
+	alice.expect("can't change the world while resolving input")
+
+	// The game's form joined dragon:basics' say.
+	alice.send("say hello loudly")
+	alice.expect("You shout: hello")
+	alice.send("say hello")
+	alice.expect(`You say, "hello"`)
+}
+
+func TestObjectSlot(t *testing.T) {
+	g := startGame(t, doors)
+
+	alice := connect(t, g)
+	alice.login("alice")
+	alice.send("go")
+	alice.expect("Moved.")
+	alice.send("make sword")
+	alice.expect("Made two.")
+
+	alice.send("get sword")
+	alice.expect("Which 'sword' do you mean? There are 2")
+	alice.send("get 2.sword")
+	alice.expect("You get sword (2).")
+	alice.send("get 3.sword")
+	alice.expect("There are only 2 of 'sword'.")
+	alice.send("get axe")
+	alice.expect("You don't see 'axe' here.")
+}
+
+func TestBadCommandsFileIsExplained(t *testing.T) {
+	_, err := newGame(t, fstest.MapFS{
+		"plugin.lua":   {Data: []byte(`return { name = "game" }`)},
+		"commands.lua": {Data: []byte(`return { jump = { froms = {} } }`)},
+	})
+	want := `game/commands.lua: command "jump" has an unknown field "froms". Did you mean "forms"? Allowed fields: desc, forms, execute, replace.`
+	if err == nil || !strings.Contains(err.Error(), want) {
+		t.Errorf("error = %v\nwant it to contain %q", err, want)
 	}
 }

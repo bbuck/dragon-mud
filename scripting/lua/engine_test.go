@@ -283,3 +283,25 @@ func TestSandbox(t *testing.T) {
 
 	run(t, e, `assert(string.upper("ok") == "OK" and math.floor(1.5) == 1 and table.concat({"a", "b"}) == "ab")`)
 }
+
+func TestCallAllReturnsEveryResult(t *testing.T) {
+	e := New()
+	t.Cleanup(e.Close)
+
+	fn, err := e.Eval(context.Background(), "test", `return function(x) return nil, "no " .. x end`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := fn.(scripting.Function).CallAll(context.Background(), "luck")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(results, []any{nil, "no luck"}) {
+		t.Errorf("CallAll = %#v", results)
+	}
+
+	if results, _ := fn.(scripting.Function).CallAll(context.Background(), "x"); len(results) != 2 {
+		t.Errorf("second call returned %d results; the stack leaked", len(results))
+	}
+}

@@ -108,6 +108,16 @@ func (a Args) Function(i int) (Function, error) {
 	return f, nil
 }
 
+// Handle returns argument i as a handle of type t.
+func (a Args) Handle(i int, t *Type) (Handle, error) {
+	h, ok := a.get(i).(Handle)
+	if !ok || h.Type != t {
+		return Handle{}, a.typeError(i, t.Name)
+	}
+
+	return h, nil
+}
+
 func (a Args) get(i int) any {
 	if i < 0 || i >= len(a) {
 		return nil
@@ -141,6 +151,8 @@ func TypeName(v any) string {
 		return "map"
 	case Function:
 		return "function"
+	case Handle:
+		return v.(Handle).Type.Name
 	default:
 		return fmt.Sprintf("%T", v)
 	}

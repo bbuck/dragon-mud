@@ -25,6 +25,21 @@ type function struct {
 
 // Call invokes the Lua function with args and returns its first result.
 func (f *function) Call(ctx context.Context, args ...any) (any, error) {
+	results, err := f.call(ctx, 1, args)
+	if err != nil {
+		return nil, err
+	}
+
+	return results[0], nil
+}
+
+// CallAll invokes the Lua function with args and returns every result.
+func (f *function) CallAll(ctx context.Context, args ...any) ([]any, error) {
+	return f.call(ctx, glua.MultRet, args)
+}
+
+// call invokes the function, keeping nret results (glua.MultRet for all).
+func (f *function) call(ctx context.Context, nret int, args []any) ([]any, error) {
 	e := f.engine
 
 	lvArgs := make([]glua.LValue, len(args))
@@ -39,15 +54,25 @@ func (f *function) Call(ctx context.Context, args ...any) (any, error) {
 	restore := e.useContext(ctx)
 	defer restore()
 
-	err := e.state.CallByParam(glua.P{Fn: f.fn, NRet: 1, Protect: true}, lvArgs...)
+	base := e.state.GetTop()
+	err := e.state.CallByParam(glua.P{Fn: f.fn, NRet: nret, Protect: true}, lvArgs...)
 	if err != nil {
 		return nil, e.callError(ctx, err)
 	}
 
-	result := e.state.Get(-1)
-	e.state.Pop(1)
+	n := e.state.GetTop() - base
+	results := make([]any, n)
+	for i := range n {
+		value, err := e.fromLua(e.state.Get(base+i+1), 0)
+		if err != nil {
+			e.state.SetTop(base)
+			return nil, fmt.Errorf("lua: result #%d: %w", i+1, err)
+		}
+		results[i] = value
+	}
+	e.state.SetTop(base)
 
-	return e.fromLua(result, 0)
+	return results, nil
 }
 
 // fromLua converts a Lua value into a scripting boundary value. Numbers
@@ -71,6 +96,11 @@ func (e *Engine) fromLua(lv glua.LValue, depth int) (any, error) {
 		return &function{engine: e, fn: v}, nil
 	case *glua.LTable:
 		return e.tableFromLua(v, depth)
+	case *glua.LUserData:
+		if h, ok := handleFromLua(v); ok {
+			return h, nil
+		}
+		return nil, errors.New("unsupported userdata")
 	default:
 		return nil, fmt.Errorf("unsupported Lua type %s", lv.Type())
 	}
@@ -147,6 +177,8 @@ func (e *Engine) toLua(value any, depth int) (glua.LValue, error) {
 		return nil, errors.New("function belongs to a different engine")
 	case scripting.Func:
 		return e.wrap("function", v), nil
+	case scripting.Handle:
+		return e.handleToLua(v)
 	}
 
 	rv := reflect.ValueOf(value)

@@ -57,13 +57,15 @@ func TestRoundTrip(t *testing.T) {
 
 	w := load(t, s)
 	room, rock := w.Create(), w.Create()
-	must(t, room.SetName("void"))
+	must(t, room.SetKey("void"))
 	must(t, rock.SetParent(room))
 	must(t, rock.MoveTo(room))
 	must(t, rock.Set("weight", 3))
 	must(t, rock.Set("density", 2.5))
 	must(t, rock.Set("tags", []string{"grey"}))
 	must(t, rock.Set("stats", map[string]any{"hp": 10, "nested": []any{1, "two", nil, true}}))
+	must(t, rock.Set("home", room))
+	must(t, rock.Set("trail", []any{room, map[string]any{"at": room}}))
 	save(t, s, w)
 	s.Close()
 
@@ -72,9 +74,9 @@ func TestRoundTrip(t *testing.T) {
 		t.Fatalf("loaded %d objects, want 2", w2.Len())
 	}
 
-	r2, ok := w2.Named("void")
+	r2, ok := w2.Keyed("void")
 	if !ok {
-		t.Fatal("room not found by name")
+		t.Fatal("room not found by key")
 	}
 	rock2, _ := w2.Get(rock.ID())
 	if rock2.Location() != r2 || rock2.Parent() != r2 {
@@ -94,16 +96,16 @@ func TestSaveChanges(t *testing.T) {
 
 	w := load(t, s)
 	a, b, c := w.Create(), w.Create(), w.Create()
-	must(t, a.SetName("first"))
-	must(t, b.SetName("second"))
+	must(t, a.SetKey("first"))
+	must(t, b.SetKey("second"))
 	must(t, c.MoveTo(a))
 	must(t, a.Set("gone", true))
 	save(t, s, w)
 
-	// Swap names, drop a property and destroy an object others point at.
-	must(t, a.SetName("temp"))
-	must(t, b.SetName("first"))
-	must(t, a.SetName("second"))
+	// Swap keys, drop a property and destroy an object others point at.
+	must(t, a.SetKey("temp"))
+	must(t, b.SetKey("first"))
+	must(t, a.SetKey("second"))
 	must(t, a.Delete("gone"))
 	must(t, b.SetParent(a))
 	w.Destroy(a)
@@ -113,11 +115,11 @@ func TestSaveChanges(t *testing.T) {
 	if w2.Len() != 2 {
 		t.Fatalf("loaded %d objects, want 2", w2.Len())
 	}
-	if o, _ := w2.Named("first"); o == nil || o.ID() != b.ID() {
-		t.Error("swapped name not saved")
+	if o, _ := w2.Keyed("first"); o == nil || o.ID() != b.ID() {
+		t.Error("swapped key not saved")
 	}
-	if _, ok := w2.Named("second"); ok {
-		t.Error("destroyed object's name still saved")
+	if _, ok := w2.Keyed("second"); ok {
+		t.Error("destroyed object's key still saved")
 	}
 	c2, _ := w2.Get(c.ID())
 	if c2.Location() != nil {

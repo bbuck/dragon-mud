@@ -25,8 +25,7 @@ dragon serve
 ```
 
 Then open http://localhost:8080, or `telnet localhost 4000`. Edit
-`game/commands.lua` to add commands (restart the server to pick up changes
-for now).
+`game/commands.lua` to add commands; changes load as soon as you save.
 
 ## Documentation
 

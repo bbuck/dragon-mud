@@ -35,7 +35,8 @@ var removedGlobals = []string{"dofile", "loadfile", "require"}
 
 // Engine runs Lua scripts. It is not safe for concurrent use.
 type Engine struct {
-	state *glua.LState
+	state   *glua.LState
+	handles handles
 }
 
 // New returns an Engine with a fresh, sandboxed Lua state.
@@ -57,7 +58,7 @@ func New() *Engine {
 		state.SetGlobal(name, glua.LNil)
 	}
 
-	return &Engine{state: state}
+	return &Engine{state: state, handles: newHandles()}
 }
 
 // Load makes m available to scripts as a global table named m.Name.

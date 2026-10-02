@@ -72,7 +72,7 @@ func TestDestroy(t *testing.T) {
 	must(t, coin.MoveTo(chest))
 	must(t, chest.SetParent(base))
 	must(t, child.SetParent(chest))
-	must(t, chest.SetName("chest"))
+	must(t, chest.SetKey("chest"))
 
 	w.Destroy(chest)
 
@@ -82,30 +82,30 @@ func TestDestroy(t *testing.T) {
 	if child.Parent() != base {
 		t.Error("children of a destroyed object should inherit from its parent")
 	}
-	if _, ok := w.Named("chest"); ok {
-		t.Error("a destroyed object's name is still taken")
+	if _, ok := w.Keyed("chest"); ok {
+		t.Error("a destroyed object's key is still taken")
 	}
 	if err := chest.Set("x", 1); err != ErrDestroyed {
 		t.Errorf("Set on destroyed object = %v, want ErrDestroyed", err)
 	}
 }
 
-func TestNames(t *testing.T) {
+func TestKeys(t *testing.T) {
 	w := New()
 	a, b := w.Create(), w.Create()
 
-	must(t, a.SetName("tavern"))
-	if err := b.SetName("tavern"); err == nil {
-		t.Error("two objects share a name")
+	must(t, a.SetKey("tavern"))
+	if err := b.SetKey("tavern"); err == nil {
+		t.Error("two objects share a key")
 	}
-	if err := b.SetName("Bad Name"); err == nil {
-		t.Error("invalid name accepted")
+	if err := b.SetKey("Bad Key"); err == nil {
+		t.Error("invalid key accepted")
 	}
 
-	must(t, a.SetName("inn"))
-	must(t, b.SetName("tavern"))
-	if o, _ := w.Named("tavern"); o != b {
-		t.Error("renamed object still holds its old name")
+	must(t, a.SetKey("inn"))
+	must(t, b.SetKey("tavern"))
+	if o, _ := w.Keyed("tavern"); o != b {
+		t.Error("rekeyed object still holds its old key")
 	}
 }
 
@@ -138,7 +138,7 @@ func TestPropertyValues(t *testing.T) {
 func TestChangesAndLoad(t *testing.T) {
 	w := New()
 	room, item := w.Create(), w.Create()
-	must(t, room.SetName("void"))
+	must(t, room.SetKey("void"))
 	must(t, item.MoveTo(room))
 	must(t, item.SetParent(room))
 	must(t, item.Set("desc", "a pebble"))
@@ -159,9 +159,9 @@ func TestChangesAndLoad(t *testing.T) {
 		t.Error("a freshly loaded world has changes")
 	}
 
-	lroom, ok := loaded.Named("void")
+	lroom, ok := loaded.Keyed("void")
 	if !ok || lroom.ID() != room.ID() {
-		t.Fatal("named room not loaded")
+		t.Fatal("keyed room not loaded")
 	}
 	litem := lroom.Contents()[0]
 	if litem.Parent() != lroom {
@@ -182,7 +182,7 @@ func TestLoadRejectsBadData(t *testing.T) {
 		"missing parent": {{ID: "a", Parent: "nope"}},
 		"parent cycle":   {{ID: "a", Parent: "b"}, {ID: "b", Parent: "a"}},
 		"location cycle": {{ID: "a", Location: "a"}},
-		"duplicate name": {{ID: "a", Name: "x"}, {ID: "b", Name: "x"}},
+		"duplicate key":  {{ID: "a", Key: "x"}, {ID: "b", Key: "x"}},
 		"duplicate id":   {{ID: "a"}, {ID: "a"}},
 	}
 
@@ -222,5 +222,26 @@ func TestUnsaved(t *testing.T) {
 	w.Unsaved(failed)
 	if got := w.Changes(); !reflect.DeepEqual(got, failed) {
 		t.Errorf("after Unsaved, changes = %+v, want %+v", got, failed)
+	}
+}
+
+func TestRefs(t *testing.T) {
+	w := New()
+	room, exit := w.Create(), w.Create()
+
+	must(t, exit.Set("to", room))
+	must(t, exit.Set("route", []any{room, Ref{ID: room.ID()}}))
+	if v, _ := exit.Get("to"); v != (Ref{ID: room.ID()}) {
+		t.Errorf("to = %#v, want a ref to the room", v)
+	}
+
+	if err := exit.Set("bad", map[string]any{RefKey: "x"}); err == nil {
+		t.Errorf("a map using %q as a key was stored", RefKey)
+	}
+
+	// Refs to destroyed objects are kept; readers decide what they mean.
+	w.Destroy(room)
+	if v, _ := exit.Get("to"); v != (Ref{ID: room.ID()}) {
+		t.Errorf("after destroy, to = %#v", v)
 	}
 }
