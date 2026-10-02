@@ -1,0 +1,12 @@
+# Settings for this game. See the DragonMUD docs for every option.
+name = "{{.Name}}"
+
+[telnet]
+enabled = true
+address = ":4000"
+
+[web]
+address = ":8080"
+
+[web.client]
+enabled = true

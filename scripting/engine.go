@@ -1,13 +1,63 @@
+// Package scripting defines a language-neutral interface for running plugin
+// scripts. The engine exposes functionality to scripts as modules of Go
+// functions; each scripting language (see scripting/lua) implements Engine
+// and converts values between its own types and the Go values listed below.
+//
+// Values crossing the boundary are always one of:
+//
+//	nil
+//	bool
+//	int64 or float64 (Go to script also accepts any integer or float type)
+//	string
+//	[]any                 (a list)
+//	map[string]any        (a map)
+//	Function              (a script function, callable from Go)
+//
+// Go to script also accepts slices of any supported type, maps with string
+// keys, and Func.
 package scripting
 
+import "context"
+
+// Engine runs scripts in one language. An Engine is not safe for concurrent
+// use; it belongs to the game loop.
 type Engine interface {
-	// DoString executes the given Lua code.
-	DoString(code string) error
+	// Load makes a module available to scripts under m.Name. It is an error
+	// to load a module whose name is already in use.
+	Load(m Module) error
 
-	// Register will define the function given under the global name. The value
-	// of fn must be a function.
-	Register(name string, fn any) error
+	// Run executes source. name identifies the script in error messages. If
+	// ctx is cancelled or its deadline passes, the script is interrupted and
+	// the returned error wraps ctx.Err().
+	Run(ctx context.Context, name, source string) error
 
-	// Fail sends an error into the underlying scripting engine.
-	Fail(err error)
+	// Eval executes source like Run and returns the script's return value.
+	// Plugin files are evaluated this way: each returns a table the engine
+	// registers.
+	Eval(ctx context.Context, name, source string) (any, error)
+
+	// Close releases the engine's resources.
+	Close()
+}
+
+// Module is a named group of functions and values exposed to scripts, such
+// as die.roll or room.get.
+type Module struct {
+	Name   string
+	Funcs  map[string]Func
+	Values map[string]any
+}
+
+// Func is a Go function callable from scripts. Returning an error raises it
+// as an error in the script.
+type Func func(args Args) (any, error)
+
+// Function is a script function held by Go, such as a hook handler a plugin
+// registered. It can only be called on the engine that created it.
+type Function interface {
+	// Call invokes the function and returns its first result. If ctx is
+	// cancelled or its deadline passes, the call is interrupted and the
+	// returned error wraps ctx.Err(). When called from inside a running
+	// script, the running script's context applies instead of ctx.
+	Call(ctx context.Context, args ...any) (any, error)
 }

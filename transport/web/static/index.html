@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Name}}</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/htmx.min.js"></script>
+  <script type="module" src="/assets/client.mjs"></script>
+</head>
+<body>
+  <header>
+    <h1>{{.Name}}</h1>
+    <span id="status" class="status" aria-live="polite">Connecting…</span>
+  </header>
+
+  <main id="feed" role="log" aria-live="polite" aria-label="Game feed"></main>
+
+  <form id="command" autocomplete="off">
+    <label for="input" class="visually-hidden">Command</label>
+    <input id="input" name="line" type="text" spellcheck="false" autofocus
+           placeholder="Type a command and press Enter">
+  </form>
+</body>
+</html>
