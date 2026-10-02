@@ -27,7 +27,7 @@ over telnet and the web and talk to each other.
 
 ## Milestone 2: Core model
 
-- [ ] Objects: id, parent, location, properties; SQLite storage.
+- [x] Objects: id, parent, location, properties; SQLite storage.
 - [ ] Accounts and login with `auth`.
 - [ ] Objects across the scripting boundary (`player:send(...)`).
 - [ ] Message kinds with entity references, sections and per-transport

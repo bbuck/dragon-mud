@@ -258,9 +258,16 @@ transport.
 
 ## 8. Storage, export and import
 
-- SQLite through a pure-Go driver; no CGO.
+- SQLite through a pure-Go driver; no CGO. The database is
+  `data/world.db` in the game directory.
 - **The database is the source of truth.** The world is built live, mostly in
   the admin UI.
+- **Every object is in memory**, owned by the game loop. After each event
+  the loop saves what that event changed in one transaction, so a command's
+  changes are saved together or not at all. A failed save is retried after
+  the next event.
+- **Properties are rows** (object, name, JSON value). Whole numbers load as
+  integers; a float with no fractional part comes back as an integer.
 - **Export is explicit**: `dragon world:export` writes JSONL by default
   (`--format json` for pretty, hand-editable output).
   - One self-describing record per line: type, id, owning plugin, schema
@@ -320,6 +327,7 @@ supports interruption and coroutines.
 | `scaffold`         | Files written by `dragon new`.                          |
 | `builtin`          | Built-in plugins, embedded in the binary.               |
 | `game`             | The game loop, events and world ownership.              |
+| `world`            | Objects in memory: ids, parents, locations, properties. |
 | `hook`             | Command registry, hook chains, notifications, ordering. |
 | `plugin`           | Plugin loading, manifests and dependency sorting.       |
 | `message`          | The message type sent to sessions.                      |

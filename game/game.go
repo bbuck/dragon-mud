@@ -18,6 +18,7 @@ import (
 	"bbuck.dev/dragon-mud/plugin"
 	"bbuck.dev/dragon-mud/scripting"
 	"bbuck.dev/dragon-mud/session"
+	"bbuck.dev/dragon-mud/world"
 )
 
 // scriptTimeout is how long a single script call may run before it's
@@ -26,6 +27,9 @@ const scriptTimeout = 250 * time.Millisecond
 
 // loadTimeout is how long loading every plugin may take.
 const loadTimeout = 10 * time.Second
+
+// saveTimeout is how long saving one event's changes may take.
+const saveTimeout = 5 * time.Second
 
 var playerNameRx = regexp.MustCompile(`^[A-Za-z]{2,20}$`)
 
@@ -62,7 +66,18 @@ type Options struct {
 	// own plugin last.
 	Plugins []plugin.Source
 
+	// World is every object in the game. Nil starts an empty world.
+	World *world.World
+
+	// Store saves the world after each event. Nil keeps it only in memory.
+	Store Store
+
 	Log *slog.Logger
+}
+
+// Store saves changes to the world.
+type Store interface {
+	Save(ctx context.Context, changes world.Changes) error
 }
 
 // Game is a running game. Connect, Input, Disconnect and Reload may be
@@ -71,7 +86,10 @@ type Game struct {
 	name      string
 	newEngine func() scripting.Engine
 	sources   []plugin.Source
+	store     Store
 	log       *slog.Logger
+
+	world *world.World
 
 	// engine and commands are replaced together on reload: commands hold
 	// functions that belong to engine.
@@ -90,10 +108,16 @@ func New(ctx context.Context, opts Options) (*Game, error) {
 		name:      opts.Name,
 		newEngine: opts.NewEngine,
 		sources:   opts.Plugins,
+		store:     opts.Store,
 		log:       opts.Log,
+		world:     opts.World,
 		events:    make(chan event, 1024),
 		stopped:   make(chan struct{}),
 		players:   make(map[session.ID]*player),
+	}
+
+	if g.world == nil {
+		g.world = world.New()
 	}
 
 	engine, commands, err := g.load(ctx)
@@ -199,10 +223,34 @@ func (g *Game) Run(ctx context.Context) error {
 				p.s.Send(message.System("[Y]The server is shutting down. Farewell![x]"))
 				p.s.Close()
 			}
+			g.save(ctx)
 			return nil
 		case e := <-g.events:
 			g.handle(ctx, e)
+			g.save(ctx)
 		}
+	}
+}
+
+// save writes what the last event changed. If saving fails, the changes are
+// kept and retried after the next event.
+func (g *Game) save(ctx context.Context) {
+	if g.store == nil {
+		return
+	}
+
+	changes := g.world.Changes()
+	if changes.Empty() {
+		return
+	}
+
+	// Save even while shutting down.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), saveTimeout)
+	defer cancel()
+
+	if err := g.store.Save(ctx, changes); err != nil {
+		g.world.Unsaved(changes)
+		g.log.Error("saving the world failed; will retry", "error", err)
 	}
 }
 

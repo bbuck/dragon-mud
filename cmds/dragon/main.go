@@ -22,9 +22,11 @@ import (
 	"bbuck.dev/dragon-mud/scaffold"
 	"bbuck.dev/dragon-mud/scripting"
 	"bbuck.dev/dragon-mud/scripting/lua"
+	"bbuck.dev/dragon-mud/store"
 	"bbuck.dev/dragon-mud/transport/telnet"
 	"bbuck.dev/dragon-mud/transport/web"
 	"bbuck.dev/dragon-mud/watch"
+	"bbuck.dev/dragon-mud/world"
 )
 
 // reloadInterval is how often the game directory is checked for changed
@@ -123,10 +125,28 @@ func runServe(args []string) error {
 		return err
 	}
 
+	db, err := store.Open(ctx, filepath.Join(*dir, "data", "world.db"))
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	records, err := db.Load(ctx)
+	if err != nil {
+		return err
+	}
+	w, err := world.Load(records)
+	if err != nil {
+		return fmt.Errorf("loading the world: %w", err)
+	}
+	log.Info("loaded world", "objects", w.Len())
+
 	g, err := game.New(ctx, game.Options{
 		Name:      cfg.Name,
 		NewEngine: func() scripting.Engine { return lua.New() },
 		Plugins:   sources,
+		World:     w,
+		Store:     db,
 		Log:       log,
 	})
 	if err != nil {
