@@ -19,7 +19,7 @@ import (
 // actor, line and the near miss's reason. A handler that deals with the
 // line sets event.handled = true and returns the event; otherwise the
 // player sees why nothing matched.
-const hookUnmatched = "unmatched_input"
+const hookUnmatched = "dragon:unmatched_input"
 
 // errResolving is returned when a slot resolver tries to change the world.
 // Resolvers run speculatively for every form that might match, so they may
@@ -77,7 +77,7 @@ func (g *Game) dispatch(ctx context.Context, p *player, line string) {
 	}
 }
 
-// unmatched offers input no command matched to the unmatched_input hook,
+// unmatched offers input no command matched to the dragon:unmatched_input hook,
 // returning true if a handler dealt with it.
 func (g *Game) unmatched(ctx context.Context, actor any, line string, miss *command.NoMatch) bool {
 	event := map[string]any{"actor": actor, "line": line}

@@ -11,7 +11,7 @@
 -- turn another plugin's handler off or reorder them, return a table from
 -- game/wiring.lua:
 --
---   return { hooks = { player_entered = { disable = { "dragon:presence" } } } }
+--   return { hooks = { ["dragon:player_connected"] = { disable = { "dragon:presence" } } } }
 
 return {
   -- A notification sent once when the server starts, before anyone can
@@ -24,7 +24,7 @@ return {
   -- end,
 
   -- A notification: event.player has just entered the game.
-  player_entered = function(event)
+  ["dragon:player_connected"] = function(event)
     if not event.reconnected then
       event.player:send("ambient", { text = "The barkeep looks up and nods at you." })
     end
@@ -33,7 +33,7 @@ return {
   -- What clicking something in the web client does: set event.command to
   -- a command, and it runs as if the player typed it. "#id" names exactly
   -- the thing clicked. event.viewer is the player; event.entity the thing.
-  get_default_action = function(event)
+  ["dragon:get_default_action"] = function(event)
     event.command = "look #" .. event.entity.id
     return event
   end,
@@ -42,7 +42,7 @@ return {
   -- render one {{define}} block from it, add data the template can use,
   -- or return false for no tooltip.
   --
-  -- get_tooltip = function(event)
+  -- ["dragon:get_tooltip"] = function(event)
   --   if event.entity:get("hidden") then return false end
   -- end,
 

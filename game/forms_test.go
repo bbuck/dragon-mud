@@ -17,7 +17,7 @@ var shop = fstest.MapFS{
 		}
 
 		return {
-			unmatched_input = function(event)
+			["dragon:unmatched_input"] = function(event)
 				local ok, miss = shop:parse(event.actor, event.line, "Shopkeeper")
 				if not ok and miss.reason then
 					event.actor:send("Shopkeeper: " .. miss.reason)

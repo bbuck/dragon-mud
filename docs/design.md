@@ -29,7 +29,7 @@ objects are inside.
 Most of a game is behavior on the things in it: a shopkeeper who sells, a
 guard who answers when greeted, a lever that opens a door, a quest item
 that reacts when it's handed over. Plugins supply the rules; entity scripts
-are what the rules apply to. Form sets, the `unmatched_input` hook and
+are what the rules apply to. Form sets, the `dragon:unmatched_input` hook and
 `is_player` are built; entity scripts themselves come with Milestone 4,
 but this is the shape the rest of the design has to leave room for.
 
@@ -86,7 +86,7 @@ message = "hail" }`, the data the view renders from, never the rendered
 text, and the block (`target` when Bob said it to the guard).
 
 **Input no command claimed.** Global commands go first. When nothing
-matches, the engine runs the `unmatched_input` hook (`actor`, `line`, and
+matches, the engine runs the `dragon:unmatched_input` hook (`actor`, `line`, and
 the near miss's `reason` if there was one) before telling the player. A
 handler that deals with the line sets `event.handled = true` and returns
 the event. A plugin decides which entities are offered the line: `dragon:rooms` would
@@ -339,7 +339,7 @@ reach scripts. Once the account is known, the engine starts the game's
 **`characters`** mode if it defines one, otherwise **`dragon:characters`**.
 Either must end with `session:play(character)`, and startup fails if
 neither exists. `play` ends every mode, takes the character over from any
-other connection, sends `player_entered` and runs `look`.
+other connection, sends `dragon:player_connected` and runs `look`.
 
 The built-in `dragon:characters` plugin defines two modes:
 
@@ -376,12 +376,14 @@ which parse it with their own forms (§2). That's how a shopkeeper handles
 can modify the payload the next one sees, or cancel with a reason. The caller
 gets back the final payload and whether it was cancelled.
 
-A plugin's `hooks.lua` returns its handlers, keyed by hook name. Each is a
+A plugin's `hooks.lua` returns its handlers, keyed by hook name. Hooks
+the engine runs are named `dragon:...`, so in Lua their keys need brackets:
+`["dragon:player_connected"] = function(event) ... end`. Each is a
 function, or a table with the function and its ordering:
 
 ```lua
 return {
-  player_entered = function(event) ... end,
+  ["dragon:player_connected"] = function(event) ... end,
   before_say = {
     after = { "dragon:chat" },
     handler = function(event)
@@ -411,13 +413,13 @@ handler is logged and the rest still run. Code sends one with
 `hooks.notify(name, event)`.
 
 The engine sends `dragon:booted` once when the game starts, before any
-input is handled (not on reload); `player_entered` (`player`, and
+input is handled (not on reload); `dragon:player_connected` (`player`, and
 `reconnected` when the player took over their character from another
-connection); and `player_left` (`player`). `dragon:presence` handles both to announce
+connection); and `dragon:player_disconnected` (`player`). `dragon:presence` handles both to announce
 arrivals and departures. `dragon:chat` runs `before_say` (`actor`,
 `message`, and `target` when saying something to someone). The web client
-runs `get_tooltip` and `get_default_action` (`viewer`, `entity`; §6).
-Input no command matches runs `unmatched_input` (`actor`, `line`,
+runs `dragon:get_tooltip` and `dragon:get_default_action` (`viewer`, `entity`; §6).
+Input no command matches runs `dragon:unmatched_input` (`actor`, `line`,
 `reason`; §2).
 
 ### Ordering
@@ -440,7 +442,7 @@ Input no command matches runs `unmatched_input` (`actor`, `line`,
 return {
   hooks = {
     modify_damage = { order = { "game", "armor", "dragon:combat" } },
-    player_entered = { disable = { "dragon:presence" } },
+    ["dragon:player_connected"] = { disable = { "dragon:presence" } },
   },
 }
 ```
@@ -683,7 +685,7 @@ in screen readers. The core client makes each one a control:
 
 - **Tooltip** on hover, keyboard focus or a long press on touch screens,
   never hover only. The client asks the server, which runs the
-  `get_tooltip` hook with `viewer` and `entity` and renders the template
+  `dragon:get_tooltip` hook with `viewer` and `entity` and renders the template
   `templates/entity_tooltip.html.tmpl` (or `.txt.tmpl`) with the event as
   its data. A handler
   sets `event.block` to render one block of it, adds anything else the
@@ -691,7 +693,7 @@ in screen readers. The core client makes each one a control:
   whole template renders; with no template there's no tooltip. Tooltips are
   rendered when they open, so they're never stale.
 - **Default action** on click, Enter or Space. The server runs the
-  `get_default_action` hook with `viewer` and `entity`; a handler sets
+  `dragon:get_default_action` hook with `viewer` and `entity`; a handler sets
   `event.command` (like `"attack #" .. event.entity.id`) and the server runs
   it as if the player typed it, echoing it in their feed. With no command,
   nothing happens. Clicking is only ever a shortcut for a command (input
@@ -699,7 +701,7 @@ in screen readers. The core client makes each one a control:
 
 The engine never decides what a tooltip shows or what clicking does: games
 and plugins write both hooks and the template. Any object can be asked
-about by id; handlers that hide things cancel `get_tooltip`.
+about by id; handlers that hide things cancel `dragon:get_tooltip`.
 
 ### Fixtures
 

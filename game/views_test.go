@@ -229,7 +229,7 @@ var clickable = fstest.MapFS{
 	`),
 	"hooks.lua": file(`
 		return {
-			get_tooltip = function(event)
+			["dragon:get_tooltip"] = function(event)
 				if event.entity:get("name") == "secret" then return false end
 				if event.entity:get("name") == "rock" then
 					event.block = "rock"
@@ -237,7 +237,7 @@ var clickable = fstest.MapFS{
 					return event
 				end
 			end,
-			get_default_action = function(event)
+			["dragon:get_default_action"] = function(event)
 				if event.entity:get("name") == "rock" then
 					event.command = "poke #" .. event.entity.id
 					return event

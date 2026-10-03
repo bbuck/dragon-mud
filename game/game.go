@@ -505,7 +505,7 @@ func (g *Game) handleEvent(ctx context.Context, e event) {
 		delete(g.players, e.s.ID())
 		if p.character != nil {
 			g.log.Info("player left", "name", p.displayName())
-			g.notify(ctx, "player_left", map[string]any{"player": g.handle(p.character)})
+			g.notify(ctx, "dragon:player_disconnected", map[string]any{"player": g.handle(p.character)})
 		}
 
 	case reloadEvent:

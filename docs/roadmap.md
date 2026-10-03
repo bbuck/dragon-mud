@@ -33,7 +33,7 @@ over telnet and the web and talk to each other.
 - [x] Views: `views/<name>.txt.tmpl` and `.html.tmpl`, with
       blocks the sender picks.
 - [x] Entities in messages: `{{entity .x}}`, `<dragon-entity>`, tooltips
-      (`get_tooltip`) and default actions (`get_default_action`).
+      (`dragon:get_tooltip`) and default actions (`dragon:get_default_action`).
 - [x] `#id` object references in command input.
 - [x] Message sections other plugins add to (`{{section "exits"}}`,
       filled by the `section:room.exits` hook).
@@ -49,7 +49,7 @@ over telnet and the web and talk to each other.
       (`dragon:characters`, with creation steps from `character_steps`).
 - [x] Text layout: telnet wrapping, and layout helpers (`columns`,
       `table`, ...) with HTML equivalents.
-- [x] `unmatched_input` hook: input no command matches is offered to
+- [x] `dragon:unmatched_input` hook: input no command matches is offered to
       plugins before the player sees an error (design.md §2).
 - [x] Form sets in Lua (`forms.new`, `set:parse`): the command parser for
       entity scripts and anything else with its own vocabulary.

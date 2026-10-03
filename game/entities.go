@@ -27,10 +27,10 @@ const (
 const (
 	// hookTooltip may set event.block to render one block of the tooltip
 	// template, add data for it, or cancel for no tooltip.
-	hookTooltip = "get_tooltip"
+	hookTooltip = "dragon:get_tooltip"
 
 	// hookAction may set event.command to what clicking the entity runs.
-	hookAction = "get_default_action"
+	hookAction = "dragon:get_default_action"
 )
 
 // tooltipTemplate is the template in a plugin's templates/ directory that

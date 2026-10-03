@@ -12,14 +12,14 @@ return {
   -- event.player has entered the game. event.reconnected is true when they
   -- took over their character from another connection, so to everyone else
   -- they never left.
-  player_entered = function(event)
+  ["dragon:player_connected"] = function(event)
     if not event.reconnected then
       game.broadcast(name(event.player) .. " has arrived.", event.player)
     end
   end,
 
   -- event.player has left the game.
-  player_left = function(event)
+  ["dragon:player_disconnected"] = function(event)
     game.broadcast(name(event.player) .. " has left.")
   end,
 }

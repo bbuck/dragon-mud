@@ -86,7 +86,7 @@ func TestWiringDisablesBasicsArrival(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
 		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
 		"wiring.lua": {Data: []byte(`
-			return { hooks = { player_entered = { disable = { "dragon:presence" } } } }
+			return { hooks = { ["dragon:player_connected"] = { disable = { "dragon:presence" } } } }
 		`)},
 	})
 
@@ -104,7 +104,7 @@ func TestGameHandlerRunsAfterBasics(t *testing.T) {
 		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
 		"hooks.lua": {Data: []byte(`
 			return {
-				player_entered = function(event)
+				["dragon:player_connected"] = function(event)
 					game.broadcast("Trumpets sound for " .. event.player:get("name") .. ".")
 				end,
 			}
@@ -126,7 +126,7 @@ func TestFailingNotificationDoesntStopOthers(t *testing.T) {
 		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
 		"hooks.lua": {Data: []byte(`
 			return {
-				player_entered = {
+				["dragon:player_connected"] = {
 					before = { "dragon:presence" },
 					handler = function() error("boom") end,
 				},
@@ -169,13 +169,13 @@ func TestHooksFileErrors(t *testing.T) {
 		},
 		{
 			"wiring typo",
-			fstest.MapFS{"wiring.lua": {Data: []byte(`return { hooks = { player_entered = { disable = { "dragon:presense" } } } }`)}},
-			`game/wiring.lua: hooks.player_entered disables "dragon:presense", which has no player_entered handler. Did you mean "dragon:presence"? Plugins with a player_entered handler: "dragon:presence".`,
+			fstest.MapFS{"wiring.lua": {Data: []byte(`return { hooks = { ["dragon:player_connected"] = { disable = { "dragon:presense" } } } }`)}},
+			`game/wiring.lua: hooks.dragon:player_connected disables "dragon:presense", which has no dragon:player_connected handler. Did you mean "dragon:presence"? Plugins with a dragon:player_connected handler: "dragon:presence".`,
 		},
 		{
 			"wiring unknown hook",
-			fstest.MapFS{"wiring.lua": {Data: []byte(`return { hooks = { player_entred = { disable = { "dragon:chat" } } } }`)}},
-			`game/wiring.lua: hooks.player_entred is wired, but no plugin handles "player_entred". Did you mean "player_entered"?`,
+			fstest.MapFS{"wiring.lua": {Data: []byte(`return { hooks = { ["dragon:player_conected"] = { disable = { "dragon:chat" } } } }`)}},
+			`game/wiring.lua: hooks.dragon:player_conected is wired, but no plugin handles "dragon:player_conected". Did you mean "dragon:player_connected"?`,
 		},
 		{
 			"wiring unknown field",
@@ -269,18 +269,18 @@ func TestHooksForTheCLI(t *testing.T) {
 		NewEngine: func() scripting.Engine { return lua.New() },
 		Plugins: sources(t, fstest.MapFS{
 			"plugin.lua": {Data: []byte(`return { name = "game" }`)},
-			"hooks.lua":  {Data: []byte(`return { player_entered = { before = { "dragon:presence" }, handler = function() end } }`)},
+			"hooks.lua":  {Data: []byte(`return { ["dragon:player_connected"] = { before = { "dragon:presence" }, handler = function() end } }`)},
 		}),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if got := hooks.Names(); !reflect.DeepEqual(got, []string{"player_entered", "player_left"}) {
+	if got := hooks.Names(); !reflect.DeepEqual(got, []string{"dragon:player_connected", "dragon:player_disconnected"}) {
 		t.Errorf("Names = %v", got)
 	}
 
-	c, _ := hooks.Chain("player_entered")
+	c, _ := hooks.Chain("dragon:player_connected")
 	var order []string
 	for _, h := range c.Handlers {
 		order = append(order, h.Plugin)
