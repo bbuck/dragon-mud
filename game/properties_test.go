@@ -71,3 +71,36 @@ func TestPropertiesSurviveARestart(t *testing.T) {
 	again.send("check")
 	again.expect(want)
 }
+
+func TestStructuralFieldsArentProperties(t *testing.T) {
+	g := startGame(t, fstest.MapFS{
+		"plugin.lua": file(`return { name = "game" }`),
+		"commands.lua": file(`
+			return {
+				try = { forms = { { "try <what>", function(actor, args)
+					local tries = {
+						set = function() actor:set("location", world.create({})) end,
+						get = function() return actor:get("parent") end,
+						create = function() world.create({ properties = { key = "tavern" } }) end,
+						delete = function() actor:delete("contents") end,
+					}
+					local ok, err = pcall(tries[args.what])
+					actor:send(args.what .. ": " .. tostring(err))
+				end } } },
+			}
+		`),
+	})
+
+	alice := connect(t, g)
+	alice.login("Alice")
+
+	for what, want := range map[string]string{
+		"set":    `"location" is one of an object's fields, not a property. Read it as o.location, and set it with o:move_to(place) or location = ... in world.create.`,
+		"get":    `"parent" is one of an object's fields, not a property. Read it as o.parent`,
+		"create": `properties: "key" is one of an object's fields, not a property. Read it as o.key, and set it with o:set_key(key)`,
+		"delete": `"contents" is one of an object's fields, not a property. Read it as o.contents`,
+	} {
+		alice.send("try " + what)
+		alice.expect(want)
+	}
+}

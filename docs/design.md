@@ -892,9 +892,15 @@ else can be added without changing the engine or the modules.
   can't assign fields or reach the metatable; unknown names are errors.
 - **Objects** are handles holding an object's id, so a handle to a
   destroyed object raises an error. Fields: `id`, `key`, `parent`,
-  `location`, `contents`. Properties are read and written with methods
-  (`o:get(name)`, `o:set(name, value)`), never as fields, so property names
-  can't collide with the API; ergonomic wrappers are a plugin's job.
+  `location`, `contents`, changed with `o:set_key(key)`,
+  `o:set_parent(parent)` and `o:move_to(place)` (nil for none; an object
+  can't move into itself or what it contains). Moving only changes
+  containment: no messages, no hooks. Properties are read and written with
+  methods (`o:get(name)`, `o:get_own(name)`, `o:set(name, value)`,
+  `o:delete(name)`), never as fields, so property names can't collide with
+  the API; ergonomic wrappers are a plugin's job. A property named after a
+  field (`location`, `parent`, ...) is an error that says how to use the
+  field instead. `get` returns a copy: change a table and `set` it back.
   `o:is_a(other)` is true when `o` is `other` or inherits from it at any
   depth, so a lock that requires a key accepts every copy made from it.
   `o:send(text)` and `o:send(view, data[, block])` (§5) reach everyone

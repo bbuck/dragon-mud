@@ -465,7 +465,7 @@ func TestCreationSetsStructureAndNotifies(t *testing.T) {
 			return { me = { execute = function(actor)
 				actor:send(table.concat({
 					actor:get("name"), actor:get("ears"), actor.location:get("name"),
-					actor.contents[1]:get("name"), tostring(actor:get_own("parent")),
+					actor.contents[1]:get("name"), tostring(actor.parent == world.keyed("elf")),
 				}, " | "))
 			end } }
 		`),
@@ -474,7 +474,7 @@ func TestCreationSetsStructureAndNotifies(t *testing.T) {
 	alice := connect(t, g)
 	alice.login("Alice")
 	alice.send("me")
-	alice.expect("Alice | pointed | an elven village | a bow | nil")
+	alice.expect("Alice | pointed | an elven village | a bow | true")
 }
 
 func TestCreationRejectsAMisplacedProperty(t *testing.T) {

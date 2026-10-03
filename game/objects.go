@@ -222,6 +222,9 @@ func (g *Game) applyCreateOptions(o *world.Object, opts map[string]any) error {
 			return fmt.Errorf("properties: expected map, got %s", scripting.TypeName(props))
 		}
 		for _, name := range slices.Sorted(maps.Keys(m)) {
+			if err := structuralName(name); err != nil {
+				return fmt.Errorf("properties: %w", err)
+			}
 			value, err := g.fromScript(m[name])
 			if err != nil {
 				return fmt.Errorf("properties: %q: %w", name, err)
@@ -368,6 +371,9 @@ func (g *Game) objectGet(get func(*world.Object, string) (any, bool)) scripting.
 		if err != nil {
 			return nil, err
 		}
+		if err := structuralName(name); err != nil {
+			return nil, err
+		}
 
 		value, _ := get(o, name)
 
@@ -382,6 +388,9 @@ func (g *Game) objectSet(key any, args scripting.Args) (any, error) {
 	}
 	name, err := args.String(0)
 	if err != nil {
+		return nil, err
+	}
+	if err := structuralName(name); err != nil {
 		return nil, err
 	}
 	if args.Len() < 2 {
@@ -404,8 +413,31 @@ func (g *Game) objectDelete(key any, args scripting.Args) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := structuralName(name); err != nil {
+		return nil, err
+	}
 
 	return nil, o.Delete(name)
+}
+
+// structuralFields are the object fields that aren't properties, with
+// how scripts read and change each.
+var structuralFields = map[string]string{
+	"id":       "Read it as o.id; the engine assigns it and it never changes.",
+	"key":      "Read it as o.key, and set it with o:set_key(key) or key = ... in world.create.",
+	"parent":   "Read it as o.parent, and set it with o:set_parent(parent) or parent = ... in world.create.",
+	"location": "Read it as o.location, and set it with o:move_to(place) or location = ... in world.create.",
+	"contents": "Read it as o.contents; it lists the objects whose location is o, so move things in with thing:move_to(o).",
+}
+
+// structuralName errors for a property named after an object field, which
+// would hold data the engine never uses as that field.
+func structuralName(name string) error {
+	if how, ok := structuralFields[name]; ok {
+		return fmt.Errorf("%q is one of an object's fields, not a property. %s", name, how)
+	}
+
+	return nil
 }
 
 func (g *Game) objectProperties(key any, _ scripting.Args) (any, error) {
