@@ -410,9 +410,10 @@ deterministic but plugins shouldn't depend on it. Handlers are declared in
 handler is logged and the rest still run. Code sends one with
 `hooks.notify(name, event)`.
 
-The engine sends `player_entered` (`player`, and `reconnected` when the
-player took over their character from another connection) and
-`player_left` (`player`). `dragon:presence` handles both to announce
+The engine sends `dragon:booted` once when the game starts, before any
+input is handled (not on reload); `player_entered` (`player`, and
+`reconnected` when the player took over their character from another
+connection); and `player_left` (`player`). `dragon:presence` handles both to announce
 arrivals and departures. `dragon:chat` runs `before_say` (`actor`,
 `message`, and `target` when saying something to someone). The web client
 runs `get_tooltip` and `get_default_action` (`viewer`, `entity`; §6).

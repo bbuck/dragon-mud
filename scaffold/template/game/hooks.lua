@@ -14,6 +14,15 @@
 --   return { hooks = { player_entered = { disable = { "dragon:presence" } } } }
 
 return {
+  -- A notification sent once when the server starts, before anyone can
+  -- type. A good place to make sure the world has what the game needs:
+  --
+  -- ["dragon:booted"] = function()
+  --   if not world.keyed("start") then
+  --     world.create({ key = "start", properties = { name = "The Dragon's Rest" } })
+  --   end
+  -- end,
+
   -- A notification: event.player has just entered the game.
   player_entered = function(event)
     if not event.reconnected then

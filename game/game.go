@@ -419,10 +419,18 @@ func (g *Game) post(e event) {
 	}
 }
 
+// notifyBooted is sent once when the game starts running, before any
+// input is handled, so the game can set up the world. Reloads don't send it.
+const notifyBooted = "dragon:booted"
+
 // Run runs the game loop until ctx is cancelled.
 func (g *Game) Run(ctx context.Context) error {
 	defer close(g.stopped)
 	defer func() { g.engine.Close() }()
+
+	// Players who connect meanwhile wait in events until it's done.
+	g.notify(ctx, notifyBooted, map[string]any{})
+	g.save(ctx)
 
 	for {
 		select {

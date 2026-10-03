@@ -58,3 +58,30 @@ func TestPluginRequiresItsOwnModules(t *testing.T) {
 	alice.send("inspect sword")
 	alice.expect("a shiny sword")
 }
+
+func TestBootedRunsOnceBeforeInput(t *testing.T) {
+	g := startGame(t, fstest.MapFS{
+		"plugin.lua": file(`return { name = "game" }`),
+		"hooks.lua": file(`
+			return {
+				["dragon:booted"] = function()
+					local tavern = world.keyed("tavern") or world.create({ key = "tavern", properties = { boots = 0 } })
+					tavern:set("boots", tavern:get("boots") + 1)
+				end,
+			}
+		`),
+		"commands.lua": file(`
+			return {
+				boots = { execute = function(actor)
+					actor:send("booted " .. world.keyed("tavern"):get("boots") .. " times")
+				end },
+			}
+		`),
+	})
+
+	alice := connect(t, g)
+	alice.login("Alice")
+
+	alice.send("boots")
+	alice.expect("booted 1 times")
+}
