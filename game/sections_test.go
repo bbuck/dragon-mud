@@ -42,6 +42,7 @@ func TestSectionsCollectParts(t *testing.T) {
 
 	alice := connect(t, g)
 	alice.login("Alice")
+	alice.send("look")
 	m := alice.expect("[Y]The Dragon's Rest[x]\n[map of The Dragon's Rest for Alice]")
 	if want := `<h2>The Dragon&#39;s Rest</h2>[map of The Dragon&#39;s Rest for <dragon-entity ref="`; !strings.HasPrefix(m.HTML, want) {
 		t.Errorf("HTML = %s, want it to start with %s", m.HTML, want)
@@ -57,6 +58,7 @@ func TestSectionsAreWired(t *testing.T) {
 
 	alice := connect(t, g)
 	alice.login("Alice")
+	alice.send("look")
 	m := alice.expect("[Y]The Dragon's Rest[x]")
 	if strings.Contains(m.Text, "map of") {
 		t.Errorf("disabled part still shown: %q", m.Text)
@@ -113,5 +115,6 @@ func TestBadSectionPart(t *testing.T) {
 
 	alice := connect(t, g)
 	alice.login("Alice")
+	alice.send("look")
 	alice.expect(`section:room.exits: part 1: there's no view "minimpa". Did you mean "minimap"?`)
 }

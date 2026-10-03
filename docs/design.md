@@ -339,7 +339,9 @@ reach scripts. Once the account is known, the engine starts the game's
 **`characters`** mode if it defines one, otherwise **`dragon:characters`**.
 Either must end with `session:play(character)`, and startup fails if
 neither exists. `play` ends every mode, takes the character over from any
-other connection, sends `dragon:player_connected` and runs `look`.
+other connection and sends `dragon:player_connected`. What the player sees
+next is the game's choice; the game `dragon new` makes shows the room from
+its `dragon:player_connected` handler.
 
 The built-in `dragon:characters` plugin defines two modes:
 

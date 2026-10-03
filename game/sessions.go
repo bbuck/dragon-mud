@@ -495,9 +495,5 @@ func (g *Game) play(ctx context.Context, p *player, character *world.Object) err
 		"reconnected": takeover,
 	})
 
-	if _, ok := g.commands.Lookup("look"); ok {
-		g.dispatch(ctx, p, "look")
-	}
-
 	return nil
 }

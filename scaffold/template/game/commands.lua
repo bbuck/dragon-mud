@@ -15,18 +15,14 @@
 -- Defining a command the engine already has (look, say, ...) adds your
 -- forms to it. Set replace = true to use only yours.
 
+local look = require("look") -- lua/look.lua
+
 return {
   look = {
     desc = "Look around.",
     replace = true,
     forms = {
-      { "look", function(actor)
-          actor:send("room", {
-            title = "The Dragon's Rest",
-            description = "A low-beamed tavern, warm with the smell of woodsmoke and spiced cider. "
-              .. "A fire crackles in a hearth carved to look like a sleeping dragon.",
-          })
-        end },
+      { "look", look.room },
       { "look <thing:object:here,online>", function(actor, args)
           actor:send("look_at", { thing = args.thing })
         end },

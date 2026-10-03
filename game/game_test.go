@@ -364,6 +364,7 @@ func TestGamePluginOverridesLook(t *testing.T) {
 
 	alice := connect(t, g)
 	alice.login("Alice")
+	alice.send("look")
 	alice.expect("A cozy tavern.")
 
 	alice.send("dance")

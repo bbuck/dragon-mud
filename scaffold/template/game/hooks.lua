@@ -13,6 +13,8 @@
 --
 --   return { hooks = { ["dragon:player_connected"] = { disable = { "dragon:presence" } } } }
 
+local look = require("look") -- lua/look.lua
+
 return {
   -- A notification sent once when the server starts, before anyone can
   -- type. A good place to make sure the world has what the game needs:
@@ -23,11 +25,13 @@ return {
   --   end
   -- end,
 
-  -- A notification: event.player has just entered the game.
+  -- A notification: event.player has just entered the game, or taken
+  -- their character over from another connection (event.reconnected).
   ["dragon:player_connected"] = function(event)
     if not event.reconnected then
       event.player:send("ambient", { text = "The barkeep looks up and nods at you." })
     end
+    look.room(event.player)
   end,
 
   -- What clicking something in the web client does: set event.command to
