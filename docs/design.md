@@ -161,10 +161,10 @@ return {
   `replace = true`. To replace a built-in's mode, leave the built-in out of
   `builtins` in `dragon.toml` instead.
 - **Prompts:** `session:prompt(text)`, or `session:prompt({ ... })` with
-  `text`, or `kind`, `data` and `block` to render a message kind (§4);
+  `text`, or `view`, `data` and `block` to render a view (§4);
   `choices`, a list of answers; and `secret`, to hide what the player types.
   Text prompts list their choices, numbered in telnet and clickable on the
-  web (`<dragon-choice>`). A kind's template shows its choices itself, so a
+  web (`<dragon-choice>`). A view's template shows its choices itself, so a
   game can restyle a plugin's menu by overriding its template. Typing a
   choice's number answers with that choice. Choices need a mode to answer
   them.
@@ -284,34 +284,34 @@ Redirecting a hook to a different handler is not built yet.
 The same precedence applies everywhere: **the game, then plugins in
 dependency order, then built-ins**.
 
-## 4. Messages and rendering
+## 4. Views and messages
 
-The game never writes finished text. It sends **messages**, and each session
-renders them for its transport.
+The game never writes finished text. Scripts send **views**: a view is a
+named template, one file per format, filled in with data. Rendering a view
+makes a **message**, what actually goes to a session: its text and HTML
+forms, and the `kind` it came from (the view's name, or one of the engine's
+own kinds: `text`, `system`, `echo`, `prompt`).
 
-- A message has a `kind` and structured `data`. The kind names a template;
-  the data fills it in.
 - **Feed messages** become lines in the text feed.
 - **State updates** (`vitals`, `room_contents`, `map`) are data: the web
   client draws bars and panels, telnet folds them into the prompt and GMCP.
   (Planned.)
-- Messages can have named **sections** other plugins add to (a minimap on the
+- Views can have named **sections** other plugins add to (a minimap on the
   room description). See Sections below.
 - **Every message has a text form**, so any client can always show it.
-- Plain text still works: `o:send(text)` sends a line with no kind.
+- Plain text still works: `o:send(text)` sends a line with no view.
 
-### Message kinds and templates
+### Views
 
-A kind is a template file in a plugin's `messages/` directory, one per
-format:
+A view is a template file in a plugin's `views/` directory, one per format:
 
 ```
-messages/
+views/
   say.txt.tmpl     required: telnet, and the web when there's no HTML
   say.html.tmpl    optional: the web
 ```
 
-Most kinds only need the text template: the web shows it with color as
+Most views only need the text template: the web shows it with color as
 HTML and entities still clickable. Add HTML when the web should look
 different, not just to get links.
 
@@ -333,10 +333,10 @@ game.broadcast("dance", { actor = actor }, nil, actor)
   view of an action, someone else's) is the sending plugin's choice; the
   engine never picks one.
 - **Precedence** is per file: the game, then plugins, then built-ins. A game
-  can restyle a plugin's HTML by adding only `game/messages/say.html.tmpl`.
-- A kind without a `.txt.tmpl` is a startup error, and so is a misnamed file
-  in `messages/`. Sending an unknown kind or block is an error naming the
-  kind, the file and the blocks it does define.
+  can restyle a plugin's HTML by adding only `game/views/say.html.tmpl`.
+- A view without a `.txt.tmpl` is a startup error, and so is a misnamed file
+  in `views/`. Sending an unknown view or block is an error naming the
+  view, the file and the blocks it does define.
 - Output is trimmed of blank lines at either end, so blocks can sit on their
   own lines.
 - Text templates can use color codes (`[c]...[x]`).
@@ -357,7 +357,7 @@ its key, else "something". In text that's all; in HTML it's a clickable
 
 A template marks a place other plugins can add to with
 `{{section "exits"}}`. Plugins fill it by handling the hook
-`section:<kind>.<section>`, so sections are ordered with `before` and
+`section:<view>.<section>`, so sections are ordered with `before` and
 `after`, rearranged in `game/wiring.lua`, and listed by `dragon hooks`,
 like any hook:
 
@@ -365,21 +365,21 @@ like any hook:
 -- mapping/hooks.lua
 return {
   ["section:room.exits"] = function(event)
-    table.insert(event.parts, { kind = "minimap", data = { room = event.data.room } })
+    table.insert(event.parts, { view = "minimap", data = { room = event.data.room } })
     return event
   end,
 }
 ```
 
-- The event has `data`, the message's data as the sender gave it (objects
+- The event has `data`, the view's data as the sender gave it (objects
   are still objects), and `parts`, a list each handler adds to. A part is
-  text, or `{ kind, data[, block] }`, a message kind rendered in the same
-  format as the message. Parts are joined with line breaks in text.
+  text, or `{ view, data[, block] }`, another view rendered in the same
+  format, so the plugin adding a part owns how it looks. Parts are joined with line breaks in text.
 - A handler that cancels leaves the section empty. An empty section
   renders as nothing, so `{{with section "exits"}}Exits: {{.}}{{end}}`
   shows a heading only when there's something under it.
 - The hook runs once per message, not once per format.
-- Startup fails for a section hook whose kind doesn't exist or whose
+- Startup fails for a section hook whose view doesn't exist or whose
   template has no such section, and for an HTML template missing a section
   its text template has, since parts would never reach the web.
 - A part can't have sections of its own.
@@ -494,12 +494,12 @@ final.
 └──────────────┴─────────────────────────────────┴──────────────┘
 ```
 
-- **Feed structure** comes from message kinds: `room` renders as a heading
+- **Feed structure** comes from views: `room` renders as a heading
   with prose, `say` and `emote` as dialogue and action, `ambient` in italics,
   `echo` (the player's own command) small and muted. Each message is a
   `.msg-<kind>` element, so a stylesheet can style any kind. `dragon:chat`
   sends `say` and `emote`; `dragon new` puts `room` and `ambient` in the
-  game's `messages/` until `dragon:rooms` provides them; the engine sends
+  game's `views/` until `dragon:rooms` provides them; the engine sends
   `echo`, `system` and `prompt`.
 - **Entities in text are clickable** (see Entities below).
 - **Phones:** `#context` becomes a bottom sheet that slides up when a fixture
@@ -686,7 +686,7 @@ else can be added without changing the engine or the modules.
   can't collide with the API; ergonomic wrappers are a plugin's job.
   `o:is_a(other)` is true when `o` is `other` or inherits from it at any
   depth, so a lock that requires a key accepts every copy made from it.
-  `o:send(text)` and `o:send(kind, data[, block])` (§4) reach everyone
+  `o:send(text)` and `o:send(view, data[, block])` (§4) reach everyone
   playing `o` and do nothing otherwise.
 - **Sessions** are handles too: input modes get one, and
   `game.session(o)` finds the session playing `o`. Fields: `account`,
@@ -728,7 +728,8 @@ supports interruption and coroutines.
 | `command`          | Form patterns, slot types and the input parser.         |
 | `hook`             | Hook chains, notifications, ordering.                   |
 | `plugin`           | Plugin loading, manifests and dependency sorting.       |
-| `message`          | Messages sent to sessions; kinds and their templates.   |
+| `message`          | Messages sent to sessions.                              |
+| `view`             | Views: templates, layout helpers, sections.             |
 | `session`          | Player sessions and their outgoing queues.              |
 | `transport/telnet` | Telnet listener and renderer.                           |
 | `transport/web`    | HTTP server, WebSocket game client, admin UI.           |

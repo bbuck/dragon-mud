@@ -8,6 +8,7 @@ import (
 	"bbuck.dev/dragon-mud/message"
 	"bbuck.dev/dragon-mud/scripting"
 	"bbuck.dev/dragon-mud/session"
+	"bbuck.dev/dragon-mud/view"
 	"bbuck.dev/dragon-mud/world"
 )
 
@@ -106,7 +107,7 @@ func (g *Game) tooltip(ctx context.Context, p *player, o *world.Object) string {
 		return ""
 	}
 
-	html, _, err := g.templates.Render(tooltipTemplate, message.FormatHTML, block, data)
+	html, _, err := g.templates.Render(tooltipTemplate, view.FormatHTML, block, data)
 	if err != nil {
 		g.log.Error("tooltip failed", "error", err)
 		return ""

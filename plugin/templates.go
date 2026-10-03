@@ -7,13 +7,13 @@ import (
 	"regexp"
 	"strings"
 
-	"bbuck.dev/dragon-mud/message"
+	"bbuck.dev/dragon-mud/view"
 )
 
 // Template directories in a plugin.
 const (
-	// MessagesDir holds message kinds: say.txt.tmpl is the kind "say".
-	MessagesDir = "messages"
+	// ViewsDir holds views: say.txt.tmpl is the view "say".
+	ViewsDir = "views"
 
 	// TemplatesDir holds the other templates the engine renders, such as
 	// entity_tooltip.html.tmpl.
@@ -24,7 +24,7 @@ var templateFileRx = regexp.MustCompile(`^([a-z][a-z0-9_]*)\.(txt|html)\.tmpl$`)
 
 // Templates reads the template files in dir, one of MessagesDir or
 // TemplatesDir. A plugin without dir has none.
-func (p *Plugin) Templates(dir string) ([]message.File, error) {
+func (p *Plugin) Templates(dir string) ([]view.File, error) {
 	entries, err := fs.ReadDir(p.files, dir)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
@@ -33,7 +33,7 @@ func (p *Plugin) Templates(dir string) ([]message.File, error) {
 		return nil, err
 	}
 
-	var files []message.File
+	var files []view.File
 	for _, entry := range entries {
 		path := p.ID + "/" + dir + "/" + entry.Name()
 		if entry.IsDir() {
@@ -53,7 +53,7 @@ func (p *Plugin) Templates(dir string) ([]message.File, error) {
 			return nil, err
 		}
 
-		files = append(files, message.File{
+		files = append(files, view.File{
 			Name:   m[1],
 			Format: m[2],
 			Path:   path,

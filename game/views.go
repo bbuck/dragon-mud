@@ -13,10 +13,11 @@ import (
 	"bbuck.dev/dragon-mud/message"
 	"bbuck.dev/dragon-mud/plugin"
 	"bbuck.dev/dragon-mud/scripting"
+	"bbuck.dev/dragon-mud/view"
 	"bbuck.dev/dragon-mud/world"
 )
 
-var kindRx = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+var viewNameRx = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 
 // outgoing reads the message a script asked to send from args: either
 // (text) or (kind, data[, block]). It returns the message and how many
@@ -66,16 +67,16 @@ func isTable(args scripting.Args, i int) bool {
 
 // render renders the message kind with data, or only its block when block
 // isn't empty, in every format the kind has.
-func (g *Game) render(kind string, data map[string]any, block string) (message.Message, error) {
+func (g *Game) render(name string, data map[string]any, block string) (message.Message, error) {
 	if g.scripts == nil {
-		return message.Message{}, errors.New("messages can't be sent while plugins are loading; send them from a command or a hook handler")
+		return message.Message{}, errors.New("views can't be sent while plugins are loading; send them from a command or a hook handler")
 	}
-	if !g.messages.Has(kind) {
-		if !kindRx.MatchString(kind) {
-			return message.Message{}, fmt.Errorf("%q isn't a message kind. Kinds are template names, lowercase letters, digits and underscores like \"say\". To send plain text, leave out the data table: send(text).", kind)
+	if !g.views.Has(name) {
+		if !viewNameRx.MatchString(name) {
+			return message.Message{}, fmt.Errorf("%q isn't a view. Views are template names, lowercase letters, digits and underscores like \"say\". To send plain text, leave out the data table: send(text).", name)
 		}
-		return message.Message{}, fmt.Errorf("there's no message kind %q. Add %s/%s.txt.tmpl to your plugin to define it.%s",
-			kind, plugin.MessagesDir, kind, command.DidYouMean(kind, g.messages.Names()))
+		return message.Message{}, fmt.Errorf("there's no view %q. Add %s/%s.txt.tmpl to your plugin to define it.%s",
+			name, plugin.ViewsDir, name, command.DidYouMean(name, g.views.Names()))
 	}
 
 	td, err := g.templateData(data, "")
@@ -84,52 +85,52 @@ func (g *Game) render(kind string, data map[string]any, block string) (message.M
 	}
 
 	// Sections run their hooks with the data as the script gave it.
-	g.rendering = append(g.rendering, &rendering{kind: kind, data: data, parts: make(map[string][]message.Part)})
+	g.rendering = append(g.rendering, &rendering{view: name, data: data, parts: make(map[string][]view.Part)})
 	defer func() { g.rendering = g.rendering[:len(g.rendering)-1] }()
 
-	m := message.Message{Kind: kind}
-	if m.Text, _, err = g.messages.Render(kind, message.FormatText, block, td); err != nil {
+	m := message.Message{Kind: name}
+	if m.Text, _, err = g.views.Render(name, view.FormatText, block, td); err != nil {
 		return message.Message{}, err
 	}
-	if m.HTML, _, err = g.messages.Render(kind, message.FormatHTML, block, td); err != nil {
+	if m.HTML, _, err = g.views.Render(name, view.FormatHTML, block, td); err != nil {
 		return message.Message{}, err
 	}
 
 	return m, nil
 }
 
-// rendering is a message being rendered, and the parts its sections got.
+// rendering is a view being rendered, and the parts its sections got.
 type rendering struct {
-	kind  string
+	view  string
 	data  map[string]any
-	parts map[string][]message.Part
+	parts map[string][]view.Part
 }
 
-// sectionHook is the hook that fills a message kind's section.
-func sectionHook(kind, section string) string {
-	return "section:" + kind + "." + section
+// sectionHook is the hook that fills a view's section.
+func sectionHook(name, section string) string {
+	return "section:" + name + "." + section
 }
 
 // sectionParts runs the hook for a section of the message being rendered.
 // Handlers add to event.parts: text, or { kind = ..., data = ...[, block =
 // ...] }. A handler that cancels leaves the section empty.
-func (g *Game) sectionParts(kind, section string) ([]message.Part, error) {
+func (g *Game) sectionParts(name, section string) ([]view.Part, error) {
 	if len(g.rendering) == 0 {
-		return nil, errors.New("sections only render in messages scripts send")
+		return nil, errors.New("sections only render in views scripts send")
 	}
 	r := g.rendering[len(g.rendering)-1]
 	if parts, ok := r.parts[section]; ok {
 		return parts, nil
 	}
 
-	name := sectionHook(kind, section)
-	if _, ok := g.hooks.Chain(name); !ok {
+	hook := sectionHook(name, section)
+	if _, ok := g.hooks.Chain(hook); !ok {
 		r.parts[section] = nil
 		return nil, nil
 	}
 
 	// Called from a running script, whose deadline applies.
-	result, err := g.hooks.Run(context.Background(), name, map[string]any{"data": r.data, "parts": []any{}})
+	result, err := g.hooks.Run(context.Background(), hook, map[string]any{"data": r.data, "parts": []any{}})
 	if err != nil || result.Cancelled {
 		return nil, err
 	}
@@ -137,15 +138,15 @@ func (g *Game) sectionParts(kind, section string) ([]message.Part, error) {
 	raw, ok := result.Payload["parts"].([]any)
 	if !ok && result.Payload["parts"] != nil {
 		if m, isMap := result.Payload["parts"].(map[string]any); !isMap || len(m) > 0 {
-			return nil, fmt.Errorf("%s: event.parts must be a list, not a %s", name, scripting.TypeName(result.Payload["parts"]))
+			return nil, fmt.Errorf("%s: event.parts must be a list, not a %s", hook, scripting.TypeName(result.Payload["parts"]))
 		}
 	}
 
-	var parts []message.Part
+	var parts []view.Part
 	for i, item := range raw {
 		part, err := g.sectionPart(item)
 		if err != nil {
-			return nil, fmt.Errorf("%s: part %d: %w", name, i+1, err)
+			return nil, fmt.Errorf("%s: part %d: %w", hook, i+1, err)
 		}
 		parts = append(parts, part)
 	}
@@ -155,58 +156,58 @@ func (g *Game) sectionParts(kind, section string) ([]message.Part, error) {
 }
 
 // sectionPart reads one part a section hook handler added.
-func (g *Game) sectionPart(item any) (message.Part, error) {
+func (g *Game) sectionPart(item any) (view.Part, error) {
 	switch v := item.(type) {
 	case string:
-		return message.Part{Text: v}, nil
+		return view.Part{Text: v}, nil
 	case map[string]any:
-		kind, ok := v["kind"].(string)
+		name, ok := v["view"].(string)
 		if !ok {
-			return message.Part{}, errors.New(`a part is text, or a table like { kind = "minimap", data = { ... } }`)
+			return view.Part{}, errors.New(`a part is text, or a table like { view = "minimap", data = { ... } }`)
 		}
-		if !g.messages.Has(kind) {
-			return message.Part{}, fmt.Errorf("there's no message kind %q.%s", kind, command.DidYouMean(kind, g.messages.Names()))
+		if !g.views.Has(name) {
+			return view.Part{}, fmt.Errorf("there's no view %q.%s", name, command.DidYouMean(name, g.views.Names()))
 		}
 		block, _ := v["block"].(string)
 		data, err := g.templateData(v["data"], "data")
 		if err != nil {
-			return message.Part{}, err
+			return view.Part{}, err
 		}
-		return message.Part{Kind: kind, Block: block, Data: data}, nil
+		return view.Part{View: name, Block: block, Data: data}, nil
 	default:
-		return message.Part{}, fmt.Errorf(`a part is text, or a table like { kind = "minimap", data = { ... } }, not a %s`, scripting.TypeName(item))
+		return view.Part{}, fmt.Errorf(`a part is text, or a table like { view = "minimap", data = { ... } }, not a %s`, scripting.TypeName(item))
 	}
 }
 
-// checkSectionHooks checks that every section hook names a message kind
-// and a section its template has.
+// checkSectionHooks checks that every section hook names a view and a
+// section its template has.
 func (s *scripts) checkSectionHooks() error {
-	for _, name := range s.hooks.Names() {
-		target, ok := strings.CutPrefix(name, "section:")
+	for _, hook := range s.hooks.Names() {
+		target, ok := strings.CutPrefix(hook, "section:")
 		if !ok {
 			continue
 		}
-		kind, section, _ := strings.Cut(target, ".")
+		name, section, _ := strings.Cut(target, ".")
 
-		chain, _ := s.hooks.Chain(name)
+		chain, _ := s.hooks.Chain(hook)
 		var files []string
 		for _, h := range append(chain.Handlers, chain.Disabled...) {
 			files = append(files, h.File())
 		}
 		where := strings.Join(files, ", ")
 
-		if !s.messages.Has(kind) {
-			return fmt.Errorf("%s: %s adds to the message kind %q, which no plugin defines.%s",
-				where, name, kind, command.DidYouMean(kind, s.messages.Names()))
+		if !s.views.Has(name) {
+			return fmt.Errorf("%s: %s adds to the view %q, which no plugin defines.%s",
+				where, hook, name, command.DidYouMean(name, s.views.Names()))
 		}
-		sections := s.messages.Sections(kind)
+		sections := s.views.Sections(name)
 		if !slices.Contains(sections, section) {
 			has := "It has no sections; add {{section \"" + section + "\"}} where the parts should go."
 			if len(sections) > 0 {
 				has = "Its sections: " + strings.Join(sections, ", ") + "."
 			}
 			return fmt.Errorf("%s: %s adds to the %q section of %q, but the %s template has no {{section %q}}.%s %s",
-				where, name, section, kind, kind, section, command.DidYouMean(section, sections), has)
+				where, hook, section, name, name, section, command.DidYouMean(section, sections), has)
 		}
 	}
 
@@ -263,8 +264,8 @@ func (g *Game) templateData(value any, path string) (any, error) {
 // entity is how templates see o: its id, key and properties. Objects in
 // its properties are entities with only id, key and name, so one message
 // can't pull in the whole world. Without full, o gets only those too.
-func (g *Game) entity(o *world.Object, full bool) message.Entity {
-	e := message.Entity{}
+func (g *Game) entity(o *world.Object, full bool) view.Entity {
+	e := view.Entity{}
 	if full {
 		for _, name := range allProperties(o) {
 			value, _ := o.Get(name)

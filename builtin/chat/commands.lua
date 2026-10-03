@@ -7,8 +7,8 @@
 --
 -- A game adds forms to these commands by defining a command with the same
 -- name, or replaces one with replace = true. What players read comes from
--- messages/say.txt.tmpl and messages/emote.txt.tmpl; a game restyles them
--- with its own game/messages/say.txt.tmpl, or say.html.tmpl for the web.
+-- views/say.txt.tmpl and views/emote.txt.tmpl; a game restyles them
+-- with its own game/views/say.txt.tmpl, or say.html.tmpl for the web.
 
 -- before_say lets other plugins change what's said, or stop it. It returns
 -- the message to say, or nil if a handler cancelled.

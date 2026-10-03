@@ -1,4 +1,4 @@
-package message
+package view
 
 import (
 	"strings"
@@ -11,7 +11,7 @@ func add(t *testing.T, ts *Templates, name, format, plugin, source string) {
 	err := ts.Add(File{
 		Name:   name,
 		Format: format,
-		Path:   plugin + "/messages/" + name + "." + format + ".tmpl",
+		Path:   plugin + "/views/" + name + "." + format + ".tmpl",
 		Plugin: plugin,
 		Source: source,
 	})
@@ -75,13 +75,13 @@ func TestRenderUnknownBlock(t *testing.T) {
 	add(t, ts, "ambient", FormatText, "game", "{{.text}}")
 
 	_, _, err := ts.Render("hit", FormatText, "atcor", map[string]any{})
-	want := `dragon:combat/messages/hit.txt.tmpl has no block "atcor". It defines actor, others; add {{define "atcor"}}...{{end}} to it, or send one of those.`
+	want := `dragon:combat/views/hit.txt.tmpl has no block "atcor". It defines actor, others; add {{define "atcor"}}...{{end}} to it, or send one of those.`
 	if err == nil || err.Error() != want {
 		t.Errorf("got error %v,\nwant %s", err, want)
 	}
 
 	_, _, err = ts.Render("ambient", FormatText, "actor", map[string]any{})
-	want = `game/messages/ambient.txt.tmpl has no block "actor". It doesn't define any blocks; add {{define "actor"}}...{{end}} to it, or send one of those.`
+	want = `game/views/ambient.txt.tmpl has no block "actor". It doesn't define any blocks; add {{define "actor"}}...{{end}} to it, or send one of those.`
 	if err == nil || err.Error() != want {
 		t.Errorf("got error %v,\nwant %s", err, want)
 	}
@@ -177,13 +177,13 @@ func TestValidate(t *testing.T) {
 	ts := NewTemplates()
 	add(t, ts, "say", FormatText, "game", "")
 	add(t, ts, "say", FormatHTML, "game", "")
-	if err := ts.Validate("messages"); err != nil {
+	if err := ts.Validate("views"); err != nil {
 		t.Errorf("valid templates: %v", err)
 	}
 
 	add(t, ts, "hit", FormatHTML, "game", "")
-	want := "game/messages/hit.html.tmpl has no text version. Add messages/hit.txt.tmpl: telnet shows it, and the web does whenever there's no HTML version."
-	if err := ts.Validate("messages"); err == nil || err.Error() != want {
+	want := "game/views/hit.html.tmpl has no text version. Add views/hit.txt.tmpl: telnet shows it, and the web does whenever there's no HTML version."
+	if err := ts.Validate("views"); err == nil || err.Error() != want {
 		t.Errorf("got %v,\nwant %s", err, want)
 	}
 }
@@ -202,8 +202,8 @@ func TestLaterFilesReplaceEarlier(t *testing.T) {
 }
 
 func TestParseError(t *testing.T) {
-	err := NewTemplates().Add(File{Name: "hit", Format: FormatText, Path: "game/messages/hit.txt.tmpl", Source: "{{.actor"})
-	if err == nil || !strings.Contains(err.Error(), "game/messages/hit.txt.tmpl:1") {
+	err := NewTemplates().Add(File{Name: "hit", Format: FormatText, Path: "game/views/hit.txt.tmpl", Source: "{{.actor"})
+	if err == nil || !strings.Contains(err.Error(), "game/views/hit.txt.tmpl:1") {
 		t.Errorf("got %v, want an error with the file and line", err)
 	}
 }

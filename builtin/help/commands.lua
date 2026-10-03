@@ -4,7 +4,7 @@ return {
   help = {
     desc = "List commands, or show how to use one: help say",
     forms = {
-      -- messages/help_commands.txt.tmpl lays the list out with {{table}}.
+      -- views/help_commands.txt.tmpl lays the list out with {{table}}.
       { "help", function(actor)
           local rows = {}
           for _, cmd in ipairs(game.commands()) do

@@ -9,8 +9,8 @@
 -- actor:get("name") is their name, and actor:set(...) stores anything you
 -- like on them. Color codes like [Y]...[x] work everywhere.
 --
--- actor:send(kind, data, block) sends a message kind instead: a template in
--- messages/ filled in with data. See messages/dance.txt.tmpl.
+-- actor:send(view, data, block) sends a view instead: a template in views/
+-- filled in with data. See views/dance.txt.tmpl.
 --
 -- Defining a command the engine already has (look, say, ...) adds your
 -- forms to it. Set replace = true to use only yours.

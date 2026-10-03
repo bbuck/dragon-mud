@@ -21,6 +21,7 @@ import (
 	"bbuck.dev/dragon-mud/scripting"
 	"bbuck.dev/dragon-mud/session"
 	"bbuck.dev/dragon-mud/store"
+	"bbuck.dev/dragon-mud/view"
 	"bbuck.dev/dragon-mud/world"
 )
 
@@ -102,7 +103,7 @@ type Options struct {
 	Store Store
 
 	// TextWidth is the width text templates lay text out to. Zero uses
-	// message.DefaultWidth.
+	// view.DefaultWidth.
 	TextWidth int
 
 	// Hasher hashes passwords off the loop. Nil uses auth.DefaultParams,
@@ -142,7 +143,7 @@ type Game struct {
 	// resolving is true while slot resolvers run; the world is read-only.
 	resolving bool
 
-	// rendering is the messages being rendered, for their sections.
+	// rendering is the views being rendered, for their sections.
 	rendering []*rendering
 
 	*scripts
@@ -161,10 +162,10 @@ type scripts struct {
 	hooks    *hook.Registry
 	modes    map[string]*mode
 
-	// messages are the message kinds, and templates the other templates
+	// views are what scripts send, and templates the other templates
 	// the engine renders, such as entity tooltips.
-	messages  *message.Templates
-	templates *message.Templates
+	views     *view.Templates
+	templates *view.Templates
 }
 
 // New returns a game with its plugins loaded. The game closes its engine
@@ -241,10 +242,10 @@ func (g *Game) load(ctx context.Context) (*scripts, error) {
 		engine:    g.newEngine(),
 		commands:  command.NewRegistry(),
 		modes:     make(map[string]*mode),
-		messages:  message.NewTemplates(),
-		templates: message.NewTemplates(),
+		views:     view.NewTemplates(),
+		templates: view.NewTemplates(),
 	}
-	s.messages.SetWidth(g.textWidth)
+	s.views.SetWidth(g.textWidth)
 	s.templates.SetWidth(g.textWidth)
 	if err := g.loadInto(ctx, s); err != nil {
 		s.engine.Close()
@@ -271,7 +272,7 @@ func (g *Game) loadInto(ctx context.Context, s *scripts) error {
 		}
 	}
 
-	if err := s.messages.Validate(plugin.MessagesDir); err != nil {
+	if err := s.views.Validate(plugin.ViewsDir); err != nil {
 		return err
 	}
 	if err := s.checkModes(); err != nil {
@@ -282,7 +283,7 @@ func (g *Game) loadInto(ctx context.Context, s *scripts) error {
 	if s.hooks, err = hook.New(hooks); err != nil {
 		return err
 	}
-	s.messages.SetSections(g.sectionParts)
+	s.views.SetSections(g.sectionParts)
 
 	return s.checkSectionHooks()
 }
@@ -345,7 +346,7 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ho
 			p.WiringFile())
 	}
 
-	kinds, err := addTemplates(p, plugin.MessagesDir, s.messages)
+	views, err := addTemplates(p, plugin.ViewsDir, s.views)
 	if err != nil {
 		return err
 	}
@@ -353,7 +354,7 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ho
 		return err
 	}
 
-	g.log.Info("loaded plugin", "plugin", p.ID, "version", p.Manifest.Version, "commands", len(cmds), "modes", len(modes), "slots", len(slots), "hooks", len(handlers), "messages", kinds)
+	g.log.Info("loaded plugin", "plugin", p.ID, "version", p.Manifest.Version, "commands", len(cmds), "modes", len(modes), "slots", len(slots), "hooks", len(handlers), "views", views)
 
 	return nil
 }
@@ -365,7 +366,7 @@ func (g *Game) builtin(pluginID string) bool {
 
 // addTemplates adds the template files in the plugin's dir to templates and
 // returns how many it added.
-func addTemplates(p *plugin.Plugin, dir string, templates *message.Templates) (int, error) {
+func addTemplates(p *plugin.Plugin, dir string, templates *view.Templates) (int, error) {
 	files, err := p.Templates(dir)
 	if err != nil {
 		return 0, err

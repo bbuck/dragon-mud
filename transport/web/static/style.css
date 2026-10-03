@@ -61,7 +61,7 @@ h1 {
 }
 
 .msg { white-space: pre-wrap; margin-bottom: 0.15rem; }
-/* Feed message kinds. Games restyle these from their own stylesheet. */
+/* Feed messages, by the view or engine kind they came from. Games restyle these from their own stylesheet. */
 .msg-echo { color: var(--muted); font-size: 0.9em; }
 .msg-echo::before { content: "> "; }
 .msg-echo:empty { display: none; }

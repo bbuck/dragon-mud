@@ -38,7 +38,7 @@ mapping/
   modes.lua         input modes: prompts, menus, editors (see design.md §3)
   hooks.lua         hook and notification handlers (see design.md §3)
   lua/              other Lua modules
-  messages/         message kinds and templates (*.txt.tmpl, *.html.tmpl)
+  views/            views: templates scripts send (*.txt.tmpl, *.html.tmpl)
   templates/        other templates, such as entity_tooltip.html.tmpl
   schema.lua        data types it defines or extends
   tasks/            CLI tasks
@@ -251,7 +251,7 @@ major version. Each needs reference documentation.
 
 1. Lua modules
 2. Manifest format
-3. Message kinds, sections and templates
+3. Views, sections and templates
 4. Client JS and layout (`dragon` module, slot ids, CSS theme properties,
    import map conventions)
 5. Admin extensions and schema format

@@ -1,4 +1,4 @@
-package message
+package view
 
 import (
 	"slices"
@@ -129,7 +129,7 @@ func TestSections(t *testing.T) {
 		if section == "empty" {
 			return nil, nil
 		}
-		return []Part{{Text: "Exits:"}, {Kind: "exit", Data: map[string]any{"dir": "north"}}}, nil
+		return []Part{{Text: "Exits:"}, {View: "exit", Data: map[string]any{"dir": "north"}}}, nil
 	})
 
 	data := map[string]any{"title": "Hall"}

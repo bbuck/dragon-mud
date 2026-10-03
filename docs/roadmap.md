@@ -30,7 +30,7 @@ over telnet and the web and talk to each other.
 - [x] Objects: id, parent, location, properties; SQLite storage.
 - [x] Accounts and login with `auth`.
 - [x] Objects across the scripting boundary (`player:send(...)`).
-- [x] Message kinds: `messages/<kind>.txt.tmpl` and `.html.tmpl`, with
+- [x] Views: `views/<name>.txt.tmpl` and `.html.tmpl`, with
       blocks the sender picks.
 - [x] Entities in messages: `{{entity .x}}`, `<dragon-entity>`, tooltips
       (`get_tooltip`) and default actions (`get_default_action`).
@@ -50,7 +50,7 @@ over telnet and the web and talk to each other.
 - [x] Text layout: telnet wrapping, and layout helpers (`columns`,
       `table`, ...) with HTML equivalents.
 - [ ] Forms contributed by objects in scope (exits, verbs on held things).
-- [x] Feed message kinds: `room`, `say`, `emote`, `ambient`, `echo`.
+- [x] Feed views: `room`, `say`, `emote`, `ambient`, `echo`.
 
 ## Milestone 3: Plugins for real
 
@@ -117,7 +117,7 @@ plus guides for the common paths.
 - **Game directory:** layout, `dragon.toml`, the game as a plugin, overrides.
 - **Lua API reference:** every module and function.
 - **Manifest reference:** fields, provides, depends, capabilities.
-- **Messages and templates:** kinds, sections, telnet and HTML templates,
+- **Views:** sections, telnet and HTML templates, layout helpers,
   color codes.
 - **Hooks and wiring:** hook kinds, ordering, `dragon hooks`.
 - **Web client:** slots, the `dragon` JS API, import maps, custom elements,

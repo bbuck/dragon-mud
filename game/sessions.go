@@ -30,7 +30,7 @@ var errClosing = errors.New("the session is disconnecting")
 //	s:send(text)                 send text
 //	s:send(kind, data[, block])  send a message kind
 //	s:prompt(text)               ask for input
-//	s:prompt(options)            ask with options: text, or kind, data and
+//	s:prompt(options)            ask with options: text, or view, data and
 //	                             block; choices, a list of answers players
 //	                             can also give by number; and secret, to
 //	                             hide what they type
@@ -214,7 +214,7 @@ func (g *Game) sessionSend(key any, args scripting.Args) (any, error) {
 }
 
 // promptKeys are the options s:prompt takes.
-var promptKeys = []string{"text", "kind", "data", "block", "choices", "secret"}
+var promptKeys = []string{"text", "view", "data", "block", "choices", "secret"}
 
 func (g *Game) sessionPrompt(key any, args scripting.Args) (any, error) {
 	p, err := g.sessionPlayer(key)
@@ -267,18 +267,18 @@ func (g *Game) sessionPrompt(key any, args scripting.Args) (any, error) {
 }
 
 // promptMessage renders a prompt: the text with its choices listed, or a
-// message kind, whose template shows the choices itself.
+// view, whose template shows the choices itself.
 func (g *Game) promptMessage(opts map[string]any, choices []string) (message.Message, error) {
 	text, hasText := opts["text"]
-	kind, hasKind := opts["kind"]
+	name, hasView := opts["view"]
 
 	switch {
-	case hasText && hasKind:
-		return message.Message{}, errors.New("prompt has both text and kind. Give text for a plain prompt, or kind and data to render a message kind")
-	case hasKind:
-		name, ok := kind.(string)
+	case hasText && hasView:
+		return message.Message{}, errors.New("prompt has both text and view. Give text for a plain prompt, or view and data to render a view")
+	case hasView:
+		view, ok := name.(string)
 		if !ok {
-			return message.Message{}, fmt.Errorf("prompt: kind must be a message kind's name, not a %s", scripting.TypeName(kind))
+			return message.Message{}, fmt.Errorf("prompt: view must be a view's name, not a %s", scripting.TypeName(name))
 		}
 		data := map[string]any{}
 		if raw, ok := opts["data"]; ok && raw != nil {
@@ -290,18 +290,18 @@ func (g *Game) promptMessage(opts map[string]any, choices []string) (message.Mes
 			}
 		}
 		block, _ := opts["block"].(string)
-		return g.render(name, data, block)
+		return g.render(view, data, block)
 	case hasText:
 		s, ok := text.(string)
 		if !ok {
 			return message.Message{}, fmt.Errorf("prompt: text must be a string, not a %s", scripting.TypeName(text))
 		}
 		if _, ok := opts["data"]; ok {
-			return message.Message{}, errors.New("prompt: data needs a kind to render it; give kind = \"...\" instead of text")
+			return message.Message{}, errors.New("prompt: data needs a view to render it; give view = \"...\" instead of text")
 		}
 		return textPrompt(s, choices), nil
 	default:
-		return message.Message{}, errors.New("prompt needs text, or a kind and data, like session:prompt({ text = \"Choose:\", choices = { ... } })")
+		return message.Message{}, errors.New("prompt needs text, or a view and data, like session:prompt({ text = \"Choose:\", choices = { ... } })")
 	}
 }
 

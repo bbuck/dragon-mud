@@ -77,14 +77,14 @@ var fighting = fstest.MapFS{
 			} },
 		}
 	`),
-	"messages/hit.txt.tmpl": file(`
+	"views/hit.txt.tmpl": file(`
 {{define "actor"}}You hit {{entity .target}}.{{end}}
 {{define "target"}}{{entity .actor}} hits you.{{end}}
 {{define "others"}}{{entity .actor}} hits {{entity .target}}.{{end}}
 `),
-	"messages/shout.txt.tmpl":  file("[Y]{{entity .actor}} shouts, \"{{.text}}\"[x]\n"),
-	"messages/shout.html.tmpl": file(`<p class="shout">{{entity .actor}}: {{.text}}</p>`),
-	"messages/show.txt.tmpl": file(
+	"views/shout.txt.tmpl":  file("[Y]{{entity .actor}} shouts, \"{{.text}}\"[x]\n"),
+	"views/shout.html.tmpl": file(`<p class="shout">{{entity .actor}}: {{.text}}</p>`),
+	"views/show.txt.tmpl": file(
 		`{{.actor.name}} {{.actor.title}} wields {{.actor.weapon.name}}` +
 			` ({{if .actor.weapon.damage}}full{{else}}name only{{end}}) {{range .items}}{{.}}{{end}}`),
 }
@@ -134,10 +134,10 @@ func TestMessageErrors(t *testing.T) {
 	alice.login("Alice")
 
 	alice.send("oops kind")
-	alice.expect(`there's no message kind "hti". Add messages/hti.txt.tmpl to your plugin to define it. Did you mean "hit"?`)
+	alice.expect(`there's no view "hti". Add views/hti.txt.tmpl to your plugin to define it. Did you mean "hit"?`)
 
 	alice.send("oops block")
-	alice.expect(`game/messages/hit.txt.tmpl has no block "atcor". It defines actor, others, target; add {{define "atcor"}}...{{end}} to it, or send one of those.`)
+	alice.expect(`game/views/hit.txt.tmpl has no block "atcor". It defines actor, others, target; add {{define "atcor"}}...{{end}} to it, or send one of those.`)
 
 	alice.send("oops data")
 	alice.expect(`argument #2: f: a function can't be shown in a message`)
@@ -155,7 +155,7 @@ func TestMessageTemplatesReload(t *testing.T) {
 	bob := connect(t, g)
 	bob.login("Bob")
 
-	files["messages/hit.txt.tmpl"] = file(`{{define "actor"}}You wallop {{entity .target}}!{{end}}{{define "target"}}{{end}}{{define "others"}}{{end}}`)
+	files["views/hit.txt.tmpl"] = file(`{{define "actor"}}You wallop {{entity .target}}!{{end}}{{define "target"}}{{end}}{{define "others"}}{{end}}`)
 	g.Reload()
 
 	alice.send("hit bob")
@@ -170,18 +170,18 @@ func TestMessageFileErrors(t *testing.T) {
 	}{
 		{
 			"HTML without text",
-			fstest.MapFS{"messages/hit.html.tmpl": file("<b>hit</b>")},
-			"game/messages/hit.html.tmpl has no text version. Add messages/hit.txt.tmpl: telnet shows it, and the web does whenever there's no HTML version.",
+			fstest.MapFS{"views/hit.html.tmpl": file("<b>hit</b>")},
+			"game/views/hit.html.tmpl has no text version. Add views/hit.txt.tmpl: telnet shows it, and the web does whenever there's no HTML version.",
 		},
 		{
 			"misnamed file",
-			fstest.MapFS{"messages/hit.tmpl": file("hit")},
-			"game/messages/hit.tmpl isn't a template name. Name templates <name>.txt.tmpl or <name>.html.tmpl, where the name is lowercase letters, digits and underscores, like say.txt.tmpl.",
+			fstest.MapFS{"views/hit.tmpl": file("hit")},
+			"game/views/hit.tmpl isn't a template name. Name templates <name>.txt.tmpl or <name>.html.tmpl, where the name is lowercase letters, digits and underscores, like say.txt.tmpl.",
 		},
 		{
 			"directory",
-			fstest.MapFS{"messages/combat/hit.txt.tmpl": file("hit")},
-			"game/messages/combat is a directory, but messages/ only holds template files like say.txt.tmpl.",
+			fstest.MapFS{"views/combat/hit.txt.tmpl": file("hit")},
+			"game/views/combat is a directory, but views/ only holds template files like say.txt.tmpl.",
 		},
 		{
 			"parse error",
@@ -201,11 +201,11 @@ func TestMessageFileErrors(t *testing.T) {
 
 	// Dotfiles are ignored.
 	_, err := newGame(t, fstest.MapFS{
-		"plugin.lua":         file(`return { name = "game" }`),
-		"messages/.DS_Store": file(""),
+		"plugin.lua":      file(`return { name = "game" }`),
+		"views/.DS_Store": file(""),
 	})
 	if err != nil {
-		t.Errorf("a dotfile in messages/ broke loading: %v", err)
+		t.Errorf("a dotfile in views/ broke loading: %v", err)
 	}
 }
 
@@ -373,7 +373,7 @@ func TestRequestsBeforeLogin(t *testing.T) {
 	}
 }
 
-// The game dragon new writes uses message kinds, tooltips and default
+// The game dragon new writes uses views, tooltips and default
 // actions; this keeps it working.
 func TestScaffoldedGame(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "mygame")

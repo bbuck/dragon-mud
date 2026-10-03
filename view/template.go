@@ -1,4 +1,7 @@
-package message
+// Package view renders views: the templates in a plugin's views/ directory,
+// one per format, that scripts send by name. It also provides the layout
+// helpers and sections templates use. See docs/design.md §4.
+package view
 
 import (
 	"errors"
@@ -46,14 +49,14 @@ func (e Entity) Name() string {
 
 // File is one template file a plugin provides.
 type File struct {
-	// Name is the kind or template name: "say" for say.txt.tmpl.
+	// Name is the view's name: "say" for say.txt.tmpl.
 	Name string
 
 	// Format is FormatText or FormatHTML.
 	Format string
 
 	// Path is where the file is, for errors, such as
-	// "dragon:chat/messages/say.txt.tmpl".
+	// "dragon:chat/views/say.txt.tmpl".
 	Path string
 
 	// Plugin is the plugin that provides it.
@@ -62,8 +65,7 @@ type File struct {
 	Source string
 }
 
-// Templates holds named templates in each format, such as every message
-// kind. Files added later replace earlier ones with the same name and
+// Templates holds named templates in each format, such as every view. Files added later replace earlier ones with the same name and
 // format, so the game beats plugins beats built-ins one file at a time.
 type Templates struct {
 	files map[string]map[string]*compiled
@@ -73,7 +75,7 @@ type Templates struct {
 
 	sectionFunc SectionFunc
 
-	// rendering is the kinds being rendered: the message, then any part
+	// rendering is the views being rendered: the one sent, then any part
 	// of a section in it.
 	rendering []string
 }
@@ -202,7 +204,7 @@ func blocks[T named](path string, templates []T) []string {
 }
 
 // Validate checks that every name has a text template, which every client
-// can show. dir is where the files live, such as "messages", for the
+// can show. dir is where the files live, such as "views", for the
 // error.
 func (t *Templates) Validate(dir string) error {
 	var errs []error

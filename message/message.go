@@ -1,6 +1,6 @@
-// Package message defines the structured messages the game sends to
-// sessions, and the templates that render message kinds for each format.
-// See docs/design.md §4.
+// Package message defines what the game sends to sessions: each message is
+// rendered from a view (see package view), or is one of the kinds the
+// engine sends itself. See docs/design.md §4.
 package message
 
 // Kinds the core sends.

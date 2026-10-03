@@ -1,4 +1,4 @@
-package message
+package view
 
 import (
 	"errors"
@@ -9,20 +9,20 @@ import (
 	"text/template/parse"
 )
 
-// Part is what a plugin adds to a message's section: text with color
-// codes, or a message kind rendered with data.
+// Part is what a plugin adds to a view's section: text with color codes,
+// or another view rendered with data.
 type Part struct {
 	Text string
 
-	Kind  string
+	View  string
 	Block string
 	Data  any
 }
 
-// SectionFunc returns the parts for the section of the message kind being
-// sent. It's called at most once per section per message: parts are the
+// SectionFunc returns the parts for the section of the view being
+// rendered. It's called at most once per section per message: parts are the
 // same in every format.
-type SectionFunc func(kind, section string) ([]Part, error)
+type SectionFunc func(name, section string) ([]Part, error)
 
 // SetSections sets where {{section "name"}} gets its parts. Without it,
 // sections are empty.
@@ -42,9 +42,9 @@ const (
 func (t *Templates) section(mode int, name string) (string, error) {
 	switch {
 	case len(t.rendering) == 0:
-		return "", errors.New("section only works while a message is rendering")
+		return "", errors.New("section only works while a view is rendering")
 	case len(t.rendering) > 1:
-		return "", fmt.Errorf("%s can't have sections of its own, because it was added to another message's section", t.rendering[len(t.rendering)-1])
+		return "", fmt.Errorf("%s can't have sections of its own, because it was added to another view's section", t.rendering[len(t.rendering)-1])
 	case t.sectionFunc == nil:
 		return "", nil
 	}
@@ -73,19 +73,19 @@ func (t *Templates) section(mode int, name string) (string, error) {
 }
 
 func (t *Templates) renderPart(mode int, p Part) (string, error) {
-	if p.Kind == "" {
+	if p.View == "" {
 		if mode == modeHTML {
 			return textToHTML(p.Text), nil
 		}
 		return p.Text, nil
 	}
 
-	t.rendering = append(t.rendering, p.Kind)
+	t.rendering = append(t.rendering, p.View)
 	defer func() { t.rendering = t.rendering[:len(t.rendering)-1] }()
 
-	text, ok := t.files[p.Kind][FormatText]
+	text, ok := t.files[p.View][FormatText]
 	if !ok {
-		return "", fmt.Errorf("there's no message kind %q", p.Kind)
+		return "", fmt.Errorf("there's no view %q", p.View)
 	}
 
 	switch mode {
@@ -94,7 +94,7 @@ func (t *Templates) renderPart(mode int, p Part) (string, error) {
 	case modeMarked:
 		return text.render(text.marked, p.Block, p.Data)
 	default:
-		if html, ok := t.files[p.Kind][FormatHTML]; ok {
+		if html, ok := t.files[p.View][FormatHTML]; ok {
 			return html.render(html.tmpl, p.Block, p.Data)
 		}
 		s, err := text.render(text.marked, p.Block, p.Data)
@@ -102,17 +102,17 @@ func (t *Templates) renderPart(mode int, p Part) (string, error) {
 	}
 }
 
-// Sections returns the sections the kind's text template has, in the order
+// Sections returns the sections the view's text template has, in the order
 // they first appear.
-func (t *Templates) Sections(kind string) []string {
-	if c, ok := t.files[kind][FormatText]; ok {
+func (t *Templates) Sections(name string) []string {
+	if c, ok := t.files[name][FormatText]; ok {
 		return c.sections
 	}
 
 	return nil
 }
 
-// checkSections checks that a kind's HTML template has every section its
+// checkSections checks that a view's HTML template has every section its
 // text template has, so parts added to them reach the web.
 func (t *Templates) checkSections(name string) error {
 	text, hasText := t.files[name][FormatText]

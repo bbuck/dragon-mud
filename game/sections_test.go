@@ -17,15 +17,15 @@ func sectioned(extra fstest.MapFS) fstest.MapFS {
 				actor:send("room", { title = "The Dragon's Rest", here = actor })
 			end } } } }
 		`),
-		"messages/room.txt.tmpl":    file("[Y]{{.title}}[x]\n{{section \"exits\"}}"),
-		"messages/room.html.tmpl":   file(`<h2>{{.title}}</h2>{{section "exits"}}`),
-		"messages/minimap.txt.tmpl": file(`[map of {{.place}} for {{entity .viewer}}]`),
+		"views/room.txt.tmpl":    file("[Y]{{.title}}[x]\n{{section \"exits\"}}"),
+		"views/room.html.tmpl":   file(`<h2>{{.title}}</h2>{{section "exits"}}`),
+		"views/minimap.txt.tmpl": file(`[map of {{.place}} for {{entity .viewer}}]`),
 		"hooks.lua": file(`
 			return {
 				["section:room.exits"] = {
 					before = { "dragon:chat" },
 					handler = function(event)
-						table.insert(event.parts, { kind = "minimap", data = { place = event.data.title, viewer = event.data.here } })
+						table.insert(event.parts, { view = "minimap", data = { place = event.data.title, viewer = event.data.here } })
 						return event
 					end,
 				},
@@ -72,7 +72,7 @@ func TestSectionErrors(t *testing.T) {
 		{
 			"unknown kind",
 			fstest.MapFS{"hooks.lua": file(`return { ["section:rom.exits"] = function(event) end }`)},
-			`game/hooks.lua: section:rom.exits adds to the message kind "rom", which no plugin defines. Did you mean "room"?`,
+			`game/hooks.lua: section:rom.exits adds to the view "rom", which no plugin defines. Did you mean "room"?`,
 		},
 		{
 			"unknown section",
@@ -81,8 +81,8 @@ func TestSectionErrors(t *testing.T) {
 		},
 		{
 			"HTML is missing a section",
-			fstest.MapFS{"messages/room.html.tmpl": file(`<h2>{{.title}}</h2>`)},
-			`game/messages/room.html.tmpl has no {{section "exits"}}, but game/messages/room.txt.tmpl does.`,
+			fstest.MapFS{"views/room.html.tmpl": file(`<h2>{{.title}}</h2>`)},
+			`game/views/room.html.tmpl has no {{section "exits"}}, but game/views/room.txt.tmpl does.`,
 		},
 		{
 			"bad hook name",
@@ -105,7 +105,7 @@ func TestBadSectionPart(t *testing.T) {
 	g := startGame(t, sectioned(fstest.MapFS{
 		"hooks.lua": file(`
 			return { ["section:room.exits"] = function(event)
-				table.insert(event.parts, { kind = "minimpa" })
+				table.insert(event.parts, { view = "minimpa" })
 				return event
 			end }
 		`),
@@ -113,5 +113,5 @@ func TestBadSectionPart(t *testing.T) {
 
 	alice := connect(t, g)
 	alice.login("Alice")
-	alice.expect(`section:room.exits: part 1: there's no message kind "minimpa". Did you mean "minimap"?`)
+	alice.expect(`section:room.exits: part 1: there's no view "minimpa". Did you mean "minimap"?`)
 }
