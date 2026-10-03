@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
-	"strings"
 	"time"
 
 	"bbuck.dev/dragon-mud/auth"
@@ -323,7 +322,7 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ho
 		return err
 	}
 	for _, def := range modes {
-		if err := s.addMode(def, g.builtin); err != nil {
+		if err := s.addMode(def); err != nil {
 			return err
 		}
 	}
@@ -357,11 +356,6 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ho
 	g.log.Info("loaded plugin", "plugin", p.ID, "version", p.Manifest.Version, "commands", len(cmds), "modes", len(modes), "slots", len(slots), "hooks", len(handlers), "views", views)
 
 	return nil
-}
-
-// builtin reports whether the plugin pluginID is embedded in the engine.
-func (g *Game) builtin(pluginID string) bool {
-	return strings.HasPrefix(pluginID, plugin.BuiltinPrefix)
 }
 
 // addTemplates adds the template files in the plugin's dir to templates and

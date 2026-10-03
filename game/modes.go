@@ -19,11 +19,13 @@ import (
 const (
 	// modeLogin is the engine's own login, always at the bottom of a new
 	// session's stack.
-	modeLogin = "login"
+	modeLogin = plugin.LoginMode
 
-	// modeCharacters runs after login. A plugin or the game defines it,
-	// and it ends by calling session:play(character).
-	modeCharacters = "characters"
+	// After login the engine starts the game's characters mode if it has
+	// one, otherwise dragon:characters. It ends by calling
+	// session:play(character).
+	modeCharacters        = "characters"
+	modeBuiltinCharacters = plugin.BuiltinPrefix + "characters"
 )
 
 // Reasons a mode's leave handler is given.
@@ -76,7 +78,7 @@ type frame struct {
 // addMode registers a plugin's definition of a mode. Forms add to any the
 // mode already has; handlers can only be defined once unless the
 // definition replaces the mode.
-func (s *scripts) addMode(def plugin.ModeDef, builtin func(pluginID string) bool) error {
+func (s *scripts) addMode(def plugin.ModeDef) error {
 	m, exists := s.modes[def.Name]
 	if def.Replace || !exists {
 		m = &mode{
@@ -89,13 +91,8 @@ func (s *scripts) addMode(def plugin.ModeDef, builtin func(pluginID string) bool
 	}
 
 	conflict := func(what string) error {
-		owner := m.owners[what]
-		fix := fmt.Sprintf("Set replace = true on %q in %s to use only its version, or remove %s from one of them.", def.Name, def.File, what)
-		if builtin(owner) {
-			fix = fmt.Sprintf("Leave %q out of builtins in dragon.toml to use only yours, or set replace = true on %q in %s.",
-				strings.TrimPrefix(owner, plugin.BuiltinPrefix), def.Name, def.File)
-		}
-		return fmt.Errorf("%s: mode %q sets %s, but %s already does. %s", def.File, def.Name, what, owner, fix)
+		return fmt.Errorf("%s: mode %q sets %s, but %s already does. Set replace = true on %q in %s to use only its version, or remove %s from one of them. (Plugins avoid this by namespacing their modes, like %q.)",
+			def.File, def.Name, what, m.owners[what], def.Name, def.File, what, "myplugin:"+def.Name)
 	}
 
 	for _, h := range plugin.ModeHandlers {
@@ -130,17 +127,32 @@ func (s *scripts) addMode(def plugin.ModeDef, builtin func(pluginID string) bool
 
 // checkModes checks what the engine needs from the loaded modes.
 func (s *scripts) checkModes() error {
-	if _, ok := s.modes[modeCharacters]; !ok {
-		return fmt.Errorf("no plugin defines the %q mode, which runs after a player logs in to choose or create their character. Add %q back to builtins in dragon.toml, or define %s in game/modes.lua and have it call session:play(character).",
-			modeCharacters, "characters", modeCharacters)
+	if s.charactersMode() == "" {
+		return fmt.Errorf("nothing defines a mode to run after a player logs in to choose or create their character. Add %q back to builtins in dragon.toml for %s, or define %s in game/modes.lua and have it call session:play(character).",
+			"characters", modeBuiltinCharacters, modeCharacters)
 	}
 
 	return nil
 }
 
+// charactersMode is the mode that runs after login: the game's characters
+// mode if there is one, otherwise dragon:characters.
+func (s *scripts) charactersMode() string {
+	for _, name := range []string{modeCharacters, modeBuiltinCharacters} {
+		if _, ok := s.modes[name]; ok {
+			return name
+		}
+	}
+
+	return ""
+}
+
 // lookupMode returns the mode called name, or an error naming the modes
 // there are.
 func (g *Game) lookupMode(name string) (*mode, error) {
+	if name == modeLogin {
+		return nil, fmt.Errorf("%s is the engine's own login, which only the engine starts. To send a player back to it, close their session with session:close().", modeLogin)
+	}
 	if m, ok := g.modes[name]; ok {
 		return m, nil
 	}
@@ -305,7 +317,7 @@ func (g *Game) popMode(ctx context.Context, p *player, result any) error {
 	case below == nil && p.character == nil && !p.closing:
 		g.log.Error("a mode ended without choosing a character", "mode", f.name)
 		p.s.Send(message.System(fmt.Sprintf("[R]The %s mode ended without choosing a character, so there's nothing left to play. (The %s mode must finish with session:play(character).)[x]",
-			f.name, modeCharacters)))
+			f.name, g.charactersMode())))
 		p.s.Close()
 	}
 

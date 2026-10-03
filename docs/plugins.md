@@ -23,8 +23,18 @@ return {
 }
 ```
 
-Names are namespaced by plugin automatically: tasks in `mapping` become
-`mapping:rebuild`, client events become `mapping:pan`, and so on.
+**Names defined in Lua are used exactly as written.** A mode, hook or slot
+type is called what its file calls it; the engine never renames it, so the
+name in a plugin's code is the name everything else uses. Plugins should
+namespace their modes and hooks (`mapping:edit_map`, `mapping:map_drawn`)
+so they don't collide with other plugins'; the game's own plugin doesn't
+need to. (Slot types can't hold a `:`, which separates a slot's parts in
+patterns, so they stay plain.)
+`dragon:` is reserved for the engine and its built-ins.
+
+Names the engine makes up for a plugin are namespaced automatically:
+tasks in `mapping` become `mapping:rebuild`, client events become
+`mapping:pan`, and so on.
 
 ## Package layout
 

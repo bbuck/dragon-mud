@@ -427,6 +427,14 @@ func TestScaffoldedGame(t *testing.T) {
 	alice.send("look bob")
 	alice.expect("You see nothing special.")
 
+	bob.send("describe")
+	bob.expect("A line with only [c].[x] saves it")
+	bob.send("Tall, with a crooked smile.")
+	bob.send(".")
+	bob.expect("Saved.")
+	alice.send("look bob")
+	alice.expect("Tall, with a crooked smile.")
+
 	// Clicking Bob looks at him.
 	_, id, _ := strings.Cut(m.HTML, `ref="`)
 	id, _, _ = strings.Cut(id, `"`)

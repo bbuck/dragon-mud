@@ -129,9 +129,13 @@ return {
       { "no",  function(session) session:pop_mode() end },
     },
   },
+  -- session:push_mode("editor", { target = object, property = "description", lines = {} })
   editor = {
     input = function(session, line, state)
-      if line == "." then return session:pop_mode(table.concat(state.lines, "\n")) end
+      if line == "." then
+        state.target:set(state.property, table.concat(state.lines, "\n"))
+        return session:pop_mode()
+      end
       table.insert(state.lines, line)
       return state
     end,
@@ -154,12 +158,16 @@ return {
   to the `resume` of the mode below. A mode that ends while the mode below
   it is still running a handler (a step that finishes in its own `enter`)
   resumes it once that handler returns, so `resume` sees the state it left.
-- **Names aren't namespaced,** and precedence is the usual: the game, then
-  plugins, then built-ins. Forms are additive, like commands, so a game can
-  add a "back" form to a plugin's menu. Setting a handler or `passthrough`
-  another plugin already set is a startup error unless the definition sets
-  `replace = true`. To replace a built-in's mode, leave the built-in out of
-  `builtins` in `dragon.toml` instead.
+- **Names are what the plugin wrote.** The engine never adds a namespace
+  to anything defined in Lua: `modes = { edit_map = ... }` is pushed as
+  `edit_map`. A name can carry a namespace, and plugins should use their
+  own (`mapping:edit_map`) so they don't collide; the game's own modes
+  don't need one. `dragon:` is reserved for built-ins, and `dragon:login`
+  for the engine.
+- **Defining a mode again adds to it.** Forms are additive, like commands,
+  so a game can add a "back" form to a plugin's menu. Setting a handler or
+  `passthrough` another plugin already set is a startup error unless the
+  definition sets `replace = true`.
 - **Prompts:** `session:prompt(text)`, or `session:prompt({ ... })` with
   `text`, or `view`, `data` and `block` to render a view (§4);
   `choices`, a list of answers; and `secret`, to hide what the player types.
@@ -169,19 +177,41 @@ return {
   choice's number answers with that choice. Choices need a mode to answer
   them.
 
-**Login is the first mode.** It's the engine's own, at the bottom of every
-new session's stack, and it stays in Go so passwords never reach scripts.
-Once the account is known, the engine starts the **`characters`** mode,
-which must end with `session:play(character)`. Startup fails if no plugin
-defines it. `play` ends every mode, takes the character over from any
+#### Combining modes
+
+A mode should never need to know which mode just ended above it. A `resume`
+that checks where its result came from (`if state.pushed == "editor" and
+state.field == "description" then ...`) is the sign of a missing pattern.
+These cover what games need:
+
+- **Give reusable modes what to do as data.** The editor above takes a
+  `target` and a `property` and saves the text itself, so `describe`
+  (a command) and `@describe` (in a builder's mode) both push it with
+  different targets, and neither handles a result. Confirmations work the
+  same way: push `confirm_destroy` with the `thing`.
+- **Let a flow own its steps.** When several modes make up one task, one
+  mode runs them in order and keeps its progress in its own state, the way
+  `dragon:create_character` does. Each step ends with
+  `session:pop_mode(result)`, and the flow's `resume` merges the result and
+  starts the next step. The flow knows what it started because its own
+  state says so, not because it inspects the result.
+- **Replace instead of returning** when one mode leads to another and
+  nothing comes back: `session:replace_mode("next", state)`.
+
+**Login is the first mode.** It's the engine's own (`dragon:login`), at the
+bottom of every new session's stack, and it stays in Go so passwords never
+reach scripts. Once the account is known, the engine starts the game's
+**`characters`** mode if it defines one, otherwise **`dragon:characters`**.
+Either must end with `session:play(character)`, and startup fails if
+neither exists. `play` ends every mode, takes the character over from any
 other connection, sends `player_entered` and runs `look`.
 
-The built-in `dragon:characters` defines `characters` and
-`create_character`:
+The built-in `dragon:characters` plugin defines two modes:
 
-- `characters` plays the account's only character, asks which when there
-  are several, and starts `create_character` when there are none.
-- `create_character` runs the `character_steps` hook (`account`, `steps`),
+- `dragon:characters` plays the account's only character, asks which when
+  there are several, and starts `dragon:create_character` when there are
+  none.
+- `dragon:create_character` runs the `character_steps` hook (`account`, `steps`),
   whose handlers add the names of step modes to `steps`, ordered and wired
   like any hook. Each step gets `state.draft` and ends with
   `session:pop_mode(changes)`, merged into the draft. When the steps are
@@ -189,9 +219,10 @@ The built-in `dragon:characters` defines `characters` and
   draft starts as `{ name = <account name> }`; with no steps, the
   character is made straight away.
 
-Most games change creation by adding steps. A game whose select or
-creation is entirely its own leaves `characters` out of `builtins` and
-defines the `characters` mode itself.
+Most games change creation by adding steps. A game with its own select
+screen defines `characters`, which can still push
+`dragon:create_character`. A game whose creation is entirely its own also
+leaves `characters` out of `builtins`.
 
 A plugin that changes another plugin's behavior does it through that
 plugin's hooks, not by checking whether it's installed: `dragon:classes`

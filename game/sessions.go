@@ -445,7 +445,7 @@ func (g *Game) sessionClose(key any, args scripting.Args) (any, error) {
 // chooseCharacter starts the characters mode for a logged-in player. If it
 // can't start, the player can't do anything, so they're disconnected.
 func (g *Game) chooseCharacter(ctx context.Context, p *player) {
-	if err := g.pushMode(ctx, p, modeCharacters, map[string]any{}); err != nil {
+	if err := g.pushMode(ctx, p, g.charactersMode(), map[string]any{}); err != nil {
 		g.log.Error("starting the characters mode failed", "account", p.account.Name, "error", err)
 		p.s.Send(message.System(fmt.Sprintf("[R]Something went wrong choosing your character: %v[x]", err)))
 		p.s.Close()

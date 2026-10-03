@@ -267,7 +267,9 @@ func gameWithout(t *testing.T, gameFiles fstest.MapFS, leave ...string) (*Game, 
 }
 
 func TestGameReplacesCharacterSelect(t *testing.T) {
-	selecting := fstest.MapFS{
+	// The game's characters mode runs instead of dragon:characters, and
+	// can still use dragon:create_character.
+	g := startGame(t, fstest.MapFS{
 		"plugin.lua": file(`return { name = "game" }`),
 		"modes.lua": file(`
 			return {
@@ -277,28 +279,19 @@ func TestGameReplacesCharacterSelect(t *testing.T) {
 					end,
 					input = function(session)
 						local c = session.account.characters[1]
-						if not c then
-							c = world.create({ properties = { name = "Hero" } })
-							session.account:add_character(c)
+						if c then
+							session:play(c)
+						else
+							session:push_mode("dragon:create_character")
 						end
-						session:play(c)
+					end,
+					resume = function(session, state, character)
+						session:play(character)
 					end,
 				},
 			}
 		`),
-	}
-
-	_, err := newGame(t, selecting)
-	want := `game/modes.lua: mode "characters" sets enter, but dragon:characters already does. Leave "characters" out of builtins in dragon.toml to use only yours, or set replace = true on "characters" in game/modes.lua.`
-	if err == nil || !strings.Contains(err.Error(), want) {
-		t.Fatalf("error = %v, want %q", err, want)
-	}
-
-	g, err := gameWithout(t, selecting, "characters")
-	if err != nil {
-		t.Fatal(err)
-	}
-	runGame(t, g)
+	})
 
 	alice := connect(t, g)
 	alice.expect("By what name")
@@ -308,13 +301,34 @@ func TestGameReplacesCharacterSelect(t *testing.T) {
 	alice.send("secret pass")
 	alice.expect("Press enter to begin.")
 	alice.send("")
-	alice.expect("Welcome, [W]Hero[x]!")
+	alice.expect("Welcome, [W]Alice[x]!")
 }
 
 func TestNoCharactersMode(t *testing.T) {
 	_, err := gameWithout(t, nil, "characters")
-	want := `no plugin defines the "characters" mode, which runs after a player logs in to choose or create their character. Add "characters" back to builtins in dragon.toml, or define characters in game/modes.lua and have it call session:play(character).`
+	want := `nothing defines a mode to run after a player logs in to choose or create their character. Add "characters" back to builtins in dragon.toml for dragon:characters, or define characters in game/modes.lua and have it call session:play(character).`
 	if err == nil || err.Error() != want {
+		t.Errorf("error = %v, want %q", err, want)
+	}
+}
+
+func TestModeConflicts(t *testing.T) {
+	waiting := func(name string) plugin.Source {
+		return plugin.Source{Origin: name, Files: fstest.MapFS{
+			"plugin.lua": file(`return { name = "` + name + `" }`),
+			"modes.lua":  file(`return { waiting = { input = function() end } }`),
+		}}
+	}
+
+	_, err := New(t.Context(), Options{
+		Name:      "Test Realm",
+		NewEngine: func() scripting.Engine { return lua.New() },
+		Plugins:   append(sources(t, nil), waiting("weather"), waiting("mapping")),
+		Store:     openStore(t),
+		Log:       slog.New(slog.DiscardHandler),
+	})
+	want := `mapping/modes.lua: mode "waiting" sets input, but weather already does. Set replace = true on "waiting" in mapping/modes.lua to use only its version, or remove input from one of them. (Plugins avoid this by namespacing their modes, like "myplugin:waiting".)`
+	if err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("error = %v, want %q", err, want)
 	}
 }
@@ -329,6 +343,7 @@ func TestModeErrors(t *testing.T) {
 				end } } },
 				pop = { execute = function(actor) game.session(actor):pop_mode() end },
 				ask = { execute = function(actor) game.session(actor):prompt({ text = "?", choices = { "a" } }) end },
+				relog = { execute = function(actor) game.session(actor):push_mode("dragon:login") end },
 			}
 		`),
 		"modes.lua": file(`return { waiting = { input = function() end } }`),
@@ -345,6 +360,8 @@ func TestModeErrors(t *testing.T) {
 	alice.expect("the session isn't in a mode; pop_mode ends a mode started with push_mode")
 	alice.send("ask")
 	alice.expect("choices need an input mode to answer them.")
+	alice.send("relog")
+	alice.expect("dragon:login is the engine's own login, which only the engine starts. To send a player back to it, close their session with session:close().")
 }
 
 func TestReloadEndsRemovedModes(t *testing.T) {
@@ -373,6 +390,8 @@ func TestReloadEndsRemovedModes(t *testing.T) {
 func TestModesFileErrors(t *testing.T) {
 	tests := []struct{ name, source, want string }{
 		{"bad name", `return { ["Bad-Name"] = {} }`, `game/modes.lua: mode "Bad-Name" isn't a valid mode name.`},
+		{"reserved namespace", `return { ["dragon:editor"] = {} }`, `game/modes.lua: mode "dragon:editor" uses the "dragon:" namespace, which is reserved for the engine's built-in plugins. Use your plugin's name instead, like "game:editor".`},
+		{"login", `return { ["dragon:login"] = {} }`, `game/modes.lua: mode "dragon:login" is the engine's own login, which plugins can't define.`},
 		{"not a table", `return { waiting = true }`, `game/modes.lua: mode "waiting" must be a table such as { input = function(session, line, state) ... end }, not a boolean.`},
 		{"unknown field", `return { waiting = { inptu = function() end } }`, `game/modes.lua: mode "waiting" has an unknown field "inptu". Did you mean "input"?`},
 		{"handler not a function", `return { waiting = { enter = "hi" } }`, `game/modes.lua: mode "waiting": enter must be function(session, state) ... end, not a string.`},

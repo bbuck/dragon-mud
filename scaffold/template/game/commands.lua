@@ -33,6 +33,16 @@ return {
     },
   },
 
+  describe = {
+    desc = "Write how others see you when they look at you.",
+    forms = {
+      -- The editor mode (modes.lua) saves the text to actor's description.
+      { "describe", function(actor)
+          game.session(actor):push_mode("editor", { target = actor, property = "description" })
+        end },
+    },
+  },
+
   dance = {
     desc = "Dance a little jig, or dance with someone.",
     forms = {

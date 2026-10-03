@@ -1,14 +1,16 @@
 -- Choosing and creating characters after login.
 --
--- The engine starts the characters mode once a player has logged in, and
--- it must end with session:play(character). This one plays the account's
--- only character, asks which to play when there are several, and starts
--- create_character when there are none.
+-- After a player logs in, the engine starts the game's characters mode if
+-- it has one, otherwise dragon:characters. Either must end with
+-- session:play(character). dragon:characters plays the account's only
+-- character, asks which to play when there are several, and starts
+-- dragon:create_character when there are none.
 --
--- create_character makes a character from a draft. The draft starts as
+-- dragon:create_character makes a character from a draft. The draft starts as
 -- { name = the account's name }, and each step can add to it. When every
 -- step is done, each field of the draft becomes a property of the new
--- character, and create_character ends with session:pop_mode(character).
+-- character, and dragon:create_character ends with
+-- session:pop_mode(character).
 -- With no steps, the character is made straight away.
 --
 -- Plugins add steps by handling the character_steps hook: each handler
@@ -27,9 +29,10 @@
 -- session:pop_mode(changes), where changes is a table merged into the
 -- draft. Ending with nothing changes nothing.
 --
--- To write your own character select or creation, leave "characters" out
--- of builtins in dragon.toml and define the characters mode in
--- game/modes.lua. For a different creation flow alone, add steps instead.
+-- To write your own character select, define a characters mode in
+-- game/modes.lua; it can still push dragon:create_character. For a
+-- different creation flow, add steps. For entirely your own, leave
+-- "characters" out of builtins in dragon.toml.
 
 local function name(o)
   return o:get("name") or "someone"
@@ -59,7 +62,7 @@ end
 local function choose(session, question)
   local characters = session.account.characters
   if #characters == 0 then
-    session:push_mode("create_character")
+    session:push_mode("dragon:create_character")
   elseif #characters == 1 then
     session:play(characters[1])
   else
@@ -68,7 +71,7 @@ local function choose(session, question)
 end
 
 return {
-  characters = {
+  ["dragon:characters"] = {
     desc = "Choose a character to play.",
 
     enter = function(session)
@@ -86,7 +89,7 @@ return {
       choose(session, "You have no character called '" .. line .. "'. Who will you play?")
     end,
 
-    -- create_character ended with the new character, or nothing if it was
+    -- dragon:create_character ended with the new character, or nothing if it was
     -- cancelled. With no character to fall back on, there's nothing to
     -- play, and asking again would only be cancelled again.
     resume = function(session, state, character)
@@ -100,7 +103,7 @@ return {
     end,
   },
 
-  create_character = {
+  ["dragon:create_character"] = {
     desc = "Create a new character.",
 
     enter = function(session, state)

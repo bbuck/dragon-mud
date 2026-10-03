@@ -6,12 +6,19 @@ import (
 	"maps"
 	"regexp"
 	"slices"
+	"strings"
 
 	"bbuck.dev/dragon-mud/command"
 	"bbuck.dev/dragon-mud/scripting"
 )
 
-var modeNameRx = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+// modeNameRx matches mode names: a name, optionally after its plugin's
+// namespace, like choose_class or mapping:edit_map. The engine never adds a
+// namespace; plugins namespace their own modes so they don't collide.
+var modeNameRx = regexp.MustCompile(`^([a-z][a-z0-9_-]*:)?[a-z][a-z0-9_]*$`)
+
+// LoginMode is the engine's own login mode. No plugin defines or pushes it.
+const LoginMode = BuiltinPrefix + "login"
 
 // modeKeys are the fields a mode entry in modes.lua may have.
 var modeKeys = []string{"desc", "forms", "input", "enter", "leave", "resume", "passthrough", "replace"}
@@ -73,8 +80,14 @@ func (p *Plugin) modeDef(file, name string, raw any) (ModeDef, error) {
 	where := fmt.Sprintf("%s: mode %q", file, name)
 	def := ModeDef{Name: name, Plugin: p.ID, File: file, Handlers: map[string]scripting.Function{}}
 
-	if !modeNameRx.MatchString(name) {
-		return def, fmt.Errorf("%s isn't a valid mode name. Mode names are lowercase letters, digits and underscores, starting with a letter, like choose_class.", where)
+	switch {
+	case !modeNameRx.MatchString(name):
+		return def, fmt.Errorf("%s isn't a valid mode name. Mode names are lowercase letters, digits and underscores, starting with a letter, like choose_class, optionally after a namespace, like mapping:edit_map.", where)
+	case name == LoginMode:
+		return def, fmt.Errorf("%s is the engine's own login, which plugins can't define. Name your mode something else.", where)
+	case strings.HasPrefix(name, BuiltinPrefix) && !strings.HasPrefix(p.ID, BuiltinPrefix):
+		return def, fmt.Errorf("%s uses the %q namespace, which is reserved for the engine's built-in plugins. Use your plugin's name instead, like %q.",
+			where, BuiltinPrefix, p.Manifest.Name+":"+strings.TrimPrefix(name, BuiltinPrefix))
 	}
 	entry, ok := raw.(map[string]any)
 	if !ok {
