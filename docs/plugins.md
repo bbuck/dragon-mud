@@ -38,6 +38,7 @@ mapping/
   hooks.lua         hook and notification handlers (see design.md §3)
   lua/              other Lua modules
   messages/         message kinds and templates (*.txt.tmpl, *.html.tmpl)
+  templates/        other templates, such as entity_tooltip.html.tmpl
   schema.lua        data types it defines or extends
   tasks/            CLI tasks
   client.lua        handlers for events pushed from the web client

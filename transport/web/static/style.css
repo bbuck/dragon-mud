@@ -84,6 +84,32 @@ h1 {
 
 #input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 
+dragon-entity {
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 0.2em;
+  border-radius: 2px;
+}
+
+dragon-entity:hover { text-decoration-style: solid; }
+dragon-entity:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.dragon-tooltip {
+  position: fixed;
+  z-index: 10;
+  max-width: min(22rem, calc(100vw - 12px));
+  padding: 0.5rem 0.7rem;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.4);
+  font-size: 0.9rem;
+}
+
+.dragon-tooltip[hidden] { display: none; }
+
 .visually-hidden {
   position: absolute;
   width: 1px; height: 1px;

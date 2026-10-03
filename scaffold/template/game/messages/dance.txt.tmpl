@@ -1,0 +1,9 @@
+{{/*
+  The "dance" message kind. Each {{define}} is a block; commands.lua says
+  which block each player sees, so the dancer and the onlookers read
+  different lines. {{entity .actor}} writes a name, which is clickable in
+  the web client. Add a dance.html.tmpl beside this file to give the web
+  its own version.
+*/}}
+{{define "actor"}}You dance a little jig.{{end}}
+{{define "others"}}{{entity .actor}} dances a little jig.{{end}}

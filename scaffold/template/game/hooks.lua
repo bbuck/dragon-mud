@@ -21,6 +21,22 @@ return {
     end
   end,
 
+  -- What clicking something in the web client does: set event.command to
+  -- a command, and it runs as if the player typed it. "#id" names exactly
+  -- the thing clicked. event.viewer is the player; event.entity the thing.
+  get_default_action = function(event)
+    event.command = "look #" .. event.entity.id
+    return event
+  end,
+
+  -- Tooltips render templates/entity_tooltip.html.tmpl. Set event.block to
+  -- render one {{define}} block from it, add data the template can use,
+  -- or return false for no tooltip.
+  --
+  -- get_tooltip = function(event)
+  --   if event.entity:get("hidden") then return false end
+  -- end,
+
   -- A hook: change what's said, or cancel it with a reason.
   --
   -- before_say = function(event)

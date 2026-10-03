@@ -169,7 +169,7 @@ func runServe(args []string) error {
 	tasks = append(tasks, func() error { return g.Run(ctx) })
 	if gameDir := filepath.Join(*dir, "game"); isDir(gameDir) {
 		tasks = append(tasks, func() error {
-			return watch.Poll(ctx, os.DirFS(gameDir), "*.lua", reloadInterval, func() {
+			return watch.Poll(ctx, os.DirFS(gameDir), []string{"*.lua", "*.tmpl"}, reloadInterval, func() {
 				log.Info("scripts changed; reloading")
 				g.Reload()
 			})

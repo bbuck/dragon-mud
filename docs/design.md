@@ -89,7 +89,8 @@ say = {
   "Huh?".
 - **Slot types** are registered like commands: the engine's `text`, `word`,
   `number` and `object` (modifiers `here`, `held`, `online`, `anywhere`;
-  `2.sword` picks the second match; ambiguity is an error), and any a
+  `2.sword` picks the second match; `#id` picks exactly that object, if
+  it's within the modifiers' reach; ambiguity is an error), and any a
   plugin's `slots.lua` returns, each with declared `modifiers` and
   `resolve(actor, text, modifiers)` returning the value, or nil and a
   reason. Patterns using unknown types or modifiers fail at startup, with a
@@ -150,7 +151,8 @@ The engine sends `player_entered` (`player`, and `reconnected` when the
 player took over their character from another connection) and
 `player_left` (`player`). `dragon:presence` handles both to announce
 arrivals and departures. `dragon:chat` runs `before_say` (`actor`,
-`message`, and `target` when saying something to someone).
+`message`, and `target` when saying something to someone). The web client
+runs `get_tooltip` and `get_default_action` (`viewer`, `entity`; §5).
 
 ### Ordering
 
@@ -191,31 +193,79 @@ dependency order, then built-ins**.
 The game never writes finished text. It sends **messages**, and each session
 renders them for its transport.
 
-- A message has a `kind`, structured `data`, and usually a text form with
-  entity references (`{actor} hits {target}`).
+- A message has a `kind` and structured `data`. The kind names a template;
+  the data fills it in.
 - **Feed messages** become lines in the text feed.
 - **State updates** (`vitals`, `room_contents`, `map`) are data: the web
   client draws bars and panels, telnet folds them into the prompt and GMCP.
+  (Planned.)
 - Messages can have named **sections** other plugins add to (a minimap on the
-  room description).
+  room description). (Planned.)
 - **Every message has a text form**, so any client can always show it.
+- Plain text still works: `o:send(text)` sends a line with no kind.
 
-### Renderers
+### Message kinds and templates
 
-Each message kind can have a template per transport:
+A kind is a template file in a plugin's `messages/` directory, one per
+format:
 
 ```
 messages/
-  say.txt.tmpl     telnet
-  say.html.tmpl    web
+  say.txt.tmpl     required: telnet, and the web when there's no HTML
+  say.html.tmpl    optional: the web
 ```
 
-Missing templates fall back to the text form. The game directory can
-override any plugin's template.
+Most kinds only need the text template: the web shows it with color as
+HTML and entities still clickable. Add HTML when the web should look
+different, not just to get links.
 
-- **Telnet:** ANSI color (none, 16-color fallback, 256-color), prompt, GMCP.
-- **Web:** HTML fragments pushed over a WebSocket into named regions of the
-  page (§5).
+Templates are Go templates (`text/template` for `.txt`, `html/template` for
+`.html`, which escapes data). Data keeps the names scripts gave it, so
+`{ actor = actor }` in Lua is `{{.actor}}` in a template, and an object's
+`name` property is `{{.actor.name}}`.
+
+```lua
+actor:send("dance", { actor = actor })
+game.broadcast("dance", { actor = actor }, nil, actor)
+```
+
+- **The engine renders the whole template**, and makes no assumptions about
+  how it's built. A template may define named blocks
+  (`{{define "actor"}}...{{end}}`); the engine renders one only when the
+  sender names it as the third argument:
+  `actor:send("hit", data, "actor")`. Which block a player sees (their own
+  view of an action, someone else's) is the sending plugin's choice; the
+  engine never picks one.
+- **Precedence** is per file: the game, then plugins, then built-ins. A game
+  can restyle a plugin's HTML by adding only `game/messages/say.html.tmpl`.
+- A kind without a `.txt.tmpl` is a startup error, and so is a misnamed file
+  in `messages/`. Sending an unknown kind or block is an error naming the
+  kind, the file and the blocks it does define.
+- Output is trimmed of blank lines at either end, so blocks can sit on their
+  own lines.
+- Text templates can use color codes (`[c]...[x]`).
+- Hot reload picks up template changes like Lua changes.
+
+**Objects in data** become entities. An entity has `id`, `key` and every
+property the object has or inherits (`{{.actor.name}}`). Objects held in an
+entity's properties are entities with only `id`, `key` and `name`, so one
+message can't pull in the whole world. `id` and `key` take precedence over
+properties with those names.
+
+**`{{entity .actor}}`** writes an entity's name: its `name` property, else
+its key, else "something". In text that's all; in HTML it's a clickable
+`<dragon-entity>` (§5). Write the element yourself to choose its text:
+`<dragon-entity ref="{{.actor.id}}">the {{.actor.name}}</dragon-entity>`.
+
+### Renderers
+
+Messages are rendered on the game loop when they're sent, once per format,
+so a template error reaches the script that sent it.
+
+- **Telnet:** the text form, with ANSI color (none, 16-color fallback,
+  256-color). Prompt and GMCP are planned.
+- **Web:** the HTML form, or the text form with color and entities as HTML,
+  pushed over a WebSocket into named regions of the page (§5).
 
 ### Input parity
 
@@ -292,10 +342,35 @@ final.
 - **Feed structure** comes from message kinds: `room` renders as a heading
   with prose, `say` and `emote` as dialogue and action, `ambient` in italics,
   `echo` (the player's own command) small and muted.
-- **Entities in text are clickable**; details open as a card or in
-  `#context`, never hover-only, so touch, keyboard and screen readers work.
+- **Entities in text are clickable** (see Entities below).
 - **Phones:** `#context` becomes a bottom sheet that slides up when a fixture
   opens; `#side` becomes a drawer.
+
+### Entities
+
+`<dragon-entity ref="id">name</dragon-entity>` marks an object in HTML.
+The name is real text, so the feed reads correctly without JavaScript and
+in screen readers. The core client makes each one a control:
+
+- **Tooltip** on hover, keyboard focus or a long press on touch screens,
+  never hover only. The client asks the server, which runs the
+  `get_tooltip` hook with `viewer` and `entity` and renders the template
+  `templates/entity_tooltip.html.tmpl` (or `.txt.tmpl`) with the event as
+  its data. A handler
+  sets `event.block` to render one block of it, adds anything else the
+  template needs to the event, or cancels for no tooltip. With no block the
+  whole template renders; with no template there's no tooltip. Tooltips are
+  rendered when they open, so they're never stale.
+- **Default action** on click, Enter or Space. The server runs the
+  `get_default_action` hook with `viewer` and `entity`; a handler sets
+  `event.command` (like `"attack #" .. event.entity.id`) and the server runs
+  it as if the player typed it, echoing it in their feed. With no command,
+  nothing happens. Clicking is only ever a shortcut for a command (input
+  parity).
+
+The engine never decides what a tooltip shows or what clicking does: games
+and plugins write both hooks and the template. Any object can be asked
+about by id; handlers that hide things cancel `get_tooltip`.
 
 ### Fixtures
 
@@ -427,7 +502,8 @@ else can be added without changing the engine or the modules.
   can't collide with the API; ergonomic wrappers are a plugin's job.
   `o:is_a(other)` is true when `o` is `other` or inherits from it at any
   depth, so a lock that requires a key accepts every copy made from it.
-  `o:send(text)` reaches everyone playing `o` and does nothing otherwise.
+  `o:send(text)` and `o:send(kind, data[, block])` (§4) reach everyone
+  playing `o` and do nothing otherwise.
   The `world` module creates, finds and destroys objects. A command's actor
   is the player's character object.
 - **Properties can hold objects.** They're stored as refs
@@ -463,7 +539,7 @@ supports interruption and coroutines.
 | `command`          | Form patterns, slot types and the input parser.         |
 | `hook`             | Hook chains, notifications, ordering.                   |
 | `plugin`           | Plugin loading, manifests and dependency sorting.       |
-| `message`          | The message type sent to sessions.                      |
+| `message`          | Messages sent to sessions; kinds and their templates.   |
 | `session`          | Player sessions and their outgoing queues.              |
 | `transport/telnet` | Telnet listener and renderer.                           |
 | `transport/web`    | HTTP server, WebSocket game client, admin UI.           |

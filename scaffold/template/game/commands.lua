@@ -9,6 +9,9 @@
 -- actor:get("name") is their name, and actor:set(...) stores anything you
 -- like on them. Color codes like [Y]...[x] work everywhere.
 --
+-- actor:send(kind, data, block) sends a message kind instead: a template in
+-- messages/ filled in with data. See messages/dance.txt.tmpl.
+--
 -- Defining a command the engine already has (look, say, ...) adds your
 -- forms to it. Set replace = true to use only yours.
 
@@ -24,6 +27,9 @@ return {
             "A fire crackles in a hearth carved to look like a sleeping dragon.",
           }, "\n"))
         end },
+      { "look <thing:object:here,online>", function(actor, args)
+          actor:send("look_at", { thing = args.thing })
+        end },
     },
   },
 
@@ -31,13 +37,16 @@ return {
     desc = "Dance a little jig, or dance with someone.",
     forms = {
       { "dance", function(actor)
-          actor:send("You dance a little jig.")
-          game.broadcast(actor:get("name") .. " dances a little jig.", actor)
+          local data = { actor = actor }
+          actor:send("dance", data, "actor")
+          -- Everyone else sees the "others" block; skip the dancer.
+          game.broadcast("dance", data, "others", actor)
         end },
       { "dance with <partner:object:here,online>", function(actor, args)
-          local partner = args.partner
-          actor:send("You whirl " .. partner:get("name") .. " around the room.")
-          partner:send(actor:get("name") .. " whirls you around the room.")
+          local data = { actor = actor, partner = args.partner }
+          actor:send("dance_with", data, "actor")
+          args.partner:send("dance_with", data, "partner")
+          game.broadcast("dance_with", data, "others", { actor, args.partner })
         end },
     },
   },

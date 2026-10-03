@@ -113,7 +113,9 @@ func (g *Game) scriptSlot(pluginID string, def plugin.SlotDef) command.SlotType 
 //
 // With no modifiers it looks here and held. "me" and "self" are always the
 // actor. Objects match by their name property or any of their aliases;
-// "2.sword" picks the second match.
+// "2.sword" picks the second match. "#id" picks exactly the object with that
+// id, if it's somewhere the modifiers look; the web client sends these when
+// players click things.
 func (g *Game) objectSlot() command.SlotType {
 	return command.SlotType{
 		Name:      "object",
@@ -134,7 +136,11 @@ func (g *Game) objectSlot() command.SlotType {
 				return g.handle(self), true, "", nil
 			}
 
+			id, byID := strings.CutPrefix(text, "#")
 			if mods["anywhere"] {
+				if o, ok := g.world.Get(world.ID(id)); ok && byID {
+					return g.handle(o), true, "", nil
+				}
 				if o, ok := g.world.Keyed(text); ok {
 					return g.handle(o), true, "", nil
 				}
@@ -162,6 +168,15 @@ func (g *Game) objectSlot() command.SlotType {
 						candidates = append(candidates, p.character)
 					}
 				}
+			}
+
+			if byID {
+				for _, o := range candidates {
+					if o.ID() == world.ID(id) {
+						return g.handle(o), true, "", nil
+					}
+				}
+				return nil, false, notFoundByID(mods), nil
 			}
 
 			o, reason := pick(candidates, text)
@@ -242,5 +257,18 @@ func notFound(text string, mods map[string]bool, reason string) string {
 		return fmt.Sprintf("You aren't carrying '%s'.", text)
 	default:
 		return fmt.Sprintf("You don't see '%s' here.", text)
+	}
+}
+
+// notFoundByID is notFound for "#id", which means nothing to players, so
+// it isn't repeated back to them.
+func notFoundByID(mods map[string]bool) string {
+	switch {
+	case mods["online"] && len(mods) == 1:
+		return "They aren't playing right now."
+	case mods["held"] && len(mods) == 1:
+		return "You aren't carrying that."
+	default:
+		return "You don't see that here."
 	}
 }

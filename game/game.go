@@ -146,6 +146,11 @@ type scripts struct {
 	engine   scripting.Engine
 	commands *command.Registry
 	hooks    *hook.Registry
+
+	// messages are the message kinds, and templates the other templates
+	// the engine renders, such as entity tooltips.
+	messages  *message.Templates
+	templates *message.Templates
 }
 
 // New returns a game with its plugins loaded. The game closes its engine
@@ -215,7 +220,12 @@ func (g *Game) load(ctx context.Context) (*scripts, error) {
 	ctx, cancel := context.WithTimeout(ctx, loadTimeout)
 	defer cancel()
 
-	s := &scripts{engine: g.newEngine(), commands: command.NewRegistry()}
+	s := &scripts{
+		engine:    g.newEngine(),
+		commands:  command.NewRegistry(),
+		messages:  message.NewTemplates(),
+		templates: message.NewTemplates(),
+	}
 	if err := g.loadInto(ctx, s); err != nil {
 		s.engine.Close()
 		return nil, err
@@ -239,6 +249,10 @@ func (g *Game) loadInto(ctx context.Context, s *scripts) error {
 		if err := g.loadPlugin(ctx, s, src, &hooks); err != nil {
 			return fmt.Errorf("%s: %w", src.Origin, err)
 		}
+	}
+
+	if err := s.messages.Validate(plugin.MessagesDir); err != nil {
+		return err
 	}
 
 	var err error
@@ -295,9 +309,33 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ho
 			p.WiringFile())
 	}
 
-	g.log.Info("loaded plugin", "plugin", p.ID, "version", p.Manifest.Version, "commands", len(cmds), "slots", len(slots), "hooks", len(handlers))
+	kinds, err := addTemplates(p, plugin.MessagesDir, s.messages)
+	if err != nil {
+		return err
+	}
+	if _, err := addTemplates(p, plugin.TemplatesDir, s.templates); err != nil {
+		return err
+	}
+
+	g.log.Info("loaded plugin", "plugin", p.ID, "version", p.Manifest.Version, "commands", len(cmds), "slots", len(slots), "hooks", len(handlers), "messages", kinds)
 
 	return nil
+}
+
+// addTemplates adds the template files in the plugin's dir to templates and
+// returns how many it added.
+func addTemplates(p *plugin.Plugin, dir string, templates *message.Templates) (int, error) {
+	files, err := p.Templates(dir)
+	if err != nil {
+		return 0, err
+	}
+	for _, f := range files {
+		if err := templates.Add(f); err != nil {
+			return 0, err
+		}
+	}
+
+	return len(files), nil
 }
 
 // Reload asks the game to reload every plugin. If loading fails, the error
@@ -384,6 +422,13 @@ func (g *Game) handleEvent(ctx context.Context, e event) {
 			g.login(ctx, p, e.line)
 		case p.character != nil:
 			g.dispatch(ctx, p, strings.TrimSpace(e.line))
+		}
+
+	case requestEvent:
+		if p, ok := g.players[e.s.ID()]; ok && p.character != nil {
+			g.request(ctx, p, e.r)
+		} else if e.r.ID != "" {
+			e.s.Send(message.Message{Kind: e.r.Name, Reply: e.r.ID})
 		}
 
 	case checkedEvent:

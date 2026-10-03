@@ -30,8 +30,12 @@ over telnet and the web and talk to each other.
 - [x] Objects: id, parent, location, properties; SQLite storage.
 - [x] Accounts and login with `auth`.
 - [x] Objects across the scripting boundary (`player:send(...)`).
-- [ ] Message kinds with entity references, sections and per-transport
-      templates.
+- [x] Message kinds: `messages/<kind>.txt.tmpl` and `.html.tmpl`, with
+      blocks the sender picks.
+- [x] Entities in messages: `{{entity .x}}`, `<dragon-entity>`, tooltips
+      (`get_tooltip`) and default actions (`get_default_action`).
+- [x] `#id` object references in command input.
+- [ ] Message sections other plugins add to.
 - [x] Hooks and notifications with plugin ordering (`before`/`after`)
       and game wiring (`order`, `disable`).
 - [x] `dragon hooks [<name>]`.

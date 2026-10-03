@@ -7,7 +7,6 @@ import (
 	"slices"
 	"strings"
 
-	"bbuck.dev/dragon-mud/message"
 	"bbuck.dev/dragon-mud/scripting"
 	"bbuck.dev/dragon-mud/world"
 )
@@ -32,6 +31,8 @@ import (
 //	o:set_parent(parent)       inherit from parent (nil for none)
 //	o:set_key(key)             set the unique key (nil to remove)
 //	o:send(text)               send text to everyone playing o
+//	o:send(kind, data[, block]) send a message kind to everyone playing o,
+//	                           rendering only block if given
 func (g *Game) objectType() *scripting.Type {
 	return &scripting.Type{
 		Name: "object",
@@ -473,14 +474,14 @@ func (g *Game) objectSend(key any, args scripting.Args) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	text, err := args.String(0)
+	m, _, err := g.outgoing(args)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, p := range g.players {
 		if p.character == o {
-			p.s.Send(message.Text(text))
+			p.s.Send(m)
 		}
 	}
 

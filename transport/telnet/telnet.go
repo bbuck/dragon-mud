@@ -83,6 +83,10 @@ type conn struct {
 }
 
 func (c *conn) Write(m message.Message) error {
+	if m.Reply != "" {
+		return nil // telnet clients don't make requests
+	}
+
 	text := ansi.Colorize(m.Text + "[x]")
 	text = strings.ReplaceAll(text, "\n", "\r\n") + "\r\n"
 

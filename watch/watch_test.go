@@ -26,7 +26,7 @@ func TestPoll(t *testing.T) {
 	defer cancel()
 
 	changes := make(chan struct{}, 10)
-	go Poll(ctx, os.DirFS(dir), "*.lua", 10*time.Millisecond, func() { changes <- struct{}{} })
+	go Poll(ctx, os.DirFS(dir), []string{"*.lua"}, 10*time.Millisecond, func() { changes <- struct{}{} })
 
 	expect := func(want bool) {
 		t.Helper()

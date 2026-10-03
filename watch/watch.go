@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"maps"
 	"path"
+	"slices"
 	"time"
 )
 
@@ -16,15 +17,17 @@ type stamp struct {
 	modTime time.Time
 }
 
-// Poll checks fsys every interval for files whose base name matches pattern
-// (see path.Match) being added, removed or modified, and calls changed once
-// per check that finds any. It returns when ctx is done.
-func Poll(ctx context.Context, fsys fs.FS, pattern string, interval time.Duration, changed func()) error {
-	if _, err := path.Match(pattern, ""); err != nil {
-		return err
+// Poll checks fsys every interval for files whose base name matches one of
+// patterns (see path.Match) being added, removed or modified, and calls
+// changed once per check that finds any. It returns when ctx is done.
+func Poll(ctx context.Context, fsys fs.FS, patterns []string, interval time.Duration, changed func()) error {
+	for _, pattern := range patterns {
+		if _, err := path.Match(pattern, ""); err != nil {
+			return err
+		}
 	}
 
-	last := snapshot(fsys, pattern)
+	last := snapshot(fsys, patterns)
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -34,7 +37,7 @@ func Poll(ctx context.Context, fsys fs.FS, pattern string, interval time.Duratio
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			current := snapshot(fsys, pattern)
+			current := snapshot(fsys, patterns)
 			if !maps.Equal(last, current) {
 				last = current
 				changed()
@@ -45,14 +48,17 @@ func Poll(ctx context.Context, fsys fs.FS, pattern string, interval time.Duratio
 
 // snapshot records every matching file. Files that vanish mid-walk are
 // skipped; the next snapshot sees the result.
-func snapshot(fsys fs.FS, pattern string) map[string]stamp {
+func snapshot(fsys fs.FS, patterns []string) map[string]stamp {
 	files := make(map[string]stamp)
 
 	fs.WalkDir(fsys, ".", func(name string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return nil
 		}
-		if ok, _ := path.Match(pattern, d.Name()); !ok {
+		if !slices.ContainsFunc(patterns, func(pattern string) bool {
+			ok, _ := path.Match(pattern, d.Name())
+			return ok
+		}) {
 			return nil
 		}
 

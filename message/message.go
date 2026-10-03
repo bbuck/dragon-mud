@@ -1,6 +1,6 @@
 // Package message defines the structured messages the game sends to
-// sessions. The game never writes finished text; renderers turn messages into
-// output for each transport. See docs/design.md §4.
+// sessions, and the templates that render message kinds for each format.
+// See docs/design.md §4.
 package message
 
 // Kinds the core sends.
@@ -11,6 +11,10 @@ const (
 	// KindSystem is a notice from the engine itself, such as the login
 	// prompt or an unknown command.
 	KindSystem = "system"
+
+	// KindEcho is a command the player ran without typing it, such as by
+	// clicking something.
+	KindEcho = "echo"
 )
 
 // Message is one unit of output for a session.
@@ -21,9 +25,16 @@ type Message struct {
 	// Text is the feed text, which may contain color codes such as [r]...[x].
 	Text string
 
+	// HTML is the message rendered for the web, or empty to show Text.
+	HTML string
+
 	// Secret asks the transport not to echo the player's next line, such as
 	// a password.
 	Secret bool
+
+	// Reply is the id of the client request this answers. Transports that
+	// don't make requests drop replies.
+	Reply string
 }
 
 // Text returns a text message.
@@ -40,4 +51,9 @@ func System(text string) Message {
 // password.
 func Secret(text string) Message {
 	return Message{Kind: KindSystem, Text: text, Secret: true}
+}
+
+// Echo returns an echo of a command the player ran.
+func Echo(command string) Message {
+	return Message{Kind: KindEcho, Text: command}
 }

@@ -25,7 +25,17 @@ var lastID atomic.Uint64
 type Handler interface {
 	Connect(s *Session)
 	Input(s *Session, line string)
+	Request(s *Session, r Request)
 	Disconnect(s *Session)
+}
+
+// Request is something a client asks the game for other than running a
+// command, such as an entity's tooltip. The game answers with a message
+// whose Reply is the request's ID.
+type Request struct {
+	ID   string
+	Name string
+	Data map[string]any
 }
 
 // Conn is a transport's connection to one client.

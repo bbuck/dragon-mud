@@ -121,17 +121,24 @@ func displayAddress(addr net.Addr) string {
 	return net.JoinHostPort(host, port)
 }
 
-// clientFrame is a frame the browser sends.
+// clientFrame is a frame the browser sends: a command ("cmd", with Line)
+// or a request ("req", with ID, Name and Data).
 type clientFrame struct {
 	T    string `json:"t"`
 	Line string `json:"line"`
+
+	ID   string         `json:"id"`
+	Name string         `json:"name"`
+	Data map[string]any `json:"data"`
 }
 
 // serverFrame is a frame sent to the browser. "html" frames are handed to
-// htmx, which applies their out-of-band swaps.
+// htmx, which applies their out-of-band swaps. "reply" frames answer the
+// request with the same ID.
 type serverFrame struct {
 	T    string `json:"t"`
 	HTML string `json:"html"`
+	ID   string `json:"id,omitempty"`
 
 	// Secret asks the client to hide the player's next line.
 	Secret bool `json:"secret,omitempty"`
@@ -156,8 +163,11 @@ func serveSocket(w http.ResponseWriter, r *http.Request, g session.Handler, log 
 			return
 		}
 
-		if frame.T == "cmd" {
+		switch frame.T {
+		case "cmd":
 			g.Input(s, frame.Line)
+		case "req":
+			g.Request(s, session.Request{ID: frame.ID, Name: frame.Name, Data: frame.Data})
 		}
 	}
 }
@@ -173,16 +183,25 @@ func (c *conn) Write(m message.Message) error {
 	ctx, cancel := context.WithTimeout(context.Background(), writeTimeout)
 	defer cancel()
 
-	return wsjson.Write(ctx, c.ws, serverFrame{T: "html", HTML: render(m), Secret: m.Secret})
+	frame := serverFrame{T: "html", HTML: render(m), Secret: m.Secret}
+	if m.Reply != "" {
+		frame = serverFrame{T: "reply", ID: m.Reply, HTML: m.HTML}
+	}
+
+	return wsjson.Write(ctx, c.ws, frame)
 }
 
 func (c *conn) Close() error {
 	return c.ws.Close(websocket.StatusNormalClosure, "")
 }
 
-// render turns a message into a fragment appended to the feed.
+// render turns a message into a fragment appended to the feed: its HTML
+// form, or its text with color as HTML.
 func render(m message.Message) string {
-	body := strings.ReplaceAll(ansi.HTML(m.Text), "\n", "<br>")
+	body := m.HTML
+	if body == "" {
+		body = strings.ReplaceAll(ansi.HTML(m.Text), "\n", "<br>")
+	}
 
 	return fmt.Sprintf(
 		`<div hx-swap-oob="beforeend:#feed"><div class="msg msg-%s">%s</div></div>`,

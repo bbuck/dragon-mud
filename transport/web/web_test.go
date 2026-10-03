@@ -30,6 +30,10 @@ func (g *echoGame) Input(s *session.Session, line string) {
 	s.Send(message.Text("you typed <" + line + ">"))
 }
 
+func (g *echoGame) Request(s *session.Session, r session.Request) {
+	s.Send(message.Message{Reply: r.ID, HTML: "<p>" + r.Name + " " + r.Data["ref"].(string) + "</p>"})
+}
+
 func (g *echoGame) Disconnect(*session.Session) {
 	close(g.disconnected)
 }
@@ -125,5 +129,42 @@ func TestRenderMultiline(t *testing.T) {
 	got := render(message.Text("one\ntwo"))
 	if !strings.Contains(got, "one<br>two") {
 		t.Errorf("render = %s", got)
+	}
+}
+
+func TestSocketRequests(t *testing.T) {
+	server, _ := newServer(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	ws, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(server.URL, "http")+"/ws", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ws.Close(websocket.StatusNormalClosure, "")
+
+	var frame serverFrame
+	if err := wsjson.Read(ctx, ws, &frame); err != nil { // the greeting
+		t.Fatal(err)
+	}
+
+	req := clientFrame{T: "req", ID: "7", Name: "entity_tooltip", Data: map[string]any{"ref": "abc"}}
+	if err := wsjson.Write(ctx, ws, req); err != nil {
+		t.Fatal(err)
+	}
+	if err := wsjson.Read(ctx, ws, &frame); err != nil {
+		t.Fatal(err)
+	}
+	if frame.T != "reply" || frame.ID != "7" || frame.HTML != "<p>entity_tooltip abc</p>" {
+		t.Errorf("reply frame = %+v", frame)
+	}
+}
+
+func TestRenderHTML(t *testing.T) {
+	got := render(message.Message{Kind: "say", Text: "[r]ignored[x]", HTML: `<q>hi</q>`})
+	want := `<div hx-swap-oob="beforeend:#feed"><div class="msg msg-say"><q>hi</q></div></div>`
+	if got != want {
+		t.Errorf("render = %s\nwant %s", got, want)
 	}
 }
