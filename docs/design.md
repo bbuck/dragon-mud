@@ -12,10 +12,10 @@ Very little. The core provides:
 - connections, sessions and accounts
 - the game loop
 - **objects**: an id, an optional unique key, an optional parent (to
-  inherit properties from), a location (the object that contains it) and
-  properties
+  inherit properties and script handlers from), a location (the object
+  that contains it), properties and an optional script (§2)
 - permissions
-- scripting
+- scripting, including scripts on objects (§2)
 - hooks, notifications and a replaceable command dispatcher
 - messages and rendering
 - storage, export and import
@@ -24,7 +24,136 @@ Rooms, exits, items, mobs, combat, maps and channels are plugins. Containment
 is the one structure every MUD, MUSH and MOO shares: a room is an object other
 objects are inside.
 
-## 2. The game loop
+## 2. Entity scripts
+
+Most of a game is behavior on the things in it: a shopkeeper who sells, a
+guard who answers when greeted, a lever that opens a door, a quest item
+that reacts when it's handed over. Plugins supply the rules; entity scripts
+are what the rules apply to. None of this is built yet (Milestones 2 and
+4), but it's the shape the rest of the design has to leave room for.
+
+There are three layers. The **engine** makes a game work. The **game** (the
+game directory: config, plugins, views) uses the engine to turn input and
+output into an experience. The **world** brings that game to life: the
+objects in the database and the scripts on them, which make roaming mobs,
+talking NPCs, random events and weather.
+
+**Entity scripts are part of the world, not the game.** A script is stored
+on its object, like its properties, and builders write it in-game over
+telnet or in the admin editor, never as a file in the game directory.
+Nobody pre-builds every enemy on disk. Scripts are saved with the object,
+exported and imported with the world (§9), and compiled from their stored
+source when they're edited and again after the game reloads.
+
+**An entity script is a table of handlers**, keyed by event name:
+
+```lua
+return {
+  player_entered = function(self, actor) ... end,
+  given = function(self, giver, item) ... end,
+  say = function(self, data, block) ... end,
+}
+```
+
+**`o:handle(name, ...)` calls one.** If `o`'s script has no handler by that
+name, or `o` has no script, the engine looks in its parent's script, then
+that one's parent, the same way properties inherit; every copy of a
+shopkeeper shares one script, and MOO-style verb inheritance comes free. If
+nothing up the chain handles it, nothing happens. The engine gives the
+names no meaning; plugins decide which events exist and when they happen.
+`dragon:rooms` doesn't need to know about NPCs to tell everything in a room
+that someone arrived:
+
+```lua
+for _, thing in ipairs(actor.location.contents) do
+  thing:handle("player_entered", actor)
+end
+```
+
+A combat plugin would call `attacked` and `died`, `dragon:items` would call
+`given`. Event names are taken as written, like hook names, so a plugin's
+own events should carry its prefix (`combat:died`).
+
+Two kinds of event come from the engine's own primitives.
+
+**Views.** `o:send(view, data[, block])` reaches everyone playing `o`
+(§10) and also calls `o:handle(view, data, block)`. A room is an object
+like any other, so delivering to everything in a room is the room's own
+handler sending to its contents, written by `dragon:rooms`. When
+`dragon:chat` sends a `say`, the guard's `say` handler gets `{ actor = bob,
+message = "hail" }`, the data the view renders from, never the rendered
+text, and the block (`target` when Bob said it to the guard).
+
+**Input no command claimed.** Global commands go first. When nothing
+matches, the engine runs the `unmatched_input` hook (`actor`, `line`, and
+the near miss's `reason` if there was one) before telling the player. A
+plugin decides which entities are offered the line: `dragon:rooms` would
+call `input` on what's in the actor's room, a MOO kit on the objects the
+line names, a MUSH kit on objects with `$`-commands. If nobody takes it, the
+player sees the original reason, usage or "Huh?". So `buy 10 apples` with no
+global `buy` reaches the shopkeeper, and a global `buy` would stop it from
+ever getting there: shop verbs belong on shopkeepers, not in built-ins.
+
+An entity parses the line with its own **form set**, built from the same
+patterns, slot types and scoring as commands (§4):
+
+```lua
+local shop = forms.new {
+  { "buy <count:number> <item>", function(self, actor, args) ... end },
+  { "list", function(self, actor) ... end },
+}
+
+return {
+  input = function(self, actor, line) return shop:parse(self, actor, line) end,
+  say = function(self, data, block)
+    if data.from_npc then return end
+    if data.message:lower():find("hail") then
+      self.location:send("say", { actor = self, message = "Well met.", from_npc = true })
+    end
+  end,
+}
+```
+
+`shop:parse(self, actor, line)` runs the form that matched and returns
+true, or returns false and the near miss, so the shopkeeper can say "I
+don't sell pears" for `buy 10 pears` and stay quiet for `dance`.
+
+- **Data is the contract.** The engine passes arguments through untouched
+  and adds nothing to them. Who sent something is whatever the data says
+  (`actor`, here); `actor:is_player()` is true when an account owns the
+  object as a character.
+- **Loops are a game problem.** Two NPCs answering each other forever is a
+  bug the builder fixes with data (`from_npc` above), the same as any other
+  infinite loop. The engine imposes no depth limit, so a game full of
+  characters that talk to each other is possible. A loop that never yields
+  is still interrupted by the script deadline (§10).
+- **Missing handlers are the common case.** Most entities care about a
+  few events, so an unhandled one is not an error: builders never write
+  empty handlers, and a new plugin's events don't mean revisiting old
+  scripts. To help find a misspelled handler (`player_enterd`), an event
+  that some script in the chain could have handled but none did is logged
+  at debug level, once per script and event, naming the object whose
+  script was nearest ("mega wolf (#45) has no handler for
+  `player_entered`"). The record of what's been logged is cleared when
+  the script changes or the game reloads. A thousand wolves
+  made with `world.create{ parent = mega_wolf }` log once between them.
+- **One interface at every trust level.** A handler a builder writes in the
+  game directory and one a player writes inside the game (§11) are called
+  the same way. Trust changes where the code is stored, which modules it
+  gets and its limits, never how it's called.
+
+Open:
+
+- What a world script can reach: which modules, and whether the game
+  chooses what it exposes to the world.
+- How a script that fails to compile is reported to the builder editing
+  it, and what happens to the object until it's fixed.
+- How an `unmatched_input` handler says it took the line, given that hook
+  handlers today modify or cancel.
+- Whether handlers run immediately or after the current event, so the
+  player sees their own "You say" before the guard answers.
+
+## 3. The game loop
 
 One goroutine owns the game world. Nothing else reads or writes game state.
 
@@ -44,14 +173,14 @@ ticker ──────┘                     │
   before taking the next.
 - There is one scripting engine, owned by the loop.
 - Every script call gets a deadline, so a runaway plugin can't freeze the
-  game (§9).
+  game (§10).
 - Slow work (database writes, outbound HTTP) is handed off; its result comes
   back as an event.
 
 The old engine ran each event on its own goroutine, so back-to-back events
 could interleave. The loop removes that whole class of ordering problem.
 
-## 3. Extension points
+## 4. Extension points
 
 ### Commands
 
@@ -169,7 +298,7 @@ return {
   `passthrough` another plugin already set is a startup error unless the
   definition sets `replace = true`.
 - **Prompts:** `session:prompt(text)`, or `session:prompt({ ... })` with
-  `text`, or `view`, `data` and `block` to render a view (§4);
+  `text`, or `view`, `data` and `block` to render a view (§5);
   `choices`, a list of answers; and `secret`, to hide what the player types.
   Text prompts list their choices, numbered in telnet and clickable on the
   web (`<dragon-choice>`). A view's template shows its choices itself, so a
@@ -231,8 +360,9 @@ would filter the list. Optional dependencies (`depends = { weather = {
 "^1.0", optional = true } }`, Milestone 3) are for *using* another plugin's
 API.
 
-Objects in scope will contribute forms too (exits, verbs on held things),
-which is how a MOO-style game finds verbs on the objects involved.
+Input no command matches can still reach the entities around the player,
+which parse it with their own forms (§2). That's how a shopkeeper handles
+`buy` and how a MOO kit finds verbs on the objects involved.
 
 ### Hooks (can veto or modify)
 
@@ -279,7 +409,7 @@ player took over their character from another connection) and
 `player_left` (`player`). `dragon:presence` handles both to announce
 arrivals and departures. `dragon:chat` runs `before_say` (`actor`,
 `message`, and `target` when saying something to someone). The web client
-runs `get_tooltip` and `get_default_action` (`viewer`, `entity`; §5).
+runs `get_tooltip` and `get_default_action` (`viewer`, `entity`; §6).
 
 ### Ordering
 
@@ -315,7 +445,7 @@ Redirecting a hook to a different handler is not built yet.
 The same precedence applies everywhere: **the game, then plugins in
 dependency order, then built-ins**.
 
-## 4. Views and messages
+## 5. Views and messages
 
 The game never writes finished text. Scripts send **views**: a view is a
 named template, one file per format, filled in with data. Rendering a view
@@ -381,7 +511,7 @@ properties with those names.
 
 **`{{entity .actor}}`** writes an entity's name: its `name` property, else
 its key, else "something". In text that's all; in HTML it's a clickable
-`<dragon-entity>` (§5). Write the element yourself to choose its text:
+`<dragon-entity>` (§6). Write the element yourself to choose its text:
 `<dragon-entity ref="{{.actor.id}}">the {{.actor.name}}</dragon-entity>`.
 
 ### Sections
@@ -451,7 +581,7 @@ so a template error reaches the script that sent it.
 - **Telnet:** the text form, wrapped, with ANSI color (none, 16-color
   fallback, 256-color). Prompt and GMCP are planned.
 - **Web:** the HTML form, or the text form with color and entities as HTML,
-  pushed over a WebSocket into named regions of the page (§5).
+  pushed over a WebSocket into named regions of the page (§6).
 
 ### Input parity
 
@@ -464,7 +594,7 @@ shortcuts.
 The web feed is an `aria-live` region of real text. Telnet is first-class
 because many blind players use it with screen readers.
 
-## 5. The web client
+## 6. The web client
 
 Server-rendered HTML with htmx. No build step.
 
@@ -583,7 +713,7 @@ session:open_fixture("shop", { scope = "room", priority = 50, data = stock })
 ### Pending prompts
 
 A plugin asks one player for a specific answer ("Wen is waiting for an
-answer") by pushing an input mode and prompting from its `enter` (§3):
+answer") by pushing an input mode and prompting from its `enter` (§4):
 numbered choices, free text, or a yes/no. While the mode waits, the
 player's input goes to it instead of the commands. Telnet prints the
 choices as a numbered list and the player types the number; the web makes
@@ -596,7 +726,7 @@ Vitals are defined by the game, not assumed to be HP/mana: a list of
 `{ name, value, max?, text?, color }` (a "Warmth: low" bar is valid). Web
 draws bars; telnet puts them in the prompt.
 
-## 6. Transports
+## 7. Transports
 
 Each transport is a listener that creates sessions. The game loop doesn't
 know which are running.
@@ -643,14 +773,14 @@ nothing logged (so a silent server is visibly alive), and says goodbye when
 it stops; `dragon = false` turns it off. Lines carry a `prefix` naming the part
 of the engine that wrote them (`game`, `web`, `telnet`, `store`).
 
-## 7. Fairness
+## 8. Fairness
 
 Client parity only matters for PvP. The engine provides the mechanisms; games
 choose whether to use them: server-side cooldowns and timing, GMCP so telnet
 clients get the same state, and rate limits that apply equally to every
 transport.
 
-## 8. Storage, export and import
+## 9. Storage, export and import
 
 - SQLite through a pure-Go driver; no CGO. The database is
   `data/world.db` in the game directory.
@@ -684,7 +814,7 @@ transport.
 - Any type a plugin declares in its schema is exportable and importable for
   free.
 
-## 9. Scripting
+## 10. Scripting
 
 The scripting layer is **language-neutral**. The `scripting` package defines
 the contract; each language implements it. Lua (`scripting/lua`, gopher-lua,
@@ -717,12 +847,13 @@ else can be added without changing the engine or the modules.
   can't collide with the API; ergonomic wrappers are a plugin's job.
   `o:is_a(other)` is true when `o` is `other` or inherits from it at any
   depth, so a lock that requires a key accepts every copy made from it.
-  `o:send(text)` and `o:send(view, data[, block])` (§4) reach everyone
-  playing `o` and do nothing otherwise.
+  `o:send(text)` and `o:send(view, data[, block])` (§5) reach everyone
+  playing `o` and do nothing otherwise. Views will also reach `o`'s own
+  script (§2).
 - **Sessions** are handles too: input modes get one, and
   `game.session(o)` finds the session playing `o`. Fields: `account`,
   `character` (either can be nil) and `mode`. Methods: `send`, `prompt`,
-  `push_mode`, `pop_mode`, `replace_mode`, `play` and `close` (§3). An
+  `push_mode`, `pop_mode`, `replace_mode`, `play` and `close` (§4). An
   **account** handle has `name` and `characters`, and `add_character(o)`.
   The `world` module creates, finds and destroys objects. A command's actor
   is the player's character object.
@@ -737,14 +868,15 @@ Gopher-lua was chosen because Lua 5.1 is what MUD players already know
 (Mudlet; WoW addons and Luau descend from 5.1), it's maintained, and it
 supports interruption and coroutines.
 
-## 10. Trust tiers
+## 11. Trust tiers
 
 - **Plugins** are installed by the game owner and trusted, within the
   capabilities they declare (see [plugins.md](plugins.md#capabilities)).
 - **In-game code** written by players (MUSH softcode, MOO verbs) is untrusted:
   a restricted module set, per-player CPU and memory limits, stored in the
   object store, and output limited to text and color markup, never
-  JavaScript.
+  JavaScript. It's called through the same entity script interface as
+  trusted code (§2).
 
 ## Package layout
 

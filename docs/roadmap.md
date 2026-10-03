@@ -49,7 +49,11 @@ over telnet and the web and talk to each other.
       (`dragon:characters`, with creation steps from `character_steps`).
 - [x] Text layout: telnet wrapping, and layout helpers (`columns`,
       `table`, ...) with HTML equivalents.
-- [ ] Forms contributed by objects in scope (exits, verbs on held things).
+- [ ] `unmatched_input` hook: input no command matches is offered to
+      plugins before the player sees an error (design.md §2).
+- [ ] Form sets in Lua (`forms.new`, `set:parse`): the command parser for
+      entity scripts and anything else with its own vocabulary.
+- [ ] `actor:is_player()`.
 - [x] Feed views: `room`, `say`, `emote`, `ambient`, `echo`.
 
 ## Milestone 3: Plugins for real
@@ -72,7 +76,11 @@ over telnet and the web and talk to each other.
 
 ## Milestone 4: World
 
-- [ ] `dragon:rooms`: rooms, exits, movement, `can_move`.
+- [ ] Entity scripts (design.md §2): stored on objects, edited in-game and
+      in the admin editor, `o:handle` with parent inheritance, `o:send`
+      calling the view's handler.
+- [ ] `dragon:rooms`: rooms, exits, movement, `can_move`; rooms deliver
+      views to their contents and offer unmatched input to them.
 - [ ] `dragon:items`.
 - [ ] `dragon:mapping` (validates the plugin design end to end).
 - [ ] State updates, slots, web panels, tooltips; telnet prompt and GMCP.
@@ -95,8 +103,11 @@ over telnet and the web and talk to each other.
 
 ## Later
 
-- Kits (`--kit diku|mush|moo`) and `dragon eject`.
-- Trust tiers: in-game player code with quotas.
+- Kits (`--kit diku|mush|moo`) and `dragon eject`. The MOO kit finds verbs
+  on the objects a line names; the MUSH kit has `$`-commands and exits
+  matched by name.
+- Trust tiers: in-game player code with quotas, through the entity script
+  interface.
 - Importers (`dragon:import-diku`, `dragon:import-circle`).
 - Dice notation: modifiers, keep highest, drop lowest; dice objects.
 - Fairness features: rate limits, cooldowns.

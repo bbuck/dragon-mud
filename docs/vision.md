@@ -41,6 +41,14 @@ requires it.
   do about it, naming the exact setting or line to change. "Invalid input"
   is a bug. Startup checks catch mistakes before players do, and errors
   are tested for their wording, not just for existing.
+- **Engine, game, world.** The engine makes a game work. The game, a
+  directory of config and plugins, turns it into an experience. The world,
+  built live in-game and in the admin editor, brings it to life: objects
+  and the scripts on them make shopkeepers, guards, roaming mobs and
+  weather. Plugins supply the rules; entity scripts give them something to
+  apply to. Sharing a game directory without its database is like sharing
+  the Diku codebase: the rules and interface, but none of the places,
+  people or stories players actually meet.
 - **The plugin API is the product.** Game builders can only do what plugins
   can do. Built-in plugins use the same public API as everyone else.
 - **Predictable composition.** Plugins declare their order and dependencies;
