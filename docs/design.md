@@ -29,8 +29,9 @@ objects are inside.
 Most of a game is behavior on the things in it: a shopkeeper who sells, a
 guard who answers when greeted, a lever that opens a door, a quest item
 that reacts when it's handed over. Plugins supply the rules; entity scripts
-are what the rules apply to. None of this is built yet (Milestones 2 and
-4), but it's the shape the rest of the design has to leave room for.
+are what the rules apply to. Form sets, the `unmatched_input` hook and
+`is_player` are built; entity scripts themselves come with Milestone 4,
+but this is the shape the rest of the design has to leave room for.
 
 There are three layers. The **engine** makes a game work. The **game** (the
 game directory: config, plugins, views) uses the engine to turn input and
@@ -87,7 +88,8 @@ text, and the block (`target` when Bob said it to the guard).
 **Input no command claimed.** Global commands go first. When nothing
 matches, the engine runs the `unmatched_input` hook (`actor`, `line`, and
 the near miss's `reason` if there was one) before telling the player. A
-plugin decides which entities are offered the line: `dragon:rooms` would
+handler that deals with the line sets `event.handled = true` and returns
+the event. A plugin decides which entities are offered the line: `dragon:rooms` would
 call `input` on what's in the actor's room, a MOO kit on the objects the
 line names, a MUSH kit on objects with `$`-commands. If nobody takes it, the
 player sees the original reason, usage or "Huh?". So `buy 10 apples` with no
@@ -99,12 +101,12 @@ patterns, slot types and scoring as commands (§4):
 
 ```lua
 local shop = forms.new {
-  { "buy <count:number> <item>", function(self, actor, args) ... end },
-  { "list", function(self, actor) ... end },
+  { "buy <count:number> <item>", function(actor, args, self) ... end },
+  { "list", function(actor, args, self) ... end },
 }
 
 return {
-  input = function(self, actor, line) return shop:parse(self, actor, line) end,
+  input = function(self, actor, line) return shop:parse(actor, line, self) end,
   say = function(self, data, block)
     if data.from_npc then return end
     if data.message:lower():find("hail") then
@@ -114,9 +116,15 @@ return {
 }
 ```
 
-`shop:parse(self, actor, line)` runs the form that matched and returns
-true, or returns false and the near miss, so the shopkeeper can say "I
-don't sell pears" for `buy 10 pears` and stay quiet for `dance`.
+`shop:parse(actor, line, ...)` runs the form that matched as `fn(actor,
+args, ...)` and returns true, or returns false and the near miss (`reason`
+when a slot didn't resolve, `usage` listing patterns whose first word
+matched), so the shopkeeper can say "I don't sell pears" for `buy 10
+pears` and stay quiet for `dance`. A form does all its own work, like a
+command; what it returns is ignored. `input` returns what `parse` did,
+`o:handle` returns what the handler did, and the plugin that offered the
+line sets `event.handled`. A form set is built when its file loads, so it
+can use the slot types of its own plugin and those loaded before it.
 
 - **Data is the contract.** The engine passes arguments through untouched
   and adds nothing to them. Who sent something is whatever the data says
@@ -148,8 +156,6 @@ Open:
   chooses what it exposes to the world.
 - How a script that fails to compile is reported to the builder editing
   it, and what happens to the object until it's fixed.
-- How an `unmatched_input` handler says it took the line, given that hook
-  handlers today modify or cancel.
 - Whether handlers run immediately or after the current event, so the
   player sees their own "You say" before the guard answers.
 
@@ -410,6 +416,8 @@ player took over their character from another connection) and
 arrivals and departures. `dragon:chat` runs `before_say` (`actor`,
 `message`, and `target` when saying something to someone). The web client
 runs `get_tooltip` and `get_default_action` (`viewer`, `entity`; §6).
+Input no command matches runs `unmatched_input` (`actor`, `line`,
+`reason`; §2).
 
 ### Ordering
 
@@ -855,7 +863,9 @@ else can be added without changing the engine or the modules.
   `character` (either can be nil) and `mode`. Methods: `send`, `prompt`,
   `push_mode`, `pop_mode`, `replace_mode`, `play` and `close` (§4). An
   **account** handle has `name` and `characters`, and `add_character(o)`.
-  The `world` module creates, finds and destroys objects. A command's actor
+  The `world` module creates, finds and destroys objects, and the `forms`
+  module builds form sets (§2). `o:is_player()` is true when an account
+  owns `o` as a character. A command's actor
   is the player's character object.
 - **Properties can hold objects.** They're stored as refs
   (`{"$object": "id"}` in JSON); a ref to a destroyed object reads as nil.

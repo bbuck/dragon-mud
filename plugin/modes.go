@@ -138,7 +138,7 @@ func (p *Plugin) modeDef(file, name string, raw any) (ModeDef, error) {
 				where, scripting.TypeName(rawForms))
 		}
 		for i, rawForm := range forms {
-			form, err := formDef(fmt.Sprintf("%s form #%d", where, i+1), rawForm)
+			form, err := ParseForm(fmt.Sprintf("%s form #%d", where, i+1), rawForm)
 			if err != nil {
 				return def, err
 			}

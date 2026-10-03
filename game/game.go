@@ -120,6 +120,7 @@ type Store interface {
 	SetPasswordHash(ctx context.Context, accountID, passwordHash string) error
 	Characters(ctx context.Context, accountID string) ([]world.ID, error)
 	AddCharacter(ctx context.Context, accountID string, id world.ID) error
+	IsCharacter(ctx context.Context, id world.ID) (bool, error)
 }
 
 // Game is a running game. Connect, Input, Disconnect and Reload may be
@@ -138,6 +139,7 @@ type Game struct {
 	objType     *scripting.Type
 	sessionType *scripting.Type
 	accountType *scripting.Type
+	formType    *scripting.Type
 
 	// resolving is true while slot resolvers run; the world is read-only.
 	resolving bool
@@ -165,6 +167,9 @@ type scripts struct {
 	// the engine renders, such as entity tooltips.
 	views     *view.Templates
 	templates *view.Templates
+
+	// loading is the plugin being loaded, for errors in what it creates.
+	loading string
 }
 
 // New returns a game with its plugins loaded. The game closes its engine
@@ -223,6 +228,7 @@ func fromOptions(opts Options) *Game {
 	g.objType = g.objectType()
 	g.sessionType = g.makeSessionType()
 	g.accountType = g.makeAccountType()
+	g.formType = g.formSetType()
 	if g.hasher == nil {
 		g.hasher = auth.NewHasher(auth.DefaultParams, hashConcurrency)
 	}
@@ -255,7 +261,7 @@ func (g *Game) load(ctx context.Context) (*scripts, error) {
 }
 
 func (g *Game) loadInto(ctx context.Context, s *scripts) error {
-	for _, m := range []scripting.Module{g.module(), g.worldModule(), g.hooksModule(s)} {
+	for _, m := range []scripting.Module{g.module(), g.worldModule(), g.hooksModule(s), g.formsModule(s)} {
 		if err := s.engine.Load(m); err != nil {
 			return err
 		}
@@ -270,6 +276,7 @@ func (g *Game) loadInto(ctx context.Context, s *scripts) error {
 			return fmt.Errorf("%s: %w", src.Origin, err)
 		}
 	}
+	s.loading = ""
 
 	if err := s.views.Validate(plugin.ViewsDir); err != nil {
 		return err
@@ -296,6 +303,8 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ho
 	if err != nil {
 		return err
 	}
+
+	s.loading = p.ID
 
 	slots, err := p.Slots(ctx, engine)
 	if err != nil {

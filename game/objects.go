@@ -1,6 +1,7 @@
 package game
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"maps"
@@ -23,6 +24,7 @@ import (
 //
 //	o:get(name)                property value, inherited from parents
 //	o:is_a(other)              true if o is other or inherits from it
+//	o:is_player()              true if an account owns o as a character
 //	o:get_own(name)            property value only if o has its own
 //	o:set(name, value)         set a property; objects are stored as refs
 //	o:delete(name)             remove o's own value
@@ -81,6 +83,7 @@ func (g *Game) objectType() *scripting.Type {
 			"get":        g.objectGet((*world.Object).Get),
 			"get_own":    g.objectGet((*world.Object).GetOwn),
 			"is_a":       g.objectIsA,
+			"is_player":  g.objectIsPlayer,
 			"set":        g.mutating(g.objectSet),
 			"delete":     g.mutating(g.objectDelete),
 			"properties": g.objectProperties,
@@ -438,6 +441,18 @@ func (g *Game) objectIsA(key any, args scripting.Args) (any, error) {
 	}
 
 	return o.IsA(ancestor), nil
+}
+
+func (g *Game) objectIsPlayer(key any, _ scripting.Args) (any, error) {
+	o, err := g.object(key)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), saveTimeout)
+	defer cancel()
+
+	return g.store.IsCharacter(ctx, o.ID())
 }
 
 func (g *Game) objectSetParent(key any, args scripting.Args) (any, error) {

@@ -119,3 +119,13 @@ func (s *Store) SetPasswordHash(ctx context.Context, accountID, passwordHash str
 
 	return err
 }
+
+// IsCharacter reports whether some account owns the object id as a
+// character.
+func (s *Store) IsCharacter(ctx context.Context, id world.ID) (bool, error) {
+	var found bool
+	err := s.db.QueryRowContext(ctx,
+		`SELECT EXISTS (SELECT 1 FROM characters WHERE object = ?)`, id).Scan(&found)
+
+	return found, err
+}

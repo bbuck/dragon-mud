@@ -15,6 +15,12 @@ import (
 	"bbuck.dev/dragon-mud/world"
 )
 
+// hookUnmatched runs when no command matches what a player typed, with
+// actor, line and the near miss's reason. A handler that deals with the
+// line sets event.handled = true and returns the event; otherwise the
+// player sees why nothing matched.
+const hookUnmatched = "unmatched_input"
+
 // errResolving is returned when a slot resolver tries to change the world.
 // Resolvers run speculatively for every form that might match, so they may
 // only look.
@@ -44,6 +50,10 @@ func (g *Game) dispatch(ctx context.Context, p *player, line string) {
 	match, miss, err := g.commands.Parse(ctx, actor, line)
 	g.resolving = false
 
+	if miss != nil && g.unmatched(ctx, actor, line, miss) {
+		return
+	}
+
 	switch {
 	case err != nil:
 		g.log.Error("resolving input failed", "input", line, "error", err)
@@ -65,6 +75,28 @@ func (g *Game) dispatch(ctx context.Context, p *player, line string) {
 			p.s.Send(message.System(fmt.Sprintf("[R]%s (%q from %s) failed: %v[x]", form.Command.Name, form.Pattern.Source, form.Plugin, err)))
 		}
 	}
+}
+
+// unmatched offers input no command matched to the unmatched_input hook,
+// returning true if a handler dealt with it.
+func (g *Game) unmatched(ctx context.Context, actor any, line string, miss *command.NoMatch) bool {
+	event := map[string]any{"actor": actor, "line": line}
+	if miss.Reason != "" {
+		event["reason"] = miss.Reason
+	}
+
+	result, err := g.hooks.Run(ctx, hookUnmatched, event)
+	if err != nil {
+		g.log.Error("hook failed", "hook", hookUnmatched, "input", line, "error", err)
+		return false
+	}
+	if result.Cancelled {
+		return false
+	}
+
+	handled, _ := result.Payload["handled"].(bool)
+
+	return handled
 }
 
 // scriptSlot adapts a slot type a plugin wrote in its scripting language.

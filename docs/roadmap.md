@@ -49,11 +49,11 @@ over telnet and the web and talk to each other.
       (`dragon:characters`, with creation steps from `character_steps`).
 - [x] Text layout: telnet wrapping, and layout helpers (`columns`,
       `table`, ...) with HTML equivalents.
-- [ ] `unmatched_input` hook: input no command matches is offered to
+- [x] `unmatched_input` hook: input no command matches is offered to
       plugins before the player sees an error (design.md §2).
-- [ ] Form sets in Lua (`forms.new`, `set:parse`): the command parser for
+- [x] Form sets in Lua (`forms.new`, `set:parse`): the command parser for
       entity scripts and anything else with its own vocabulary.
-- [ ] `actor:is_player()`.
+- [x] `actor:is_player()`.
 - [x] Feed views: `room`, `say`, `emote`, `ambient`, `echo`.
 
 ## Milestone 3: Plugins for real

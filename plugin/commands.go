@@ -104,7 +104,7 @@ func (p *Plugin) commandDef(file, name string, raw any) (command.CommandDef, err
 	}
 
 	for i, rawForm := range forms {
-		form, err := formDef(fmt.Sprintf("%s form #%d", where, i+1), rawForm)
+		form, err := ParseForm(fmt.Sprintf("%s form #%d", where, i+1), rawForm)
 		if err != nil {
 			return def, err
 		}
@@ -114,8 +114,8 @@ func (p *Plugin) commandDef(file, name string, raw any) (command.CommandDef, err
 	return def, nil
 }
 
-// formDef reads { "pattern", function, desc = "..." }.
-func formDef(where string, raw any) (command.FormDef, error) {
+// ParseForm reads { "pattern", function, desc = "..." }.
+func ParseForm(where string, raw any) (command.FormDef, error) {
 	shape := `{ "say <message>", function(actor, args) ... end }`
 
 	var pattern, fn, desc any
