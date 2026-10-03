@@ -16,7 +16,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"bbuck.dev/dragon-mud/ansi"
 	"bbuck.dev/dragon-mud/builtin"
 	"bbuck.dev/dragon-mud/command"
 	"bbuck.dev/dragon-mud/config"
@@ -28,6 +27,7 @@ import (
 	"bbuck.dev/dragon-mud/scripting"
 	"bbuck.dev/dragon-mud/scripting/lua"
 	"bbuck.dev/dragon-mud/store"
+	"bbuck.dev/dragon-mud/termlog"
 	"bbuck.dev/dragon-mud/transport/telnet"
 	"bbuck.dev/dragon-mud/transport/web"
 	"bbuck.dev/dragon-mud/watch"
@@ -123,8 +123,18 @@ func runServe(args []string) error {
 		return err
 	}
 
-	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	greet()
+	logs, closeLogs, err := openLogs(*dir, cfg.Log)
+	if err != nil {
+		return err
+	}
+	defer closeLogs()
+	activity := newActivity(logs)
+	log := slog.New(activity)
+
+	var d *dragon
+	if cfg.Dragon {
+		d = summon(random.New(uint64(time.Now().UnixNano())), os.Stderr, termlog.UseColor(os.Stderr))
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -148,7 +158,8 @@ func runServe(args []string) error {
 	if err != nil {
 		return fmt.Errorf("loading the world: %w", err)
 	}
-	log.Info("loaded world", "objects", w.Len())
+	log.Info("loaded world", termlog.PrefixKey, "store", "objects", w.Len())
+	d.greet(cfg.Name, w.Len())
 
 	g, err := game.New(ctx, game.Options{
 		Name:      cfg.Name,
@@ -156,7 +167,7 @@ func runServe(args []string) error {
 		Plugins:   sources,
 		World:     w,
 		Store:     db,
-		Log:       log,
+		Log:       log.With(termlog.PrefixKey, "game"),
 	})
 	if err != nil {
 		return err
@@ -167,26 +178,33 @@ func runServe(args []string) error {
 
 	var tasks []func() error
 	tasks = append(tasks, func() error { return g.Run(ctx) })
+	tasks = append(tasks, func() error { return d.keepWatch(ctx, activity, idleAfter) })
 	if gameDir := filepath.Join(*dir, "game"); isDir(gameDir) {
 		tasks = append(tasks, func() error {
 			return watch.Poll(ctx, os.DirFS(gameDir), []string{"*.lua", "*.tmpl"}, reloadInterval, func() {
-				log.Info("scripts changed; reloading")
+				log.Info("scripts changed; reloading", termlog.PrefixKey, "watch")
+				d.reloaded()
 				g.Reload()
 			})
 		})
 	}
 	if cfg.Telnet.Enabled {
 		tasks = append(tasks, func() error {
-			return telnet.Serve(ctx, cfg.Telnet.Address, g, log)
+			return telnet.Serve(ctx, cfg.Telnet.Address, g, log.With(termlog.PrefixKey, "telnet"))
 		})
 	}
 	if cfg.Web.Client.Enabled {
 		tasks = append(tasks, func() error {
-			return web.Serve(ctx, web.Options{Address: cfg.Web.Address, GameName: cfg.Name}, g, log)
+			return web.Serve(ctx, web.Options{Address: cfg.Web.Address, GameName: cfg.Name}, g, log.With(termlog.PrefixKey, "web"))
 		})
 	}
 
-	return runAll(cancel, tasks)
+	if err := runAll(cancel, tasks); err != nil {
+		return err
+	}
+	d.farewell()
+
+	return nil
 }
 
 func runHooks(args []string, out io.Writer) error {
@@ -346,18 +364,4 @@ func runAll(cancel context.CancelFunc, tasks []func() error) error {
 	}
 
 	return first
-}
-
-// greet prints a welcome from a randomly colored dragon, as the original
-// engine did.
-func greet() {
-	dragons := []string{
-		"[l][-W]black[x]", "[c220]brass[x]", "[R]red[x]", "[c208]bronze[x]", "[G]green[x]",
-		"[Y]gold[x]", "[B]blue[x]", "[c202]copper[x]", "[W]white[x]", "[c250][u]silver[x]",
-	}
-
-	rng := random.New(uint64(time.Now().UnixNano()))
-	dragon := dragons[rng.Range(0, len(dragons)-1)]
-
-	fmt.Println(ansi.Colorize("A " + dragon + " dragon arrives to serve you today."))
 }

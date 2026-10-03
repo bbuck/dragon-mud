@@ -1,6 +1,10 @@
 # Settings for this game. See the DragonMUD docs for every option.
 name = "{{.Name}}"
 
+# The dragon that greets you when the server starts and says goodbye when it
+# stops. Set to false to turn it off.
+dragon = true
+
 [telnet]
 enabled = true
 address = ":4000"
@@ -10,3 +14,14 @@ address = ":8080"
 
 [web.client]
 enabled = true
+
+# Where logs go. Add a [[log]] table per target, each with its own level
+# (debug, info, warn, error) and format (plain, pretty, json).
+[[log]]
+target = "stderr"
+format = "pretty"
+
+# [[log]]
+# target = "logs/game.log"
+# level = "debug"
+# format = "json"

@@ -428,6 +428,29 @@ enabled = true
 Startup fails if no play transport is enabled, and warns if admin is exposed
 publicly without an admin account.
 
+### Logs
+
+Each `[[log]]` table is a place logs go, with its own level and format:
+
+```toml
+[[log]]
+target = "stderr"          # stderr, stdout, or a file relative to the game
+format = "pretty"          # plain (default), pretty (colored), json
+level = "info"             # debug, info (default), warn, error
+
+[[log]]
+target = "logs/game.log"
+format = "json"
+level = "debug"
+```
+
+With no `[[log]]` tables, logs go to stderr as plain text at info.
+`NO_COLOR` turns pretty's color off. A dragon greets the server on stderr
+when it starts, remarks on reloads, speaks up after 15 quiet minutes with
+nothing logged (so a silent server is visibly alive), and says goodbye when
+it stops; `dragon = false` turns it off. Lines carry a `prefix` naming the part
+of the engine that wrote them (`game`, `web`, `telnet`, `store`).
+
 ## 7. Fairness
 
 Client parity only matters for PvP. The engine provides the mechanisms; games
@@ -548,4 +571,5 @@ supports interruption and coroutines.
 | `scripting/lua`    | The Lua implementation (gopher-lua).                    |
 | `ansi`             | `[r]color[x]` codes to ANSI escapes and HTML.           |
 | `random`           | Seedable random numbers and dice.                       |
+| `termlog`          | Colored, aligned server logs for terminals (`slog`).    |
 | `auth`             | Password hashing (Argon2id).                            |
