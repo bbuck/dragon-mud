@@ -33,8 +33,9 @@ type NoMatch struct {
 //
 //  1. the most literal words matched,
 //  2. the most typed slots resolved,
-//  3. the plugin loaded last (the game beats plugins beats built-ins),
-//  4. the form registered first.
+//  3. the fewest words typed abbreviated, so "go" picks go over g(oto),
+//  4. the plugin loaded last (the game beats plugins beats built-ins),
+//  5. the form registered first.
 //
 // When one form can split the input more than one way, the earliest split
 // that resolves wins. Exactly one of the results is non-nil unless a
@@ -60,7 +61,7 @@ func (r *Registry) Parse(ctx context.Context, actor any, input string) (*Match, 
 		splits := form.Pattern.match(tokens, single)
 		if len(splits) == 0 {
 			if first := form.Pattern.Elements[0]; first.Slot == nil && !tokens[0].Quoted &&
-				strings.EqualFold(first.Literal, tokens[0].Text) && !slices.Contains(usage, form.Pattern.Source) {
+				first.matches(tokens[0].Text) && !slices.Contains(usage, form.Pattern.Source) {
 				usage = append(usage, form.Pattern.Source)
 			}
 			continue
@@ -74,6 +75,7 @@ func (r *Registry) Parse(ctx context.Context, actor any, input string) (*Match, 
 		}
 
 		for _, split := range splits {
+			s.shortened = form.Pattern.shortened(tokens, split)
 			args, miss, err := r.resolve(ctx, actor, input, tokens, form.Pattern, split, cache)
 			if err != nil {
 				return nil, nil, err
@@ -103,7 +105,7 @@ func (r *Registry) Parse(ctx context.Context, actor any, input string) (*Match, 
 }
 
 type score struct {
-	literals, typed, precedence, order int
+	literals, typed, shortened, precedence, order int
 }
 
 func (s score) beats(o score) bool {
@@ -112,6 +114,8 @@ func (s score) beats(o score) bool {
 		return s.literals > o.literals
 	case s.typed != o.typed:
 		return s.typed > o.typed
+	case s.shortened != o.shortened:
+		return s.shortened < o.shortened
 	case s.precedence != o.precedence:
 		return s.precedence > o.precedence
 	default:

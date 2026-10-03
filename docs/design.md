@@ -208,13 +208,18 @@ say = {
   `<name:type>` resolves it through a slot type, and
   `<name:type:modifier,modifier>` passes modifiers. `[optional parts]`
   expand into a form with and without them. A leading punctuation
-  character is its own word, so `'<message>` matches `'hi`.
+  character is its own word, so `'<message>` matches `'hi`. An
+  **abbreviated word** gives its shortest form, then the rest in
+  parentheses: `d(own)` matches `d`, `do`, `dow` and `down`, and
+  `l(ook) [at] <thing>` works like any other pattern. Parentheses used any
+  other way are a startup error.
 - **Quotes** escape the parser: `say "hi to bob"` is one value and never
   matches literal words.
 - **Maximal munch.** Every form is matched against the input, every way it
   can split. Typed slots are resolved, and a form whose slot fails to
   resolve drops out. The most specific form left wins: the most literal
-  words, then the most typed slots resolved, then the plugin loaded last
+  words, then the most typed slots resolved, then the fewest words typed
+  abbreviated (so `go` picks `go` over `g(oto)`), then the plugin loaded last
   (the game beats plugins beats built-ins), then the form written first
   (commands are taken alphabetically, forms in the order written). Within
   one form, the earliest split that resolves wins. `say hi to bob` reaches

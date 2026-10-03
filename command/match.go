@@ -101,7 +101,7 @@ func (p Pattern) match(tokens []Token, single func(*Slot) bool) [][]span {
 
 		e := p.Elements[ei]
 		if e.Slot == nil {
-			if ti < len(tokens) && !tokens[ti].Quoted && strings.EqualFold(tokens[ti].Text, e.Literal) {
+			if ti < len(tokens) && !tokens[ti].Quoted && e.matches(tokens[ti].Text) {
 				walk(ei+1, ti+1)
 			}
 			return

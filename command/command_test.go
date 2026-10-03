@@ -337,3 +337,50 @@ func TestDidYouMean(t *testing.T) {
 		}
 	}
 }
+
+func TestAbbreviations(t *testing.T) {
+	r := registry(t, []SlotType{people("Bob")},
+		CommandDef{Name: "down", Forms: forms("d(own)")},
+		CommandDef{Name: "look", Forms: forms("l(ook) [at] <thing:person:here>", "l(ook)")},
+		CommandDef{Name: "go", Forms: forms("go <where>")},
+		CommandDef{Name: "goto", Forms: forms("g(oto) <where>")},
+	)
+
+	tests := map[string]string{
+		"d":          "d(own)",
+		"dow":        "d(own)",
+		"DOWN":       "d(own)",
+		"l":          "l(ook)",
+		"lo bob":     "l(ook) [at] <thing:person:here>",
+		"l at bob":   "l(ook) [at] <thing:person:here>",
+		"go north":   "go <where>", // typed in full beats abbreviated
+		"got north":  "g(oto) <where>",
+		"goto north": "g(oto) <where>",
+	}
+	for input, want := range tests {
+		if form, _, _ := parse(t, r, input); form != want {
+			t.Errorf("%q matched %q, want %q", input, form, want)
+		}
+	}
+
+	for _, input := range []string{"downs", "dx", "looker"} {
+		if form, _, _ := parse(t, r, input); form != "" {
+			t.Errorf("%q matched %q, want nothing", input, form)
+		}
+	}
+
+	// Usage counts abbreviated first words too.
+	if _, _, miss := parse(t, r, "g"); miss == nil || !reflect.DeepEqual(miss.Usage, []string{"g(oto) <where>"}) {
+		t.Errorf("usage for g: %+v", miss)
+	}
+}
+
+func TestAbbreviationErrors(t *testing.T) {
+	want := "has parentheses that don't make an abbreviation. Write the shortest form players may type, then the rest of the word in parentheses, like d(own) for d, do, dow and down."
+	for _, bad := range []string{"d(own", "down)", "(down)", "d()", "d(o)(wn)", "d(o)wn"} {
+		_, err := ParsePattern(bad)
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("ParsePattern(%q) error = %v", bad, err)
+		}
+	}
+}

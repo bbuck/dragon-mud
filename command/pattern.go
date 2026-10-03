@@ -14,7 +14,13 @@ import (
 	"unicode"
 )
 
-var slotNameRx = regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
+var (
+	slotNameRx = regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
+
+	// abbrevRx is an abbreviated word: the shortest form players may type,
+	// then the rest in parentheses, as in d(own).
+	abbrevRx = regexp.MustCompile(`^([^()]+)\(([^()]+)\)$`)
+)
 
 // Pattern is one compiled form pattern: a sequence of literal words and
 // slots.
@@ -29,6 +35,11 @@ type Pattern struct {
 type Element struct {
 	// Literal is the word to match, lowercased. Empty for a slot.
 	Literal string
+
+	// Min is how much of Literal players must type, for an abbreviated
+	// word such as d(own): 1 there, so d, do, dow and down all match. Zero
+	// means the whole word.
+	Min int
 
 	// Slot is set for slots.
 	Slot *Slot
@@ -136,7 +147,15 @@ func compile(source string, words []string) (Pattern, error) {
 			if strings.ContainsAny(word, "<>[]\"") {
 				return Pattern{}, fmt.Errorf("%q has a stray < > [ ] or \". Slots are written <name>, <name:type> or <name:type:modifier>.", word)
 			}
-			p.Elements = append(p.Elements, Element{Literal: strings.ToLower(word)})
+			e := Element{Literal: strings.ToLower(word)}
+			if strings.ContainsAny(word, "()") {
+				m := abbrevRx.FindStringSubmatch(word)
+				if m == nil {
+					return Pattern{}, fmt.Errorf("%q has parentheses that don't make an abbreviation. Write the shortest form players may type, then the rest of the word in parentheses, like d(own) for d, do, dow and down.", word)
+				}
+				e = Element{Literal: strings.ToLower(m[1] + m[2]), Min: len(m[1])}
+			}
+			p.Elements = append(p.Elements, e)
 			continue
 		}
 
@@ -187,6 +206,36 @@ func (p Pattern) Literals() int {
 	return n
 }
 
+// matches reports whether a word a player typed is this literal: the whole
+// word, or for an abbreviated word, at least Min characters of it.
+func (e Element) matches(text string) bool {
+	if e.Min == 0 {
+		return strings.EqualFold(text, e.Literal)
+	}
+
+	text = strings.ToLower(text)
+	return len(text) >= e.Min && strings.HasPrefix(e.Literal, text)
+}
+
+// shortened counts the literal words that were typed abbreviated in a
+// match of tokens split as split.
+func (p Pattern) shortened(tokens []Token, split []span) int {
+	n, ti, si := 0, 0, 0
+	for _, e := range p.Elements {
+		if e.Slot != nil {
+			ti = split[si].to
+			si++
+			continue
+		}
+		if len(tokens[ti].Text) < len(e.Literal) {
+			n++
+		}
+		ti++
+	}
+
+	return n
+}
+
 // key identifies the pattern's shape: two patterns with the same key match
 // exactly the same inputs, so they can never be told apart.
 func (p Pattern) key() string {
@@ -195,6 +244,9 @@ func (p Pattern) key() string {
 		b.WriteByte(' ')
 		if e.Slot == nil {
 			b.WriteString(e.Literal)
+			if e.Min > 0 {
+				fmt.Fprintf(&b, "(%d)", e.Min)
+			}
 			continue
 		}
 		mods := slices.Clone(e.Slot.Modifiers)
