@@ -72,6 +72,20 @@ binary and upgrade with it. They use only the public plugin API. Each covers
 one concern and is named for it. `dragon eject <name>` copies one into the game to
 customize it, opting it out of engine upgrades.
 
+A game picks which built-ins load with `builtins` in `dragon.toml`. `dragon
+new` lists every one, and leaving the setting out loads them all. Removing
+one is how a game replaces it: leave out `presence` and announce arrivals
+from `game/hooks.lua` instead. Built-ins always load in the engine's
+order, whatever order they're listed in.
+
+```toml
+builtins = [
+  "chat",
+  "help",
+  "presence",
+]
+```
+
 **Kits** are curated sets of built-ins plus wiring: `dragon new mygame --kit
 diku|mush|moo`.
 

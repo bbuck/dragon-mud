@@ -42,6 +42,7 @@ over telnet and the web and talk to each other.
 - [ ] Hook redirection in game wiring.
 - [x] Input parser: command forms, slot types (`slots.lua`), maximal
       munch, quoting, additive forms with `replace`.
+- [x] `builtins` in `dragon.toml`: which built-in plugins a game loads.
 - [ ] Input modes (editors, menus, pending prompts); login as a mode, then
       character select and creation as game-controlled modes.
 - [ ] Forms contributed by objects in scope (exits, verbs on held things).

@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+
+	"bbuck.dev/dragon-mud/builtin"
 )
 
 //go:embed template
@@ -23,7 +25,8 @@ var renames = map[string]string{
 	"gitignore": ".gitignore",
 }
 
-// Data is what templates can refer to.
+// Data is what the caller fills in for templates. Templates can also refer
+// to .Builtins, every built-in plugin.
 type Data struct {
 	Name string
 }
@@ -78,10 +81,16 @@ func render(name string, contents []byte, data Data) ([]byte, error) {
 	}
 
 	// The name lands inside a TOML string; escape what TOML would reject.
-	escaped := Data{Name: strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(data.Name)}
+	values := struct {
+		Name     string
+		Builtins []string
+	}{
+		Name:     strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(data.Name),
+		Builtins: builtin.Names,
+	}
 
 	var b bytes.Buffer
-	if err := tmpl.Execute(&b, escaped); err != nil {
+	if err := tmpl.Execute(&b, values); err != nil {
 		return nil, err
 	}
 

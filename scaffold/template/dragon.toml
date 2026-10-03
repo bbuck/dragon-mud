@@ -5,6 +5,15 @@ name = "{{.Name}}"
 # stops. Set to false to turn it off.
 dragon = true
 
+# The built-in plugins this game loads. Remove one to leave it out, such as
+# to write your own in game/ instead. They load in the engine's order, not
+# the order listed here.
+builtins = [
+{{- range .Builtins}}
+  "{{.}}",
+{{- end}}
+]
+
 [telnet]
 enabled = true
 address = ":4000"

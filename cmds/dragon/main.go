@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"text/tabwriter"
@@ -139,7 +140,7 @@ func runServe(args []string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	sources, err := pluginSources(*dir)
+	sources, err := pluginSources(*dir, cfg.Builtins)
 	if err != nil {
 		return err
 	}
@@ -227,7 +228,7 @@ func runHooks(args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	sources, err := pluginSources(*dir)
+	sources, err := pluginSources(*dir, cfg.Builtins)
 	if err != nil {
 		return err
 	}
@@ -318,10 +319,14 @@ func showHook(out io.Writer, hooks *hook.Registry, name string) error {
 	return nil
 }
 
-// pluginSources lists the built-in plugins, then the game's own plugin.
-func pluginSources(dir string) ([]plugin.Source, error) {
+// pluginSources lists the built-in plugins the game loads, in the engine's
+// order, then the game's own plugin.
+func pluginSources(dir string, builtins []string) ([]plugin.Source, error) {
 	var sources []plugin.Source
 	for _, name := range builtin.Names {
+		if !slices.Contains(builtins, name) {
+			continue
+		}
 		files, err := builtin.FS(name)
 		if err != nil {
 			return nil, err

@@ -122,3 +122,54 @@ func TestDragon(t *testing.T) {
 		t.Errorf("dragon = false gave %v (error %v)", cfg.Dragon, err)
 	}
 }
+
+func TestBuiltins(t *testing.T) {
+	cfg, err := Load(writeConfig(t, `name = "x"`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"chat", "help", "presence"}; !reflect.DeepEqual(cfg.Builtins, want) {
+		t.Errorf("default builtins = %q, want every built-in %q", cfg.Builtins, want)
+	}
+
+	cfg, err = Load(writeConfig(t, `builtins = ["presence", "help"]`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"presence", "help"}; !reflect.DeepEqual(cfg.Builtins, want) {
+		t.Errorf("builtins = %q, want %q", cfg.Builtins, want)
+	}
+
+	cfg, err = Load(writeConfig(t, `builtins = []`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Builtins) != 0 {
+		t.Errorf("builtins = %q, want none", cfg.Builtins)
+	}
+}
+
+func TestBuiltinsErrors(t *testing.T) {
+	tests := []struct {
+		name, contents, want string
+	}{
+		{
+			"unknown", `builtins = ["chta"]`,
+			`builtins: "chta" isn't a built-in plugin. Did you mean "chat"? The built-ins are chat, help and presence.`,
+		},
+		{
+			"prefixed", `builtins = ["dragon:chat"]`,
+			`builtins: write "chat", not "dragon:chat". Everything in builtins is a built-in plugin, so the "dragon:" prefix is implied.`,
+		},
+		{"twice", `builtins = ["chat", "help", "chat"]`, `builtins: "chat" is listed twice. Remove one.`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Load(writeConfig(t, tt.contents))
+			if err == nil || !strings.HasSuffix(err.Error(), tt.want) {
+				t.Errorf("Load error = %v, want it to end with %q", err, tt.want)
+			}
+		})
+	}
+}

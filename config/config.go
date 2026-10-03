@@ -10,6 +10,10 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+
+	"bbuck.dev/dragon-mud/builtin"
+	"bbuck.dev/dragon-mud/command"
+	"bbuck.dev/dragon-mud/plugin"
 )
 
 // FileName is the config file at the root of a game directory.
@@ -21,6 +25,11 @@ type Config struct {
 
 	// Dragon is the dragon that greets you when the server starts.
 	Dragon bool `toml:"dragon"`
+
+	// Builtins are the built-in plugins the game loads, by name without
+	// the "dragon:" prefix. They always load in builtin.Names order,
+	// whatever order they're listed in.
+	Builtins []string `toml:"builtins"`
 
 	Telnet Telnet `toml:"telnet"`
 	Web    Web    `toml:"web"`
@@ -75,10 +84,11 @@ type Toggle struct {
 // out.
 func Default() Config {
 	return Config{
-		Name:   "A DragonMUD Game",
-		Dragon: true,
-		Telnet: Telnet{Enabled: true, Address: ":4000"},
-		Web:    Web{Address: ":8080", Client: Toggle{Enabled: true}},
+		Name:     "A DragonMUD Game",
+		Dragon:   true,
+		Builtins: slices.Clone(builtin.Names),
+		Telnet:   Telnet{Enabled: true, Address: ":4000"},
+		Web:      Web{Address: ":8080", Client: Toggle{Enabled: true}},
 	}
 }
 
@@ -133,6 +143,10 @@ func (c Config) Validate() error {
 		return errors.New("[web.client] is enabled but [web] has no address")
 	}
 
+	if err := validateBuiltins(c.Builtins); err != nil {
+		return err
+	}
+
 	for i, l := range c.Log {
 		where := fmt.Sprintf("[[log]] #%d", i+1)
 		switch {
@@ -154,7 +168,32 @@ func (c Config) Validate() error {
 	return nil
 }
 
+func validateBuiltins(names []string) error {
+	for i, name := range names {
+		if bare, ok := strings.CutPrefix(name, plugin.BuiltinPrefix); ok && slices.Contains(builtin.Names, bare) {
+			return fmt.Errorf("builtins: write %q, not %q. Everything in builtins is a built-in plugin, so the %q prefix is implied.", bare, name, plugin.BuiltinPrefix)
+		}
+		if !slices.Contains(builtin.Names, name) {
+			return fmt.Errorf("builtins: %q isn't a built-in plugin.%s The built-ins are %s.", name, command.DidYouMean(name, builtin.Names), and(builtin.Names))
+		}
+		if slices.Contains(names[:i], name) {
+			return fmt.Errorf("builtins: %q is listed twice. Remove one.", name)
+		}
+	}
+
+	return nil
+}
+
 // or lists options as "a, b or c".
 func or(options []string) string {
 	return strings.Join(options[:len(options)-1], ", ") + " or " + options[len(options)-1]
+}
+
+// and lists items as "a, b and c".
+func and(items []string) string {
+	if len(items) == 1 {
+		return items[0]
+	}
+
+	return strings.Join(items[:len(items)-1], ", ") + " and " + items[len(items)-1]
 }

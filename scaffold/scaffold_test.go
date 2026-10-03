@@ -3,8 +3,10 @@ package scaffold
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
+	"bbuck.dev/dragon-mud/builtin"
 	"bbuck.dev/dragon-mud/config"
 )
 
@@ -21,6 +23,9 @@ func TestNewCreatesLoadableGame(t *testing.T) {
 	}
 	if cfg.Name != `The "Dragon's" Rest` {
 		t.Errorf("name = %q", cfg.Name)
+	}
+	if !slices.Equal(cfg.Builtins, builtin.Names) {
+		t.Errorf("builtins = %q, want every built-in %q", cfg.Builtins, builtin.Names)
 	}
 
 	for _, name := range []string{"game/plugin.lua", "game/commands.lua", "game/hooks.lua", ".gitignore"} {
