@@ -170,6 +170,9 @@ type scripts struct {
 
 	// loading is the plugin being loaded, for errors in what it creates.
 	loading string
+
+	// origins maps each loaded plugin's id to where it came from.
+	origins map[string]string
 }
 
 // New returns a game with its plugins loaded. The game closes its engine
@@ -249,6 +252,7 @@ func (g *Game) load(ctx context.Context) (*scripts, error) {
 		modes:     make(map[string]*mode),
 		views:     view.NewTemplates(),
 		templates: view.NewTemplates(),
+		origins:   make(map[string]string),
 	}
 	s.views.SetWidth(g.textWidth)
 	s.templates.SetWidth(g.textWidth)
@@ -304,6 +308,10 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ho
 		return err
 	}
 
+	if other, ok := s.origins[p.ID]; ok {
+		return fmt.Errorf("plugin.lua names the plugin %q, but %s already has that name. Plugin names must be unique; rename one of them in its plugin.lua.", p.ID, other)
+	}
+	s.origins[p.ID] = src.Origin
 	s.loading = p.ID
 
 	slots, err := p.Slots(ctx, engine)

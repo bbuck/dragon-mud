@@ -65,11 +65,20 @@ plugin and always wins: its wiring, overrides and templates take precedence
 over every installed plugin. Only the game has a `wiring.lua`, which
 reorders or disables other plugins' hook handlers.
 
+**Local plugins** live in `game/plugins/<name>/`. They're the game's own
+code, split out the way a game would split out combat or crafting: edited
+in place, committed with the game, never in `dragon.lock`. They load after
+built-in and installed plugins and before the game itself, in directory
+name order (until `depends` orders them). Moving one to its own repository
+and installing it with `dragon add` is how a game shares it. Plugin names
+must be unique across every plugin a game loads.
+
 ```
 mygame/
   dragon.toml       config: transports, engine version, kit
   dragon.lock       pinned plugin versions and hashes
   game/             the game's own plugin
+    plugins/        local plugins: part of the game, not installed
   plugins/          installed plugins, vendored
   world/            exported world data
   data/             database, logs (not committed)

@@ -13,6 +13,10 @@ import (
 	"bbuck.dev/dragon-mud/scripting"
 )
 
+// LocalDir is the directory in the game's own plugin that holds the game's
+// local plugins: plugins that are part of the game, not installed.
+const LocalDir = "plugins"
+
 // BuiltinPrefix is prepended to the names of plugins embedded in the engine.
 const BuiltinPrefix = "dragon:"
 
@@ -60,7 +64,7 @@ func Open(ctx context.Context, engine scripting.Engine, fsys fs.FS, builtin bool
 		return nil, err
 	}
 	if value == nil {
-		return nil, errors.New("plugin.lua not found")
+		return nil, errors.New(`plugin.lua not found. Every plugin needs one, returning at least its name: return { name = "myplugin" }`)
 	}
 
 	table, ok := value.(map[string]any)

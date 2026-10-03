@@ -321,7 +321,8 @@ func showHook(out io.Writer, hooks *hook.Registry, name string) error {
 }
 
 // pluginSources lists the built-in plugins the game loads, in the engine's
-// order, then the game's own plugin.
+// order, then the game's local plugins in game/plugins by directory name,
+// then the game's own plugin.
 func pluginSources(dir string, builtins []string) ([]plugin.Source, error) {
 	var sources []plugin.Source
 	for _, name := range builtin.Names {
@@ -340,6 +341,21 @@ func pluginSources(dir string, builtins []string) ([]plugin.Source, error) {
 	}
 
 	gameDir := filepath.Join(dir, "game")
+	localDir := filepath.Join(gameDir, plugin.LocalDir)
+	if isDir(localDir) {
+		entries, err := os.ReadDir(localDir)
+		if err != nil {
+			return nil, err
+		}
+		for _, e := range entries {
+			if !e.IsDir() || strings.HasPrefix(e.Name(), ".") {
+				continue
+			}
+			pluginDir := filepath.Join(localDir, e.Name())
+			sources = append(sources, plugin.Source{Origin: pluginDir, Files: os.DirFS(pluginDir)})
+		}
+	}
+
 	if isDir(gameDir) {
 		sources = append(sources, plugin.Source{Origin: gameDir, Files: os.DirFS(gameDir), Game: true})
 	}

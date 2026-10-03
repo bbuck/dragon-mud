@@ -58,6 +58,8 @@ over telnet and the web and talk to each other.
 
 ## Milestone 3: Plugins for real
 
+- [x] Local plugins in `game/plugins/<name>/`.
+- [ ] `require` for a plugin's own modules in `lua/`.
 - [ ] Full manifest: provides, depends, capabilities.
 - [ ] `plugin.require` for plugin APIs.
 - [ ] Schema types and extensions; namespaced added fields. Open: can an
