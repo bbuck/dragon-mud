@@ -23,6 +23,7 @@ import (
 //	game.commands()                list of { name, desc, plugin, forms },
 //	                               where forms is a list of { pattern, desc }
 //	game.disconnect(player[, text]) send an optional farewell and disconnect
+//	game.session(player)           the session playing player, or nil
 func (g *Game) module() scripting.Module {
 	return scripting.Module{
 		Name:   "game",
@@ -32,6 +33,7 @@ func (g *Game) module() scripting.Module {
 			"players":    g.scriptPlayers,
 			"commands":   g.scriptCommands,
 			"disconnect": g.mutatingFunc(g.scriptDisconnect),
+			"session":    g.scriptSession,
 		},
 	}
 }
@@ -149,6 +151,21 @@ func (g *Game) scriptDisconnect(args scripting.Args) (any, error) {
 				p.s.Send(message.Text(text))
 			}
 			p.s.Close()
+		}
+	}
+
+	return nil, nil
+}
+
+func (g *Game) scriptSession(args scripting.Args) (any, error) {
+	o, err := g.objectArg(args, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, p := range g.players {
+		if p.character == o {
+			return g.sessionHandle(p), nil
 		}
 	}
 

@@ -136,6 +136,17 @@ func NewRegistry() *Registry {
 	return r
 }
 
+// Scoped returns an empty registry for a separate set of commands, such as
+// an input mode's forms. It shares r's slot types and plugin precedence, so
+// slot types registered on either are visible to both.
+func (r *Registry) Scoped() *Registry {
+	return &Registry{
+		commands: make(map[string]*Command),
+		slots:    r.slots,
+		plugins:  r.plugins,
+	}
+}
+
 func (r *Registry) precedence(plugin string) int {
 	p, ok := r.plugins[plugin]
 	if !ok {

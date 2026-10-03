@@ -15,6 +15,10 @@ const (
 	// KindEcho is a command the player ran without typing it, such as by
 	// clicking something.
 	KindEcho = "echo"
+
+	// KindPrompt asks the player for input, such as a question an input
+	// mode is waiting on.
+	KindPrompt = "prompt"
 )
 
 // Message is one unit of output for a session.

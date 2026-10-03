@@ -54,15 +54,18 @@ type disconnectEvent struct{ s *session.Session }
 
 type reloadEvent struct{}
 
-// player is a connected session and who it is playing as. A player is
-// logging in while login is set and in the game while character is set;
-// with neither, its connection is closing.
+// player is a connected session and who it is playing as. Its input goes
+// to its modes, top first, then to commands once character is set. A new
+// player's only mode is the engine's login.
 type player struct {
 	s     *session.Session
-	login *login
+	modes []*frame
 
 	account   store.Account
 	character *world.Object
+
+	// closing is set while the player's modes are told it disconnected.
+	closing bool
 }
 
 // displayName is the character's name property, falling back to the
@@ -126,8 +129,10 @@ type Game struct {
 
 	hasher *auth.Hasher
 
-	world   *world.World
-	objType *scripting.Type
+	world       *world.World
+	objType     *scripting.Type
+	sessionType *scripting.Type
+	accountType *scripting.Type
 
 	// resolving is true while slot resolvers run; the world is read-only.
 	resolving bool
@@ -146,6 +151,7 @@ type scripts struct {
 	engine   scripting.Engine
 	commands *command.Registry
 	hooks    *hook.Registry
+	modes    map[string]*mode
 
 	// messages are the message kinds, and templates the other templates
 	// the engine renders, such as entity tooltips.
@@ -206,6 +212,8 @@ func fromOptions(opts Options) *Game {
 		g.world = world.New()
 	}
 	g.objType = g.objectType()
+	g.sessionType = g.makeSessionType()
+	g.accountType = g.makeAccountType()
 	if g.hasher == nil {
 		g.hasher = auth.NewHasher(auth.DefaultParams, hashConcurrency)
 	}
@@ -223,6 +231,7 @@ func (g *Game) load(ctx context.Context) (*scripts, error) {
 	s := &scripts{
 		engine:    g.newEngine(),
 		commands:  command.NewRegistry(),
+		modes:     make(map[string]*mode),
 		messages:  message.NewTemplates(),
 		templates: message.NewTemplates(),
 	}
@@ -252,6 +261,9 @@ func (g *Game) loadInto(ctx context.Context, s *scripts) error {
 	}
 
 	if err := s.messages.Validate(plugin.MessagesDir); err != nil {
+		return err
+	}
+	if err := s.checkModes(); err != nil {
 		return err
 	}
 
@@ -291,6 +303,16 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ho
 		}
 	}
 
+	modes, err := p.Modes(ctx, engine)
+	if err != nil {
+		return err
+	}
+	for _, def := range modes {
+		if err := s.addMode(def, g.builtin); err != nil {
+			return err
+		}
+	}
+
 	handlers, err := p.Hooks(ctx, engine)
 	if err != nil {
 		return err
@@ -317,9 +339,14 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ho
 		return err
 	}
 
-	g.log.Info("loaded plugin", "plugin", p.ID, "version", p.Manifest.Version, "commands", len(cmds), "slots", len(slots), "hooks", len(handlers), "messages", kinds)
+	g.log.Info("loaded plugin", "plugin", p.ID, "version", p.Manifest.Version, "commands", len(cmds), "modes", len(modes), "slots", len(slots), "hooks", len(handlers), "messages", kinds)
 
 	return nil
+}
+
+// builtin reports whether the plugin pluginID is embedded in the engine.
+func (g *Game) builtin(pluginID string) bool {
+	return strings.HasPrefix(pluginID, plugin.BuiltinPrefix)
 }
 
 // addTemplates adds the template files in the plugin's dir to templates and
@@ -414,14 +441,8 @@ func (g *Game) handleEvent(ctx context.Context, e event) {
 		g.askName(p)
 
 	case inputEvent:
-		p, ok := g.players[e.s.ID()]
-		switch {
-		case !ok:
-		case p.login != nil:
-			// Not trimmed: passwords may have spaces at either end.
-			g.login(ctx, p, e.line)
-		case p.character != nil:
-			g.dispatch(ctx, p, strings.TrimSpace(e.line))
+		if p, ok := g.players[e.s.ID()]; ok {
+			g.input(ctx, p, e.line)
 		}
 
 	case requestEvent:
@@ -445,6 +466,8 @@ func (g *Game) handleEvent(ctx context.Context, e event) {
 		if !ok {
 			return
 		}
+		p.closing = true
+		g.clearModes(ctx, p, leaveDisconnected)
 		delete(g.players, e.s.ID())
 		if p.character != nil {
 			g.log.Info("player left", "name", p.displayName())
@@ -470,4 +493,5 @@ func (g *Game) reload(ctx context.Context) {
 	g.engine.Close()
 	g.scripts = s
 	g.log.Info("reloaded plugins")
+	g.pruneModes(ctx)
 }

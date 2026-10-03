@@ -264,6 +264,36 @@ class DragonEntity extends HTMLElement {
 
 customElements.define("dragon-entity", DragonEntity);
 
+// Choices: <dragon-choice value="warrior">Warrior</dragon-choice> in a
+// prompt. Clicking one, or Enter or Space, answers with its value, exactly
+// as if the player had typed it.
+class DragonChoice extends HTMLElement {
+  connectedCallback() {
+    if (this.hasAttribute("tabindex")) return; // already set up
+    this.setAttribute("role", "button");
+    this.tabIndex = 0;
+
+    const choose = () => {
+      const value = this.getAttribute("value") ?? this.textContent;
+      echo(value);
+      send(value);
+      input.focus();
+    };
+    this.addEventListener("click", (event) => {
+      event.stopPropagation();
+      choose();
+    });
+    this.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        choose();
+      }
+    });
+  }
+}
+
+customElements.define("dragon-choice", DragonChoice);
+
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") hideTooltip();
 });

@@ -95,6 +95,21 @@ dragon-entity {
 dragon-entity:hover { text-decoration-style: solid; }
 dragon-entity:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
+.choices {
+  margin: 0.2rem 0 0;
+  padding-left: 2.2rem;
+  white-space: normal;
+}
+
+dragon-choice {
+  color: var(--accent);
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+dragon-choice:hover { text-decoration: underline; }
+dragon-choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
 .dragon-tooltip {
   position: fixed;
   z-index: 10;

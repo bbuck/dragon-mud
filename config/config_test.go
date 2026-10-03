@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"bbuck.dev/dragon-mud/builtin"
 )
 
 func writeConfig(t *testing.T, contents string) string {
@@ -128,8 +130,8 @@ func TestBuiltins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := []string{"chat", "help", "presence"}; !reflect.DeepEqual(cfg.Builtins, want) {
-		t.Errorf("default builtins = %q, want every built-in %q", cfg.Builtins, want)
+	if !reflect.DeepEqual(cfg.Builtins, builtin.Names) {
+		t.Errorf("default builtins = %q, want every built-in %q", cfg.Builtins, builtin.Names)
 	}
 
 	cfg, err = Load(writeConfig(t, `builtins = ["presence", "help"]`))
@@ -155,7 +157,7 @@ func TestBuiltinsErrors(t *testing.T) {
 	}{
 		{
 			"unknown", `builtins = ["chta"]`,
-			`builtins: "chta" isn't a built-in plugin. Did you mean "chat"? The built-ins are chat, help and presence.`,
+			`builtins: "chta" isn't a built-in plugin. Did you mean "chat"? The built-ins are chat, help, presence, `,
 		},
 		{
 			"prefixed", `builtins = ["dragon:chat"]`,
@@ -167,8 +169,8 @@ func TestBuiltinsErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := Load(writeConfig(t, tt.contents))
-			if err == nil || !strings.HasSuffix(err.Error(), tt.want) {
-				t.Errorf("Load error = %v, want it to end with %q", err, tt.want)
+			if err == nil || !strings.Contains(err.Error(), ": "+tt.want) {
+				t.Errorf("Load error = %v, want it to contain %q", err, tt.want)
 			}
 		})
 	}

@@ -8,7 +8,6 @@ import (
 
 	"bbuck.dev/dragon-mud/message"
 	"bbuck.dev/dragon-mud/store"
-	"bbuck.dev/dragon-mud/world"
 )
 
 const (
@@ -30,8 +29,9 @@ const (
 	stepWaiting
 )
 
-// login is a session's progress through logging in. It's the first,
-// hardcoded case of a pending prompt (see docs/design.md §5).
+// login is a session's progress through logging in: the engine's own input
+// mode, always at the bottom of a new session's stack. Once the account is
+// known, the characters mode takes its place.
 type login struct {
 	step     loginStep
 	name     string
@@ -63,13 +63,12 @@ type hashedEvent struct {
 }
 
 func (g *Game) askName(p *player) {
-	p.login = &login{step: stepName}
+	p.modes = []*frame{{name: modeLogin, login: &login{step: stepName}}}
 	p.s.Send(message.System("By what name shall we know you?"))
 }
 
 // login handles a line from a session that is logging in.
-func (g *Game) login(ctx context.Context, p *player, line string) {
-	l := p.login
+func (g *Game) login(ctx context.Context, p *player, l *login, line string) {
 
 	switch l.step {
 	case stepName:
@@ -155,7 +154,7 @@ func (g *Game) checked(ctx context.Context, e checkedEvent) {
 	if !g.waiting(p) {
 		return
 	}
-	l := p.login
+	l := p.loginState()
 
 	if e.err != nil {
 		g.loginFailed(p, "checking password", e.err)
@@ -191,7 +190,7 @@ func (g *Game) hashed(ctx context.Context, e hashedEvent) {
 		return
 	}
 
-	account, err := g.store.CreateAccount(ctx, p.login.name, e.hash)
+	account, err := g.store.CreateAccount(ctx, p.loginState().name, e.hash)
 	if errors.Is(err, store.ErrNameTaken) {
 		p.s.Send(message.System("Someone just took that name."))
 		g.askName(p)
@@ -225,7 +224,9 @@ func (g *Game) rehashed(ctx context.Context, e rehashedEvent) {
 func (g *Game) waiting(p *player) bool {
 	current, ok := g.players[p.s.ID()]
 
-	return ok && current == p && p.login != nil && p.login.step == stepWaiting
+	l := p.loginState()
+
+	return ok && current == p && l != nil && l.step == stepWaiting
 }
 
 // loginFailed reports an unexpected error and starts the login again.
@@ -235,69 +236,10 @@ func (g *Game) loginFailed(p *player, doing string, err error) {
 	g.askName(p)
 }
 
-// enter puts a logged-in player into the game as the account's character.
-// For now every account has one character, named after it; choosing among
-// several will be a pending prompt the game controls.
+// enter finishes logging in. The characters mode takes over from here.
 func (g *Game) enter(ctx context.Context, p *player, account store.Account) {
-	character, err := g.character(ctx, account)
-	if err != nil {
-		g.loginFailed(p, "finding character", err)
-		return
-	}
-
-	// Logging in again takes over the character from the old connection.
-	takeover := false
-	for _, other := range g.players {
-		if other != p && other.character == character {
-			other.s.Send(message.System("[Y]You have connected from somewhere else.[x]"))
-			other.character = nil
-			other.s.Close()
-			takeover = true
-		}
-	}
-
-	p.login = nil
 	p.account = account
-	p.character = character
-	name := p.displayName()
-
-	g.log.Info("player arrived", "name", name, "account", account.Name)
-	p.s.Send(message.System(fmt.Sprintf("Welcome, [W]%s[x]! Type [c]help[x] to see what you can do.", name)))
-	g.notify(ctx, "player_entered", map[string]any{
-		"player":      g.handle(character),
-		"reconnected": takeover,
-	})
-
-	if _, ok := g.commands.Lookup("look"); ok {
-		g.dispatch(ctx, p, "look")
-	}
-}
-
-// character returns the account's character, creating it if the account
-// has none.
-func (g *Game) character(ctx context.Context, account store.Account) (*world.Object, error) {
-	ids, err := g.store.Characters(ctx, account.ID)
-	if err != nil {
-		return nil, err
-	}
-	for _, id := range ids {
-		if o, ok := g.world.Get(id); ok {
-			return o, nil
-		}
-	}
-
-	o := g.world.Create()
-	if err := o.Set("name", account.Name); err != nil {
-		return nil, err
-	}
-
-	// The object must be saved before the account can own it.
-	g.save(ctx)
-	if err := g.store.AddCharacter(ctx, account.ID, o.ID()); err != nil {
-		return nil, err
-	}
-
-	g.log.Info("character created", "name", account.Name, "id", o.ID())
-
-	return o, nil
+	p.modes = nil
+	g.log.Info("logged in", "account", account.Name)
+	g.chooseCharacter(ctx, p)
 }

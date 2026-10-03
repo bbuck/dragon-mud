@@ -35,6 +35,7 @@ mapping/
   plugin.lua        manifest: name, version, provides, depends, capabilities
   commands.lua      player commands and their forms
   slots.lua         slot types for command patterns
+  modes.lua         input modes: prompts, menus, editors (see design.md §3)
   hooks.lua         hook and notification handlers (see design.md §3)
   lua/              other Lua modules
   messages/         message kinds and templates (*.txt.tmpl, *.html.tmpl)

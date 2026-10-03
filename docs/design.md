@@ -102,10 +102,101 @@ say = {
   forms removes the command. A form matching exactly the same input as
   another is a startup error that says which to remove.
 
-**Input modes** (planned) let a plugin take over a player's input with its
-own forms (an editor, a menu, a yes/no question); login becomes the first
-mode. Objects in scope will contribute forms too (exits, verbs on held
-things), which is how a MOO-style game finds verbs on the objects involved.
+### Input modes
+
+An **input mode** takes over a player's input: a yes/no question, a menu,
+an editor, a combat stance, character creation. Each session has a **stack
+of modes**, and input goes to the top one:
+
+1. The mode's **forms**, matched exactly like commands (same patterns, slot
+   types and maximal munch).
+2. If none match, its **`input`** handler gets the raw, untrimmed line.
+3. If it has neither and sets **`passthrough = true`**, the line goes to the
+   mode below. Under every mode, once the player is in the game, are the
+   commands.
+4. Otherwise the player sees what the mode's forms accept, or "Huh?".
+
+A plugin's `modes.lua` returns its modes:
+
+```lua
+return {
+  confirm_destroy = {
+    enter = function(session, state)
+      session:prompt({ text = "Destroy it?", choices = { "yes", "no" } })
+    end,
+    forms = {
+      { "yes", function(session, args, state) world.destroy(state.thing); session:pop_mode() end },
+      { "no",  function(session) session:pop_mode() end },
+    },
+  },
+  editor = {
+    input = function(session, line, state)
+      if line == "." then return session:pop_mode(table.concat(state.lines, "\n")) end
+      table.insert(state.lines, line)
+      return state
+    end,
+  },
+}
+```
+
+- **Handlers:** `enter(session, state)` when the mode starts,
+  `input(session, line, state)`, `resume(session, state, result)` when a
+  mode above it ends, and `leave(session, state, reason)` when it ends
+  (`reason` is `done`, `replaced`, `playing` or `disconnected`). Forms are
+  called as `(session, args, state)`.
+- **State is plain data.** A mode is a name plus a state table, never a
+  closure, so a reload keeps every player's modes: the engine looks the name
+  up again. State crosses the boundary as a copy; a handler returns the
+  state to change it, like a hook returns its event. A function anywhere in
+  state is an error. A mode a reload removed is dropped, and the player is
+  told.
+- **Results go down the stack.** `session:pop_mode(result)` passes `result`
+  to the `resume` of the mode below. A mode that ends while the mode below
+  it is still running a handler (a step that finishes in its own `enter`)
+  resumes it once that handler returns, so `resume` sees the state it left.
+- **Names aren't namespaced,** and precedence is the usual: the game, then
+  plugins, then built-ins. Forms are additive, like commands, so a game can
+  add a "back" form to a plugin's menu. Setting a handler or `passthrough`
+  another plugin already set is a startup error unless the definition sets
+  `replace = true`. To replace a built-in's mode, leave the built-in out of
+  `builtins` in `dragon.toml` instead.
+- **Prompts:** `session:prompt(text)`, or `session:prompt({ ... })` with
+  `text`, or `kind`, `data` and `block` to render a message kind (§4);
+  `choices`, a list of answers; and `secret`, to hide what the player types.
+  Text prompts list their choices, numbered in telnet and clickable on the
+  web (`<dragon-choice>`). A kind's template shows its choices itself, so a
+  game can restyle a plugin's menu by overriding its template. Typing a
+  choice's number answers with that choice. Choices need a mode to answer
+  them.
+
+**Login is the first mode.** It's the engine's own, at the bottom of every
+new session's stack, and it stays in Go so passwords never reach scripts.
+Once the account is known, the engine starts the **`characters`** mode,
+which must end with `session:play(character)`. Startup fails if no plugin
+defines it. `play` ends every mode, takes the character over from any
+other connection, sends `player_entered` and runs `look`.
+
+The built-ins split this in two, so a game can replace either half:
+
+- `dragon:characters` defines `characters`: it plays the account's only
+  character, asks which when there are several, and starts
+  `create_character` when there are none.
+- `dragon:character-creation` defines `create_character`. It runs the
+  `character_steps` hook (`account`, `steps`), whose handlers add the names
+  of step modes to `steps`, ordered and wired like any hook. Each step gets
+  `state.draft` and ends with `session:pop_mode(changes)`, merged into the
+  draft. When the steps are done, the draft's fields become the new
+  character's properties. The draft starts as `{ name = <account name> }`.
+
+A plugin that changes another plugin's behavior does it through that
+plugin's hooks, not by checking whether it's installed: `dragon:classes`
+would run `available_classes` (`draft`, `classes`), and `dragon:races`
+would filter the list. Optional dependencies (`depends = { weather = {
+"^1.0", optional = true } }`, Milestone 3) are for *using* another plugin's
+API.
+
+Objects in scope will contribute forms too (exits, verbs on held things),
+which is how a MOO-style game finds verbs on the objects involved.
 
 ### Hooks (can veto or modify)
 
@@ -392,12 +483,13 @@ session:open_fixture("shop", { scope = "room", priority = 50, data = stock })
 
 ### Pending prompts
 
-A plugin can ask one player for a specific answer ("Wen is waiting for an
-answer"): numbered choices, free text, or a yes/no. While a prompt is pending,
-the player's input goes to it instead of the command dispatcher. Web shows
-the choices in `#prompt`; telnet prints them as a numbered list and the
-player types the number. The login name prompt is the first, hardcoded case
-of this.
+A plugin asks one player for a specific answer ("Wen is waiting for an
+answer") by pushing an input mode and prompting from its `enter` (§3):
+numbered choices, free text, or a yes/no. While the mode waits, the
+player's input goes to it instead of the commands. Telnet prints the
+choices as a numbered list and the player types the number; the web makes
+them clickable. Moving prompts into a `#prompt` slot comes with the
+default layout.
 
 ### Vitals
 
@@ -527,6 +619,11 @@ else can be added without changing the engine or the modules.
   depth, so a lock that requires a key accepts every copy made from it.
   `o:send(text)` and `o:send(kind, data[, block])` (§4) reach everyone
   playing `o` and do nothing otherwise.
+- **Sessions** are handles too: input modes get one, and
+  `game.session(o)` finds the session playing `o`. Fields: `account`,
+  `character` (either can be nil) and `mode`. Methods: `send`, `prompt`,
+  `push_mode`, `pop_mode`, `replace_mode`, `play` and `close` (§3). An
+  **account** handle has `name` and `characters`, and `add_character(o)`.
   The `world` module creates, finds and destroys objects. A command's actor
   is the player's character object.
 - **Properties can hold objects.** They're stored as refs

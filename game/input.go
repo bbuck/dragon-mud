@@ -125,7 +125,7 @@ func (g *Game) objectSlot() command.SlotType {
 		Resolve: func(_ context.Context, actor any, text string, mods map[string]bool) (any, bool, string, error) {
 			h, ok := actor.(scripting.Handle)
 			if !ok {
-				return nil, false, "", errors.New("object slots need an actor")
+				return nil, false, "", errors.New("object slots only work for players in the game, so a mode that runs before session:play can't use them")
 			}
 			self, err := g.object(h.Key)
 			if err != nil {
