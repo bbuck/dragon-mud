@@ -49,7 +49,7 @@ over telnet and the web and talk to each other.
 - [x] Text layout: telnet wrapping, and layout helpers (`columns`,
       `table`, ...) with HTML equivalents.
 - [ ] Forms contributed by objects in scope (exits, verbs on held things).
-- [ ] Feed message kinds: `room`, `say`, `emote`, `ambient`, `echo`.
+- [x] Feed message kinds: `room`, `say`, `emote`, `ambient`, `echo`.
 
 ## Milestone 3: Plugins for real
 

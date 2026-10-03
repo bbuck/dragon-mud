@@ -61,10 +61,16 @@ h1 {
 }
 
 .msg { white-space: pre-wrap; margin-bottom: 0.15rem; }
-.msg-echo { color: var(--muted); }
+/* Feed message kinds. Games restyle these from their own stylesheet. */
+.msg-echo { color: var(--muted); font-size: 0.9em; }
 .msg-echo::before { content: "> "; }
 .msg-echo:empty { display: none; }
 .msg-system { color: var(--text); }
+.msg-room { margin: 0.6rem 0; white-space: normal; }
+.msg-room h2 { margin: 0 0 0.2rem; font-size: 1em; color: var(--ansi-3-b); }
+.msg-room p { margin: 0; }
+.msg-ambient { font-style: italic; color: var(--muted); }
+.msg-emote { font-style: italic; }
 
 #command {
   padding: 0.6rem 1rem;

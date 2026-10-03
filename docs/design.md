@@ -460,7 +460,11 @@ final.
 
 - **Feed structure** comes from message kinds: `room` renders as a heading
   with prose, `say` and `emote` as dialogue and action, `ambient` in italics,
-  `echo` (the player's own command) small and muted.
+  `echo` (the player's own command) small and muted. Each message is a
+  `.msg-<kind>` element, so a stylesheet can style any kind. `dragon:chat`
+  sends `say` and `emote`; `dragon new` puts `room` and `ambient` in the
+  game's `messages/` until `dragon:rooms` provides them; the engine sends
+  `echo`, `system` and `prompt`.
 - **Entities in text are clickable** (see Entities below).
 - **Phones:** `#context` becomes a bottom sheet that slides up when a fixture
   opens; `#side` becomes a drawer.

@@ -21,11 +21,11 @@ return {
     replace = true,
     forms = {
       { "look", function(actor)
-          actor:send(table.concat({
-            "[Y]The Dragon's Rest[x]",
-            "A low-beamed tavern, warm with the smell of woodsmoke and spiced cider.",
-            "A fire crackles in a hearth carved to look like a sleeping dragon.",
-          }, "\n"))
+          actor:send("room", {
+            title = "The Dragon's Rest",
+            description = "A low-beamed tavern, warm with the smell of woodsmoke and spiced cider. "
+              .. "A fire crackles in a hearth carved to look like a sleeping dragon.",
+          })
         end },
       { "look <thing:object:here,online>", function(actor, args)
           actor:send("look_at", { thing = args.thing })

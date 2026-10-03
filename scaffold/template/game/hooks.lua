@@ -17,7 +17,7 @@ return {
   -- A notification: event.player has just entered the game.
   player_entered = function(event)
     if not event.reconnected then
-      event.player:send("The barkeep looks up and nods at you.")
+      event.player:send("ambient", { text = "The barkeep looks up and nods at you." })
     end
   end,
 

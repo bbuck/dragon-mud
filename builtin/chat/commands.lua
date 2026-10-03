@@ -6,11 +6,9 @@
 -- forms match, the most specific one whose slots resolve wins.
 --
 -- A game adds forms to these commands by defining a command with the same
--- name, or replaces one with replace = true.
-
-local function name(o)
-  return o:get("name") or "something"
-end
+-- name, or replaces one with replace = true. What players read comes from
+-- messages/say.txt.tmpl and messages/emote.txt.tmpl; a game restyles them
+-- with its own game/messages/say.txt.tmpl, or say.html.tmpl for the web.
 
 -- before_say lets other plugins change what's said, or stop it. It returns
 -- the message to say, or nil if a handler cancelled.
@@ -32,12 +30,13 @@ local function say(actor, args)
     return
   end
 
-  actor:send('[c]You say, "' .. message .. '"[x]')
-  game.broadcast("[c]" .. name(actor) .. ' says, "' .. message .. '"[x]', actor)
+  local data = { actor = actor, message = message }
+  actor:send("say", data, "actor")
+  game.broadcast("say", data, "others", actor)
 end
 
 local function emote(actor, args)
-  game.broadcast("[m]" .. name(actor) .. " " .. args.action .. "[x]")
+  game.broadcast("emote", { actor = actor, action = args.action })
 end
 
 return {
@@ -53,8 +52,9 @@ return {
             return
           end
 
-          actor:send(('[c]You say to %s, "%s"[x]'):format(name(target), message))
-          target:send(('[c]%s says to you, "%s"[x]'):format(name(actor), message))
+          local data = { actor = actor, message = message, target = target }
+          actor:send("say", data, "actor")
+          target:send("say", data, "target")
         end, desc = "Say something to someone." },
     },
   },

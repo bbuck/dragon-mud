@@ -1,0 +1,8 @@
+{{/*
+  The "say" kind. Data: actor, message, and target when speaking to
+  someone. The speaker sees "actor", the one spoken to "target", and
+  everyone else "others".
+*/}}
+{{define "actor"}}[c]You say{{with .target}} to {{entity .}}{{end}}, "{{.message}}"[x]{{end}}
+{{define "target"}}[c]{{entity .actor}} says to you, "{{.message}}"[x]{{end}}
+{{define "others"}}[c]{{entity .actor}} says{{with .target}} to {{entity .}}{{end}}, "{{.message}}"[x]{{end}}

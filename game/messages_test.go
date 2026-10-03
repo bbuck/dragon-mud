@@ -396,8 +396,22 @@ func TestScaffoldedGame(t *testing.T) {
 
 	alice := connect(t, g)
 	alice.login("Alice")
+	if m := alice.expect("The barkeep looks up"); m.Kind != "ambient" {
+		t.Errorf("greeting kind = %q, want ambient", m.Kind)
+	}
+	room := alice.expect("The Dragon's Rest")
+	if room.Kind != "room" || !strings.Contains(room.HTML, `<h2 class="room-title">The Dragon&#39;s Rest</h2>`) {
+		t.Errorf("look = %q: %s", room.Kind, room.HTML)
+	}
+
 	bob := connect(t, g)
 	bob.login("Bob")
+
+	bob.send("say hi")
+	said := alice.expect(`Bob says, "hi"`)
+	if said.Kind != "say" || !strings.Contains(said.HTML, `">Bob</dragon-entity> says`) {
+		t.Errorf("say = %q: %s", said.Kind, said.HTML)
+	}
 
 	alice.send("dance")
 	alice.expect("You dance a little jig.")
