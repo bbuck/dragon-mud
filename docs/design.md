@@ -176,17 +176,22 @@ which must end with `session:play(character)`. Startup fails if no plugin
 defines it. `play` ends every mode, takes the character over from any
 other connection, sends `player_entered` and runs `look`.
 
-The built-ins split this in two, so a game can replace either half:
+The built-in `dragon:characters` defines `characters` and
+`create_character`:
 
-- `dragon:characters` defines `characters`: it plays the account's only
-  character, asks which when there are several, and starts
-  `create_character` when there are none.
-- `dragon:character-creation` defines `create_character`. It runs the
-  `character_steps` hook (`account`, `steps`), whose handlers add the names
-  of step modes to `steps`, ordered and wired like any hook. Each step gets
-  `state.draft` and ends with `session:pop_mode(changes)`, merged into the
-  draft. When the steps are done, the draft's fields become the new
-  character's properties. The draft starts as `{ name = <account name> }`.
+- `characters` plays the account's only character, asks which when there
+  are several, and starts `create_character` when there are none.
+- `create_character` runs the `character_steps` hook (`account`, `steps`),
+  whose handlers add the names of step modes to `steps`, ordered and wired
+  like any hook. Each step gets `state.draft` and ends with
+  `session:pop_mode(changes)`, merged into the draft. When the steps are
+  done, the draft's fields become the new character's properties. The
+  draft starts as `{ name = <account name> }`; with no steps, the
+  character is made straight away.
+
+Most games change creation by adding steps. A game whose select or
+creation is entirely its own leaves `characters` out of `builtins` and
+defines the `characters` mode itself.
 
 A plugin that changes another plugin's behavior does it through that
 plugin's hooks, not by checking whether it's installed: `dragon:classes`

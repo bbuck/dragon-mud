@@ -159,7 +159,7 @@ func TestBuiltinsErrors(t *testing.T) {
 	}{
 		{
 			"unknown", `builtins = ["chta"]`,
-			`builtins: "chta" isn't a built-in plugin. Did you mean "chat"? The built-ins are chat, help, presence, `,
+			`builtins: "chta" isn't a built-in plugin. Did you mean "chat"? The built-ins are chat, help`,
 		},
 		{
 			"prefixed", `builtins = ["dragon:chat"]`,

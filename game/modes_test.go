@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	"bbuck.dev/dragon-mud/auth"
 	"bbuck.dev/dragon-mud/plugin"
@@ -387,5 +388,28 @@ func TestModesFileErrors(t *testing.T) {
 				t.Errorf("error = %v, want it to contain %q", err, tt.want)
 			}
 		})
+	}
+}
+
+func TestCancelledCreationDisconnects(t *testing.T) {
+	g := startGame(t, fstest.MapFS{
+		"plugin.lua": file(`return { name = "game" }`),
+		"hooks.lua": file(`
+			return { character_steps = function() return false, "The realm is closed to newcomers." end }
+		`),
+	})
+
+	alice := connect(t, g)
+	alice.expect("By what name")
+	alice.send("alice")
+	alice.send("yes")
+	alice.send("secret pass")
+	alice.send("secret pass")
+	alice.expect("The realm is closed to newcomers.")
+	alice.expect("You can't create a character right now.")
+	select {
+	case <-alice.conn.closed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the session stayed open")
 	}
 }
