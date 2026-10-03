@@ -511,6 +511,11 @@ game.broadcast("dance", { actor = actor }, nil, actor)
 - A view without a `.txt.tmpl` is a startup error, and so is a misnamed file
   in `views/`. Sending an unknown view or block is an error naming the
   view, the file and the blocks it does define.
+- **Reading data the sender didn't send is an error** naming the file,
+  line, field and the keys the data does have. A field is optional when an
+  `if` or `with` tests it (`{{if .target}}...{{end}}`), and `range` over a
+  missing field shows nothing. Missing *properties* of an object are fine:
+  `{{.room.description}}` on a room without one is empty.
 - Output is trimmed of blank lines at either end, so blocks can sit on their
   own lines.
 - Text templates can use color codes (`[c]...[x]`).

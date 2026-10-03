@@ -91,6 +91,10 @@ type compiled struct {
 
 	// sections are the sections the file renders, in order.
 	sections []string
+
+	// refs are the fields each template in the file, keyed by name, reads
+	// from its data without testing for them.
+	refs map[string][]dataRef
 }
 
 // executor is a parsed text/template or html/template.
@@ -159,8 +163,10 @@ func (t *Templates) Add(f File) error {
 		}
 		c.tmpl, c.marked = tmpl, marked.Funcs(t.markedFuncs())
 		c.blocks = blocks(f.Path, tmpl.Templates())
+		c.refs = make(map[string][]dataRef)
 		for _, d := range tmpl.Templates() {
 			c.sections = appendNew(c.sections, sectionsIn([]*parse.Tree{d.Tree})...)
+			c.refs[d.Name()] = dataRefs(d.Tree)
 		}
 
 	case FormatHTML:
@@ -170,8 +176,10 @@ func (t *Templates) Add(f File) error {
 		}
 		c.tmpl = tmpl
 		c.blocks = blocks(f.Path, tmpl.Templates())
+		c.refs = make(map[string][]dataRef)
 		for _, d := range tmpl.Templates() {
 			c.sections = appendNew(c.sections, sectionsIn([]*parse.Tree{d.Tree})...)
+			c.refs[d.Name()] = dataRefs(d.Tree)
 		}
 
 	default:
@@ -265,6 +273,14 @@ func (c *compiled) render(tmpl executor, block string, data any) (string, error)
 		}
 		return "", fmt.Errorf("%s has no block %q. %s; add {{define %q}}...{{end}} to it, or send one of those.",
 			c.path, block, defines, block)
+	}
+
+	name := block
+	if name == "" {
+		name = c.path
+	}
+	if err := checkData(c.refs[name], data); err != nil {
+		return "", err
 	}
 
 	var b strings.Builder

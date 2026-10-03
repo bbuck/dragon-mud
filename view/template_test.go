@@ -148,11 +148,56 @@ func TestRenderMissing(t *testing.T) {
 
 func TestEntityNeedsAnObject(t *testing.T) {
 	ts := NewTemplates()
-	add(t, ts, "hit", FormatText, "game", "{{entity .actr}}")
+	add(t, ts, "hit", FormatText, "game", "{{entity .actor.weapon}}")
 
 	_, _, err := ts.Render("hit", FormatText, "", map[string]any{"actor": Entity{"id": "b0b"}})
 	if err == nil || !strings.Contains(err.Error(), "entity needs an object, but got nothing. Check that the data key is spelled the same") {
 		t.Errorf("got %v", err)
+	}
+}
+
+func TestMissingData(t *testing.T) {
+	cases := map[string]struct {
+		source string
+		data   map[string]any
+		want   string // empty when it should render
+	}{
+		"typo": {
+			source: "{{entity .actr}}",
+			data:   map[string]any{"actor": Entity{"id": "b0b"}},
+			want:   "game/views/v.txt.tmpl:1:9: .actr isn't in the data. The data has actor. Send actr with the view, check the template for a typo, or wrap it in {{if .actr}}...{{end}} if it's optional.",
+		},
+		"stale data shape": {
+			source: "<{{.room.name}}>",
+			data:   map[string]any{"title": "Tavern", "exits": []any{}},
+			want:   ".room isn't in the data (in .room.name). The data has exits, title.",
+		},
+		"empty data": {
+			source: "{{$.room}}",
+			data:   map[string]any{},
+			want:   ".room isn't in the data. The data is empty.",
+		},
+		"missing property is fine":    {source: "{{.room.description}}", data: map[string]any{"room": Entity{"id": "r"}}},
+		"if makes it optional":        {source: "{{if .target}}to {{entity .target}}{{end}}", data: map[string]any{}},
+		"with makes it optional":      {source: "{{with .target}}{{.name}}{{end}}", data: map[string]any{}},
+		"range over missing is fine":  {source: "{{range .exits}}{{.}}{{end}}", data: map[string]any{}},
+		"else of with is unprotected": {source: "{{with .a}}{{.}}{{else}}{{.b}}{{end}}", data: map[string]any{}, want: ".b isn't in the data"},
+		"inside with, dot isn't data": {source: "{{with .room}}{{.name}}{{end}}", data: map[string]any{"room": Entity{}}},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			ts := NewTemplates()
+			add(t, ts, "v", FormatText, "game", tc.source)
+
+			_, _, err := ts.Render("v", FormatText, "", tc.data)
+			switch {
+			case tc.want == "" && err != nil:
+				t.Errorf("error = %v, want none", err)
+			case tc.want != "" && (err == nil || !strings.Contains(err.Error(), tc.want)):
+				t.Errorf("error = %v, want it to contain %q", err, tc.want)
+			}
+		})
 	}
 }
 
