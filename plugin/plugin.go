@@ -13,6 +13,9 @@ import (
 	"bbuck.dev/dragon-mud/scripting"
 )
 
+// ModulesDir holds a plugin's own Lua modules, loaded with require.
+const ModulesDir = "lua"
+
 // LocalDir is the directory in the game's own plugin that holds the game's
 // local plugins: plugins that are part of the game, not installed.
 const LocalDir = "plugins"
@@ -52,6 +55,10 @@ type Plugin struct {
 	Manifest Manifest
 
 	files fs.FS
+
+	// scope evaluates the plugin's files, with a require for its lua/
+	// modules.
+	scope scripting.Scope
 }
 
 // Open reads the manifest in fsys. Built-in plugins get BuiltinPrefix on
@@ -59,7 +66,16 @@ type Plugin struct {
 func Open(ctx context.Context, engine scripting.Engine, fsys fs.FS, builtin bool) (*Plugin, error) {
 	p := &Plugin{files: fsys}
 
-	value, err := p.eval(ctx, engine, "plugin.lua", "plugin.lua")
+	source, err := p.read("plugin.lua")
+	if err != nil {
+		return nil, err
+	}
+	var value any
+	if source != "" {
+		if value, err = engine.Eval(ctx, "plugin.lua", source); err != nil {
+			return nil, err
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -84,20 +100,34 @@ func Open(ctx context.Context, engine scripting.Engine, fsys fs.FS, builtin bool
 		p.ID = BuiltinPrefix + name
 	}
 
-	return p, nil
-}
-
-// eval evaluates file from the plugin. A missing file returns nil, nil.
-func (p *Plugin) eval(ctx context.Context, engine scripting.Engine, file, scriptName string) (any, error) {
-	source, err := fs.ReadFile(p.files, file)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
-	}
+	modules, err := fs.Sub(fsys, ModulesDir)
 	if err != nil {
 		return nil, err
 	}
+	p.scope = engine.Scope(p.ID+"/"+ModulesDir, modules)
 
-	return engine.Eval(ctx, scriptName, string(source))
+	return p, nil
+}
+
+// eval evaluates file from the plugin in its scope. A missing file
+// returns nil, nil.
+func (p *Plugin) eval(ctx context.Context, file, scriptName string) (any, error) {
+	source, err := p.read(file)
+	if err != nil || source == "" {
+		return nil, err
+	}
+
+	return p.scope.Eval(ctx, scriptName, source)
+}
+
+// read returns file's contents, or "" if the plugin has no such file.
+func (p *Plugin) read(file string) (string, error) {
+	source, err := fs.ReadFile(p.files, file)
+	if errors.Is(err, fs.ErrNotExist) {
+		return "", nil
+	}
+
+	return string(source), err
 }
 
 // exists reports whether the plugin has file.

@@ -47,7 +47,7 @@ mapping/
   slots.lua         slot types for command patterns
   modes.lua         input modes: prompts, menus, editors (see design.md §4)
   hooks.lua         hook and notification handlers (see design.md §4)
-  lua/              other Lua modules
+  lua/              the plugin's own modules, loaded with require
   views/            views: templates scripts send (*.txt.tmpl, *.html.tmpl)
   templates/        other templates, such as entity_tooltip.html.tmpl
   schema.lua        data types it defines or extends

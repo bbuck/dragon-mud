@@ -2,7 +2,8 @@
 //
 // Scripts run in a sandbox: only the base, table, string, math and coroutine
 // libraries are opened, and functions that touch the filesystem (dofile,
-// loadfile, require) are removed. Plugin loading is the engine's job.
+// loadfile, require) are removed. Plugin loading is the engine's job; a
+// Scope gives a plugin's files a require that reads only its own modules.
 package lua
 
 import (
@@ -104,6 +105,11 @@ func (e *Engine) Eval(ctx context.Context, name, source string) (any, error) {
 		return nil, fmt.Errorf("lua: %w", err)
 	}
 
+	return e.eval(ctx, fn)
+}
+
+// eval calls the loaded chunk fn and returns its first return value.
+func (e *Engine) eval(ctx context.Context, fn *glua.LFunction) (any, error) {
 	restore := e.useContext(ctx)
 	defer restore()
 

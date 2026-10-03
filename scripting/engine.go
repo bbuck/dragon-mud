@@ -18,7 +18,10 @@
 // keys, and Func.
 package scripting
 
-import "context"
+import (
+	"context"
+	"io/fs"
+)
 
 // Engine runs scripts in one language. An Engine is not safe for concurrent
 // use; it belongs to the game loop.
@@ -37,8 +40,22 @@ type Engine interface {
 	// registers.
 	Eval(ctx context.Context, name, source string) (any, error)
 
+	// Scope returns a scope for one plugin's scripts: globals of their own,
+	// falling back to the engine's, and a require that loads the modules in
+	// modules. dir describes where modules are, such as "game/lua", for
+	// script names and error messages.
+	Scope(dir string, modules fs.FS) Scope
+
 	// Close releases the engine's resources.
 	Close()
+}
+
+// Scope evaluates scripts that share globals and modules, such as one
+// plugin's files. Functions defined in a scope keep using it when they're
+// called later.
+type Scope interface {
+	// Eval executes source in the scope like Engine.Eval.
+	Eval(ctx context.Context, name, source string) (any, error)
 }
 
 // Module is a named group of functions and values exposed to scripts, such

@@ -33,3 +33,28 @@ func TestDuplicatePluginNames(t *testing.T) {
 		t.Fatalf("error = %v, want it to contain %q", err, want)
 	}
 }
+
+func TestPluginRequiresItsOwnModules(t *testing.T) {
+	g := startGame(t, fstest.MapFS{
+		"plugin.lua":    file(`return { name = "game" }`),
+		"lua/items.lua": file(`return { describe = function(name) return "a shiny " .. name end }`),
+		"commands.lua": file(`
+			local items = require("items")
+			return {
+				inspect = { forms = { { "inspect <thing>", function(actor, args)
+					actor:send(items.describe(args.thing))
+				end } } },
+			}
+		`),
+		"modes.lua": file(`
+			local items = require("items")
+			return { browsing = { input = function(session, line) session:send(items.describe(line)) end } }
+		`),
+	})
+
+	alice := connect(t, g)
+	alice.login("Alice")
+
+	alice.send("inspect sword")
+	alice.expect("a shiny sword")
+}

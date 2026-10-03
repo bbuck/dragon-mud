@@ -31,9 +31,9 @@ var slotKeys = []string{"desc", "modifiers", "resolve", "single", "replace"}
 //	  },
 //	  dance = { execute = function(actor, args) ... end },  -- the form "dance [<text>]"
 //	}
-func (p *Plugin) Commands(ctx context.Context, engine scripting.Engine) ([]command.CommandDef, error) {
+func (p *Plugin) Commands(ctx context.Context) ([]command.CommandDef, error) {
 	file := p.ID + "/commands.lua"
-	table, err := p.evalTable(ctx, engine, "commands.lua", file)
+	table, err := p.evalTable(ctx, "commands.lua", file)
 	if err != nil || table == nil {
 		return nil, err
 	}
@@ -180,9 +180,9 @@ type SlotDef struct {
 //	    resolve = function(actor, text, modifiers) return exit_or_nil, "reason" end,
 //	  },
 //	}
-func (p *Plugin) Slots(ctx context.Context, engine scripting.Engine) ([]SlotDef, error) {
+func (p *Plugin) Slots(ctx context.Context) ([]SlotDef, error) {
 	file := p.ID + "/slots.lua"
-	table, err := p.evalTable(ctx, engine, "slots.lua", file)
+	table, err := p.evalTable(ctx, "slots.lua", file)
 	if err != nil || table == nil {
 		return nil, err
 	}
@@ -238,8 +238,8 @@ func (p *Plugin) Slots(ctx context.Context, engine scripting.Engine) ([]SlotDef,
 
 // evalTable evaluates file, which must return a table. A missing file
 // returns nil, nil.
-func (p *Plugin) evalTable(ctx context.Context, engine scripting.Engine, file, scriptName string) (map[string]any, error) {
-	value, err := p.eval(ctx, engine, file, scriptName)
+func (p *Plugin) evalTable(ctx context.Context, file, scriptName string) (map[string]any, error) {
+	value, err := p.eval(ctx, file, scriptName)
 	if err != nil || value == nil {
 		return nil, err
 	}

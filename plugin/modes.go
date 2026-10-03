@@ -57,9 +57,9 @@ type ModeDef struct {
 //	  },
 //	  editor = { input = function(session, line, state) ... end },
 //	}
-func (p *Plugin) Modes(ctx context.Context, engine scripting.Engine) ([]ModeDef, error) {
+func (p *Plugin) Modes(ctx context.Context) ([]ModeDef, error) {
 	file := p.ID + "/modes.lua"
-	table, err := p.evalTable(ctx, engine, "modes.lua", file)
+	table, err := p.evalTable(ctx, "modes.lua", file)
 	if err != nil || table == nil {
 		return nil, err
 	}

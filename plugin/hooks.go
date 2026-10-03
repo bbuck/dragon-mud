@@ -37,9 +37,9 @@ var (
 //	    handler = function(event) ... end,
 //	  },
 //	}
-func (p *Plugin) Hooks(ctx context.Context, engine scripting.Engine) ([]hook.Handler, error) {
+func (p *Plugin) Hooks(ctx context.Context) ([]hook.Handler, error) {
 	file := p.ID + "/hooks.lua"
-	table, err := p.evalTable(ctx, engine, "hooks.lua", file)
+	table, err := p.evalTable(ctx, "hooks.lua", file)
 	if err != nil || table == nil {
 		return nil, err
 	}
@@ -90,9 +90,9 @@ func (p *Plugin) Hooks(ctx context.Context, engine scripting.Engine) ([]hook.Han
 //	    player_entered = { disable = { "dragon:presence" } },
 //	  },
 //	}
-func (p *Plugin) Wiring(ctx context.Context, engine scripting.Engine) (map[string]hook.Wiring, error) {
+func (p *Plugin) Wiring(ctx context.Context) (map[string]hook.Wiring, error) {
 	file := p.WiringFile()
-	table, err := p.evalTable(ctx, engine, "wiring.lua", file)
+	table, err := p.evalTable(ctx, "wiring.lua", file)
 	if err != nil || table == nil {
 		return nil, err
 	}

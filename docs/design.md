@@ -840,6 +840,16 @@ else can be added without changing the engine or the modules.
 - **Every call takes a context.** A script that exceeds its deadline is
   interrupted. Any future language must support this.
 - **Sandbox.** Lua gets base, table, string, math and coroutine only.
+  `dofile`, `loadfile` and the standard `require` are removed.
+- **Each plugin has its own scope.** A plugin's files share globals of
+  their own, falling back to the engine's modules and libraries, so one
+  plugin's globals never collide with another's. `require("items")` loads
+  `lua/items.lua` (or `lua/items/init.lua`) from the same plugin, once per
+  load; `require("items.find")` loads `lua/items/find.lua`. It works inside
+  functions as well as at the top of a file. Another plugin's modules are
+  out of reach; its public API comes through `plugin.require` (Milestone
+  3). Third-party Lua is copied into `lua/`: pure Lua 5.1 that sticks to
+  the sandbox's libraries works, C modules don't.
 - **No game state in script globals.** State lives in objects and plugin data.
   This is what makes hot reload safe: the engine can throw away the script
   state, reload files and re-register, and nothing is lost.

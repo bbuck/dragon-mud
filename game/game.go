@@ -314,7 +314,7 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ho
 	s.origins[p.ID] = src.Origin
 	s.loading = p.ID
 
-	slots, err := p.Slots(ctx, engine)
+	slots, err := p.Slots(ctx)
 	if err != nil {
 		return err
 	}
@@ -324,7 +324,7 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ho
 		}
 	}
 
-	cmds, err := p.Commands(ctx, engine)
+	cmds, err := p.Commands(ctx)
 	if err != nil {
 		return err
 	}
@@ -334,7 +334,7 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ho
 		}
 	}
 
-	modes, err := p.Modes(ctx, engine)
+	modes, err := p.Modes(ctx)
 	if err != nil {
 		return err
 	}
@@ -344,7 +344,7 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ho
 		}
 	}
 
-	handlers, err := p.Hooks(ctx, engine)
+	handlers, err := p.Hooks(ctx)
 	if err != nil {
 		return err
 	}
@@ -353,7 +353,7 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ho
 
 	switch {
 	case src.Game:
-		if hooks.Wiring, err = p.Wiring(ctx, engine); err != nil {
+		if hooks.Wiring, err = p.Wiring(ctx); err != nil {
 			return err
 		}
 		hooks.WiringFile = p.WiringFile()
