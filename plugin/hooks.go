@@ -32,7 +32,7 @@ var (
 //
 //	return {
 //	  ["dragon:player_connected"] = function(event) ... end,
-//	  before_say = {
+//	  ["dragon:before_say"] = {
 //	    after = { "dragon:chat" },
 //	    handler = function(event) ... end,
 //	  },
@@ -48,7 +48,7 @@ func (p *Plugin) Hooks(ctx context.Context) ([]hook.Handler, error) {
 	for _, name := range slices.Sorted(maps.Keys(table)) {
 		where := fmt.Sprintf("%s: %s", file, name)
 		if strings.HasPrefix(name, "section:") && !sectionHookRx.MatchString(name) || !strings.HasPrefix(name, "section:") && !hookNameRx.MatchString(name) {
-			return nil, fmt.Errorf("%s isn't a valid hook name. Hook names are lowercase words joined by underscores, with an optional namespace, like before_say or mapping:map_changed, or section:<kind>.<section> to add to a message's section, like section:room.exits.", where)
+			return nil, fmt.Errorf("%s isn't a valid hook name. Hook names are lowercase words joined by underscores, with an optional namespace, like can_move or mapping:map_changed, or section:<kind>.<section> to add to a message's section, like section:room.exits.", where)
 		}
 
 		h := hook.Handler{Hook: name, Plugin: p.ID}
@@ -86,7 +86,7 @@ func (p *Plugin) Hooks(ctx context.Context) ([]hook.Handler, error) {
 //
 //	return {
 //	  hooks = {
-//	    before_say = { order = { "game", "dragon:chat" } },
+//	    ["dragon:before_say"] = { order = { "game", "dragon:chat" } },
 //	    ["dragon:player_connected"] = { disable = { "dragon:presence" } },
 //	  },
 //	}
@@ -109,7 +109,7 @@ func (p *Plugin) Wiring(ctx context.Context) (map[string]hook.Wiring, error) {
 		hooks, ok = map[string]any{}, true
 	}
 	if !ok {
-		return nil, fmt.Errorf("%s: hooks must be a table keyed by hook name, like hooks = { before_say = { order = { ... } } }, not a %s.",
+		return nil, fmt.Errorf("%s: hooks must be a table keyed by hook name, like hooks = { [\"dragon:before_say\"] = { order = { ... } } }, not a %s.",
 			file, scripting.TypeName(raw))
 	}
 

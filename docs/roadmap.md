@@ -46,7 +46,7 @@ over telnet and the web and talk to each other.
 - [x] `builtins` in `dragon.toml`: which built-in plugins a game loads.
 - [x] Input modes (editors, menus, pending prompts); login as a mode, then
       character select and creation as game-controlled modes
-      (`dragon:characters`, with creation steps from `character_steps`).
+      (`dragon:characters`, with creation steps from `dragon:character_steps`).
 - [x] Text layout: telnet wrapping, and layout helpers (`columns`,
       `table`, ...) with HTML equivalents.
 - [x] `dragon:unmatched_input` hook: input no command matches is offered to

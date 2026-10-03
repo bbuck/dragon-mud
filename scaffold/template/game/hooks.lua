@@ -7,7 +7,7 @@
 --
 -- Handlers run in load order: built-in plugins, then installed plugins,
 -- then this file, so your game has the last word. Run `dragon hooks` to see
--- every handler, and `dragon hooks before_say` to see one hook's order. To
+-- every handler, and `dragon hooks dragon:before_say` to see one hook's order. To
 -- turn another plugin's handler off or reorder them, return a table from
 -- game/wiring.lua:
 --
@@ -52,7 +52,7 @@ return {
 
   -- A hook: change what's said, or cancel it with a reason.
   --
-  -- before_say = function(event)
+  -- ["dragon:before_say"] = function(event)
   --   if event.message:find("dragon") then
   --     return false, "You think better of mentioning dragons in here."
   --   end

@@ -358,7 +358,7 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ho
 		}
 		hooks.WiringFile = p.WiringFile()
 	case p.HasWiring():
-		return fmt.Errorf("%s: only the game's own plugin can wire hooks. A plugin orders its handlers with before and after in hooks.lua, like before_say = { after = { \"dragon:chat\" }, handler = function(event) ... end }.",
+		return fmt.Errorf("%s: only the game's own plugin can wire hooks. A plugin orders its handlers with before and after in hooks.lua, like [\"dragon:before_say\"] = { after = { \"dragon:chat\" }, handler = function(event) ... end }.",
 			p.WiringFile())
 	}
 

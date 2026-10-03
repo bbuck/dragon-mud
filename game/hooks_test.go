@@ -41,7 +41,7 @@ func TestGameHooksChangeAndCancelSay(t *testing.T) {
 		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
 		"hooks.lua": {Data: []byte(`
 			return {
-				before_say = function(event)
+				["dragon:before_say"] = function(event)
 					if event.message:find("darn") then
 						return false, "Mind your language."
 					end
@@ -71,7 +71,7 @@ func TestGameHooksChangeAndCancelSay(t *testing.T) {
 	// Hooks reload with everything else.
 	files["hooks.lua"] = &fstest.MapFile{Data: []byte(`
 		return {
-			before_say = function(event)
+			["dragon:before_say"] = function(event)
 				if event.message == "anyone?" then return false end
 			end,
 		}

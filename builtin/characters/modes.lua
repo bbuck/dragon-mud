@@ -6,28 +6,35 @@
 -- character, asks which to play when there are several, and starts
 -- dragon:create_character when there are none.
 --
--- dragon:create_character makes a character from a draft. The draft starts as
--- { name = the account's name }, and each step can add to it. When every
--- step is done, each field of the draft becomes a property of the new
--- character, and dragon:create_character ends with
--- session:pop_mode(character).
--- With no steps, the character is made straight away.
+-- dragon:create_character makes a character from a draft: the options
+-- world.create takes. It starts as { properties = { name = the account's
+-- name } }, and each step can add to it. When every step is done, the
+-- draft is passed to world.create, the dragon:character_created
+-- notification is sent (character, account), and dragon:create_character
+-- ends with session:pop_mode(character). With no steps, the character is
+-- made straight away.
 --
--- Plugins add steps by handling the character_steps hook: each handler
--- adds the name of a mode to event.steps.
+-- Plugins add steps by handling the dragon:character_steps hook: each
+-- handler adds the name of a mode to event.steps.
 --
---   character_steps = function(event)
+--   ["dragon:character_steps"] = function(event)
 --     table.insert(event.steps, "choose_class")
 --     return event
 --   end,
 --
 -- Order steps against other plugins' with before and after, and rearrange
 -- or disable them from game/wiring.lua, like any hook. Run
--- `dragon hooks character_steps` to see the order.
+-- `dragon hooks dragon:character_steps` to see the order.
 --
 -- A step mode gets the draft as state.draft and ends with
--- session:pop_mode(changes), where changes is a table merged into the
--- draft. Ending with nothing changes nothing.
+-- session:pop_mode(changes), where changes look like world.create's
+-- options: { parent = elf }, { location = village }, or
+-- { properties = { class = "ranger" } }. Properties are merged one by one;
+-- anything else replaces what the draft had. Ending with nothing changes
+-- nothing.
+--
+-- Setup that needs the character to exist, such as starting equipment,
+-- belongs in a dragon:character_created handler.
 --
 -- To write your own character select, define a characters mode in
 -- game/modes.lua; it can still push dragon:create_character. For a
@@ -54,8 +61,9 @@ local function advance(session, state)
     return state
   end
 
-  local character = world.create({ properties = state.draft })
+  local character = world.create(state.draft)
   session.account:add_character(character)
+  hooks.notify("dragon:character_created", { character = character, account = session.account })
   session:pop_mode(character)
 end
 
@@ -107,7 +115,7 @@ return {
     desc = "Create a new character.",
 
     enter = function(session, state)
-      local event, reason = hooks.run("character_steps", { account = session.account, steps = {} })
+      local event, reason = hooks.run("dragon:character_steps", { account = session.account, steps = {} })
       if not event then
         if reason then
           session:send(reason)
@@ -117,7 +125,7 @@ return {
       end
 
       state.steps = event.steps or {}
-      state.draft = { name = session.account.name }
+      state.draft = { properties = { name = session.account.name } }
       state.next = 1
       return advance(session, state)
     end,
@@ -125,7 +133,13 @@ return {
     resume = function(session, state, changes)
       if type(changes) == "table" then
         for k, v in pairs(changes) do
-          state.draft[k] = v
+          if k == "properties" and type(v) == "table" then
+            for name, value in pairs(v) do
+              state.draft.properties[name] = value
+            end
+          else
+            state.draft[k] = v
+          end
         end
       end
       return advance(session, state)

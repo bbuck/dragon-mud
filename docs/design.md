@@ -353,13 +353,18 @@ The built-in `dragon:characters` plugin defines two modes:
 - `dragon:characters` plays the account's only character, asks which when
   there are several, and starts `dragon:create_character` when there are
   none.
-- `dragon:create_character` runs the `character_steps` hook (`account`, `steps`),
-  whose handlers add the names of step modes to `steps`, ordered and wired
-  like any hook. Each step gets `state.draft` and ends with
-  `session:pop_mode(changes)`, merged into the draft. When the steps are
-  done, the draft's fields become the new character's properties. The
-  draft starts as `{ name = <account name> }`; with no steps, the
-  character is made straight away.
+- `dragon:create_character` runs the `dragon:character_steps` hook
+  (`account`, `steps`), whose handlers add the names of step modes to
+  `steps`, ordered and wired like any hook. The draft is the options
+  `world.create` takes, starting as `{ properties = { name = <account
+  name> } }`. Each step gets `state.draft` and ends with
+  `session:pop_mode(changes)` in the same shape: `{ parent = elf }`,
+  `{ location = village }` or `{ properties = { class = "ranger" } }`.
+  Properties merge one by one; anything else replaces the draft's. When
+  the steps are done, `world.create(draft)` makes the character, and
+  `dragon:character_created` (`character`, `account`) is sent before it's
+  played: the place for setup that needs the character to exist, like
+  starting equipment. With no steps, the character is made straight away.
 
 Most games change creation by adding steps. A game with its own select
 screen defines `characters`, which can still push
@@ -379,7 +384,7 @@ which parse it with their own forms (§2). That's how a shopkeeper handles
 
 ### Hooks (can veto or modify)
 
-`can_move`, `modify_damage`, `before_say`. Synchronous and ordered. Each hook
+`can_move`, `modify_damage`, `dragon:before_say`. Synchronous and ordered. Each hook
 can modify the payload the next one sees, or cancel with a reason. The caller
 gets back the final payload and whether it was cancelled.
 
@@ -391,7 +396,7 @@ function, or a table with the function and its ordering:
 ```lua
 return {
   ["dragon:player_connected"] = function(event) ... end,
-  before_say = {
+  ["dragon:before_say"] = {
     after = { "dragon:chat" },
     handler = function(event)
       if muted(event.actor) then return false, "You are muted." end
@@ -423,7 +428,7 @@ The engine sends `dragon:booted` once when the game starts, before any
 input is handled (not on reload); `dragon:player_connected` (`player`, and
 `reconnected` when the player took over their character from another
 connection); and `dragon:player_disconnected` (`player`). `dragon:presence` handles both to announce
-arrivals and departures. `dragon:chat` runs `before_say` (`actor`,
+arrivals and departures. `dragon:chat` runs `dragon:before_say` (`actor`,
 `message`, and `target` when saying something to someone). The web client
 runs `dragon:get_tooltip` and `dragon:get_default_action` (`viewer`, `entity`; §6).
 Input no command matches runs `dragon:unmatched_input` (`actor`, `line`,

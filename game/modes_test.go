@@ -172,7 +172,7 @@ func TestCharacterCreationSteps(t *testing.T) {
 		"plugin.lua": file(`return { name = "game" }`),
 		"hooks.lua": file(`
 			return {
-				character_steps = function(event)
+				["dragon:character_steps"] = function(event)
 					table.insert(event.steps, "skip_me")
 					table.insert(event.steps, "choose_class")
 					return event
@@ -183,14 +183,14 @@ func TestCharacterCreationSteps(t *testing.T) {
 			return {
 				-- A step that finishes in its own enter.
 				skip_me = {
-					enter = function(session) session:pop_mode({ title = "the Bold" }) end,
+					enter = function(session) session:pop_mode({ properties = { title = "the Bold" } }) end,
 				},
 				choose_class = {
 					enter = function(session, state)
-						session:prompt({ text = state.draft.name .. ", choose a class:", choices = { "warrior", "mage" } })
+						session:prompt({ text = state.draft.properties.name .. ", choose a class:", choices = { "warrior", "mage" } })
 					end,
 					input = function(session, line)
-						session:pop_mode({ class = line })
+						session:pop_mode({ properties = { class = line } })
 					end,
 				},
 			}
@@ -414,7 +414,7 @@ func TestCancelledCreationDisconnects(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
 		"plugin.lua": file(`return { name = "game" }`),
 		"hooks.lua": file(`
-			return { character_steps = function() return false, "The realm is closed to newcomers." end }
+			return { ["dragon:character_steps"] = function() return false, "The realm is closed to newcomers." end }
 		`),
 	})
 
@@ -431,4 +431,74 @@ func TestCancelledCreationDisconnects(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("the session stayed open")
 	}
+}
+
+func TestCreationSetsStructureAndNotifies(t *testing.T) {
+	g := startGame(t, fstest.MapFS{
+		"plugin.lua": file(`return { name = "game" }`),
+		"hooks.lua": file(`
+			return {
+				["dragon:booted"] = function()
+					if world.keyed("elf") then return end
+					world.create({ key = "elf", properties = { race = "elf", ears = "pointed" } })
+					world.create({ key = "village", properties = { name = "an elven village" } })
+				end,
+				["dragon:character_steps"] = function(event)
+					table.insert(event.steps, "choose_race")
+					return event
+				end,
+				["dragon:character_created"] = function(event)
+					world.create({ location = event.character, properties = { name = "a bow" } })
+				end,
+			}
+		`),
+		"modes.lua": file(`
+			return {
+				choose_race = {
+					enter = function(session)
+						session:pop_mode({ parent = world.keyed("elf"), location = world.keyed("village") })
+					end,
+				},
+			}
+		`),
+		"commands.lua": file(`
+			return { me = { execute = function(actor)
+				actor:send(table.concat({
+					actor:get("name"), actor:get("ears"), actor.location:get("name"),
+					actor.contents[1]:get("name"), tostring(actor:get_own("parent")),
+				}, " | "))
+			end } }
+		`),
+	})
+
+	alice := connect(t, g)
+	alice.login("Alice")
+	alice.send("me")
+	alice.expect("Alice | pointed | an elven village | a bow | nil")
+}
+
+func TestCreationRejectsAMisplacedProperty(t *testing.T) {
+	g := startGame(t, fstest.MapFS{
+		"plugin.lua": file(`return { name = "game" }`),
+		"hooks.lua": file(`
+			return { ["dragon:character_steps"] = function(event)
+				table.insert(event.steps, "oops")
+				return event
+			end }
+		`),
+		"modes.lua": file(`
+			return { oops = { enter = function(session) session:pop_mode({ class = "mage" }) end } }
+		`),
+	})
+
+	alice := connect(t, g)
+	alice.expect("By what name")
+	alice.send("alice")
+	alice.expect("Create a new account?")
+	alice.send("yes")
+	alice.expect("Choose a password")
+	alice.send("secret pass")
+	alice.expect("Type it again")
+	alice.send("secret pass")
+	alice.expect(`unknown option "class"`)
 }

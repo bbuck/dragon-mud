@@ -10,10 +10,10 @@
 -- views/say.txt.tmpl and views/emote.txt.tmpl; a game restyles them
 -- with its own game/views/say.txt.tmpl, or say.html.tmpl for the web.
 
--- before_say lets other plugins change what's said, or stop it. It returns
+-- dragon:before_say lets other plugins change what's said, or stop it. It returns
 -- the message to say, or nil if a handler cancelled.
 local function before_say(actor, message, target)
-  local event, reason = hooks.run("before_say", { actor = actor, message = message, target = target })
+  local event, reason = hooks.run("dragon:before_say", { actor = actor, message = message, target = target })
   if not event then
     if reason then
       actor:send(reason)
