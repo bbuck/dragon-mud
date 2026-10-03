@@ -1,6 +1,7 @@
 package message
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -111,5 +112,34 @@ func TestLayoutErrors(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), tt.want) {
 			t.Errorf("%s: error = %v, want it to contain %q", tt.source, err, tt.want)
 		}
+	}
+}
+
+func TestSections(t *testing.T) {
+	ts := NewTemplates()
+	add(t, ts, "room", FormatText, "game", "[Y]{{.title}}[x]\n{{section \"exits\"}}\n{{with section \"empty\"}}never{{end}}")
+	add(t, ts, "exit", FormatText, "game", `[c]{{.dir}}[x]`)
+
+	calls := 0
+	ts.SetSections(func(kind, section string) ([]Part, error) {
+		calls++
+		if kind != "room" {
+			t.Errorf("section of %q, want room", kind)
+		}
+		if section == "empty" {
+			return nil, nil
+		}
+		return []Part{{Text: "Exits:"}, {Kind: "exit", Data: map[string]any{"dir": "north"}}}, nil
+	})
+
+	data := map[string]any{"title": "Hall"}
+	if got, want := render(t, ts, "room", FormatText, "", data), "[Y]Hall[x]\nExits:\n[c]north[x]"; got != want {
+		t.Errorf("text = %q, want %q", got, want)
+	}
+	if got, want := render(t, ts, "room", FormatHTML, "", data), `<span class="ansi-fg-3 ansi-bold">Hall</span><br>Exits:<br><span class="ansi-fg-6">north</span>`; got != want {
+		t.Errorf("html = %q, want %q", got, want)
+	}
+	if want := []string{"exits", "empty"}; !slices.Equal(ts.Sections("room"), want) {
+		t.Errorf("sections = %q, want %q", ts.Sections("room"), want)
 	}
 }

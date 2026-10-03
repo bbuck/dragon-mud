@@ -35,7 +35,8 @@ over telnet and the web and talk to each other.
 - [x] Entities in messages: `{{entity .x}}`, `<dragon-entity>`, tooltips
       (`get_tooltip`) and default actions (`get_default_action`).
 - [x] `#id` object references in command input.
-- [ ] Message sections other plugins add to.
+- [x] Message sections other plugins add to (`{{section "exits"}}`,
+      filled by the `section:room.exits` hook).
 - [x] Hooks and notifications with plugin ordering (`before`/`after`)
       and game wiring (`order`, `disable`).
 - [x] `dragon hooks [<name>]`.

@@ -1,11 +1,13 @@
 package game
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"maps"
 	"regexp"
 	"slices"
+	"strings"
 
 	"bbuck.dev/dragon-mud/command"
 	"bbuck.dev/dragon-mud/message"
@@ -81,6 +83,10 @@ func (g *Game) render(kind string, data map[string]any, block string) (message.M
 		return message.Message{}, fmt.Errorf("argument #2: %w", err)
 	}
 
+	// Sections run their hooks with the data as the script gave it.
+	g.rendering = append(g.rendering, &rendering{kind: kind, data: data, parts: make(map[string][]message.Part)})
+	defer func() { g.rendering = g.rendering[:len(g.rendering)-1] }()
+
 	m := message.Message{Kind: kind}
 	if m.Text, _, err = g.messages.Render(kind, message.FormatText, block, td); err != nil {
 		return message.Message{}, err
@@ -90,6 +96,121 @@ func (g *Game) render(kind string, data map[string]any, block string) (message.M
 	}
 
 	return m, nil
+}
+
+// rendering is a message being rendered, and the parts its sections got.
+type rendering struct {
+	kind  string
+	data  map[string]any
+	parts map[string][]message.Part
+}
+
+// sectionHook is the hook that fills a message kind's section.
+func sectionHook(kind, section string) string {
+	return "section:" + kind + "." + section
+}
+
+// sectionParts runs the hook for a section of the message being rendered.
+// Handlers add to event.parts: text, or { kind = ..., data = ...[, block =
+// ...] }. A handler that cancels leaves the section empty.
+func (g *Game) sectionParts(kind, section string) ([]message.Part, error) {
+	if len(g.rendering) == 0 {
+		return nil, errors.New("sections only render in messages scripts send")
+	}
+	r := g.rendering[len(g.rendering)-1]
+	if parts, ok := r.parts[section]; ok {
+		return parts, nil
+	}
+
+	name := sectionHook(kind, section)
+	if _, ok := g.hooks.Chain(name); !ok {
+		r.parts[section] = nil
+		return nil, nil
+	}
+
+	// Called from a running script, whose deadline applies.
+	result, err := g.hooks.Run(context.Background(), name, map[string]any{"data": r.data, "parts": []any{}})
+	if err != nil || result.Cancelled {
+		return nil, err
+	}
+
+	raw, ok := result.Payload["parts"].([]any)
+	if !ok && result.Payload["parts"] != nil {
+		if m, isMap := result.Payload["parts"].(map[string]any); !isMap || len(m) > 0 {
+			return nil, fmt.Errorf("%s: event.parts must be a list, not a %s", name, scripting.TypeName(result.Payload["parts"]))
+		}
+	}
+
+	var parts []message.Part
+	for i, item := range raw {
+		part, err := g.sectionPart(item)
+		if err != nil {
+			return nil, fmt.Errorf("%s: part %d: %w", name, i+1, err)
+		}
+		parts = append(parts, part)
+	}
+	r.parts[section] = parts
+
+	return parts, nil
+}
+
+// sectionPart reads one part a section hook handler added.
+func (g *Game) sectionPart(item any) (message.Part, error) {
+	switch v := item.(type) {
+	case string:
+		return message.Part{Text: v}, nil
+	case map[string]any:
+		kind, ok := v["kind"].(string)
+		if !ok {
+			return message.Part{}, errors.New(`a part is text, or a table like { kind = "minimap", data = { ... } }`)
+		}
+		if !g.messages.Has(kind) {
+			return message.Part{}, fmt.Errorf("there's no message kind %q.%s", kind, command.DidYouMean(kind, g.messages.Names()))
+		}
+		block, _ := v["block"].(string)
+		data, err := g.templateData(v["data"], "data")
+		if err != nil {
+			return message.Part{}, err
+		}
+		return message.Part{Kind: kind, Block: block, Data: data}, nil
+	default:
+		return message.Part{}, fmt.Errorf(`a part is text, or a table like { kind = "minimap", data = { ... } }, not a %s`, scripting.TypeName(item))
+	}
+}
+
+// checkSectionHooks checks that every section hook names a message kind
+// and a section its template has.
+func (s *scripts) checkSectionHooks() error {
+	for _, name := range s.hooks.Names() {
+		target, ok := strings.CutPrefix(name, "section:")
+		if !ok {
+			continue
+		}
+		kind, section, _ := strings.Cut(target, ".")
+
+		chain, _ := s.hooks.Chain(name)
+		var files []string
+		for _, h := range append(chain.Handlers, chain.Disabled...) {
+			files = append(files, h.File())
+		}
+		where := strings.Join(files, ", ")
+
+		if !s.messages.Has(kind) {
+			return fmt.Errorf("%s: %s adds to the message kind %q, which no plugin defines.%s",
+				where, name, kind, command.DidYouMean(kind, s.messages.Names()))
+		}
+		sections := s.messages.Sections(kind)
+		if !slices.Contains(sections, section) {
+			has := "It has no sections; add {{section \"" + section + "\"}} where the parts should go."
+			if len(sections) > 0 {
+				has = "Its sections: " + strings.Join(sections, ", ") + "."
+			}
+			return fmt.Errorf("%s: %s adds to the %q section of %q, but the %s template has no {{section %q}}.%s %s",
+				where, name, section, kind, kind, section, command.DidYouMean(section, sections), has)
+		}
+	}
+
+	return nil
 }
 
 // templateData converts a script value for a template: objects become

@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	texttemplate "text/template"
+	"text/template/parse"
 
 	"bbuck.dev/dragon-mud/ansi"
 )
@@ -69,6 +70,12 @@ type Templates struct {
 
 	// width is what text is laid out to; see layoutFuncs.
 	width int
+
+	sectionFunc SectionFunc
+
+	// rendering is the kinds being rendered: the message, then any part
+	// of a section in it.
+	rendering []string
 }
 
 type compiled struct {
@@ -79,6 +86,9 @@ type compiled struct {
 	// marked is a text template whose entities are marked, for rendering
 	// it as HTML.
 	marked executor
+
+	// sections are the sections the file renders, in order.
+	sections []string
 }
 
 // executor is a parsed text/template or html/template.
@@ -112,18 +122,21 @@ func (t *Templates) Width() int {
 func (t *Templates) textFuncs() texttemplate.FuncMap {
 	funcs := layoutFuncs(textLayout{width: t.Width}, func(s string) string { return s })
 	funcs["entity"] = textEntity
+	funcs["section"] = func(name string) (string, error) { return t.section(modeText, name) }
 	return funcs
 }
 
-func markedFuncs() texttemplate.FuncMap {
+func (t *Templates) markedFuncs() texttemplate.FuncMap {
 	funcs := layoutFuncs(markedLayout{}, func(s string) string { return s })
 	funcs["entity"] = markedEntity
+	funcs["section"] = func(name string) (string, error) { return t.section(modeMarked, name) }
 	return funcs
 }
 
-func htmlFuncs() htmltemplate.FuncMap {
+func (t *Templates) htmlFuncs() htmltemplate.FuncMap {
 	funcs := layoutFuncs(htmlLayout{}, func(s string) htmltemplate.HTML { return htmltemplate.HTML(s) })
 	funcs["entity"] = htmlEntity
+	funcs["section"] = t.sectionHTML
 	return funcs
 }
 
@@ -142,16 +155,22 @@ func (t *Templates) Add(f File) error {
 		if err != nil {
 			return err
 		}
-		c.tmpl, c.marked = tmpl, marked.Funcs(markedFuncs())
+		c.tmpl, c.marked = tmpl, marked.Funcs(t.markedFuncs())
 		c.blocks = blocks(f.Path, tmpl.Templates())
+		for _, d := range tmpl.Templates() {
+			c.sections = appendNew(c.sections, sectionsIn([]*parse.Tree{d.Tree})...)
+		}
 
 	case FormatHTML:
-		tmpl, err := htmltemplate.New(f.Path).Funcs(htmlFuncs()).Parse(f.Source)
+		tmpl, err := htmltemplate.New(f.Path).Funcs(t.htmlFuncs()).Parse(f.Source)
 		if err != nil {
 			return err
 		}
 		c.tmpl = tmpl
 		c.blocks = blocks(f.Path, tmpl.Templates())
+		for _, d := range tmpl.Templates() {
+			c.sections = appendNew(c.sections, sectionsIn([]*parse.Tree{d.Tree})...)
+		}
 
 	default:
 		return fmt.Errorf("%s: unknown format %q (expected %s)", f.Path, f.Format, strings.Join(Formats, " or "))
@@ -193,6 +212,9 @@ func (t *Templates) Validate(dir string) error {
 			errs = append(errs, fmt.Errorf("%s has no text version. Add %s/%s.txt.tmpl: telnet shows it, and the web does whenever there's no HTML version.",
 				html.path, dir, name))
 		}
+		if err := t.checkSections(name); err != nil {
+			errs = append(errs, err)
+		}
 	}
 
 	return errors.Join(errs...)
@@ -214,6 +236,9 @@ func (t *Templates) Names() []string {
 // that HTML falls back to the text template, with color and entities as
 // HTML.
 func (t *Templates) Render(name, format, block string, data any) (out string, ok bool, err error) {
+	t.rendering = append(t.rendering, name)
+	defer func() { t.rendering = t.rendering[:len(t.rendering)-1] }()
+
 	c, ok := t.files[name][format]
 	switch {
 	case ok:
@@ -325,4 +350,15 @@ func asEntity(e any) (Entity, error) {
 	default:
 		return nil, fmt.Errorf("entity needs an object, but got %v (%T)", e, e)
 	}
+}
+
+// appendNew appends the items list doesn't have yet.
+func appendNew(list []string, items ...string) []string {
+	for _, item := range items {
+		if !slices.Contains(list, item) {
+			list = append(list, item)
+		}
+	}
+
+	return list
 }

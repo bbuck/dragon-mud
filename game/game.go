@@ -142,6 +142,9 @@ type Game struct {
 	// resolving is true while slot resolvers run; the world is read-only.
 	resolving bool
 
+	// rendering is the messages being rendered, for their sections.
+	rendering []*rendering
+
 	*scripts
 
 	events  chan event
@@ -276,9 +279,12 @@ func (g *Game) loadInto(ctx context.Context, s *scripts) error {
 	}
 
 	var err error
-	s.hooks, err = hook.New(hooks)
+	if s.hooks, err = hook.New(hooks); err != nil {
+		return err
+	}
+	s.messages.SetSections(g.sectionParts)
 
-	return err
+	return s.checkSectionHooks()
 }
 
 // loadPlugin loads src's slots and commands into s, and adds its hook

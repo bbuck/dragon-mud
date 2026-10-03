@@ -6,12 +6,16 @@ import (
 	"maps"
 	"regexp"
 	"slices"
+	"strings"
 
 	"bbuck.dev/dragon-mud/hook"
 	"bbuck.dev/dragon-mud/scripting"
 )
 
-var hookNameRx = regexp.MustCompile(`^[a-z][a-z0-9_]*(:[a-z][a-z0-9_]*)?$`)
+var (
+	hookNameRx    = regexp.MustCompile(`^[a-z][a-z0-9_]*(:[a-z][a-z0-9_]*)?$`)
+	sectionHookRx = regexp.MustCompile(`^section:[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$`)
+)
 
 // hookKeys are the fields a handler entry in hooks.lua may have.
 var hookKeys = []string{"handler", "before", "after"}
@@ -43,8 +47,8 @@ func (p *Plugin) Hooks(ctx context.Context, engine scripting.Engine) ([]hook.Han
 	var handlers []hook.Handler
 	for _, name := range slices.Sorted(maps.Keys(table)) {
 		where := fmt.Sprintf("%s: %s", file, name)
-		if !hookNameRx.MatchString(name) {
-			return nil, fmt.Errorf("%s isn't a valid hook name. Hook names are lowercase words joined by underscores, like player_entered.", where)
+		if strings.HasPrefix(name, "section:") && !sectionHookRx.MatchString(name) || !strings.HasPrefix(name, "section:") && !hookNameRx.MatchString(name) {
+			return nil, fmt.Errorf("%s isn't a valid hook name. Hook names are lowercase words joined by underscores, like player_entered, or section:<kind>.<section> to add to a message's section, like section:room.exits.", where)
 		}
 
 		h := hook.Handler{Hook: name, Plugin: p.ID}

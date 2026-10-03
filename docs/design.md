@@ -291,7 +291,7 @@ renders them for its transport.
   client draws bars and panels, telnet folds them into the prompt and GMCP.
   (Planned.)
 - Messages can have named **sections** other plugins add to (a minimap on the
-  room description). (Planned.)
+  room description). See Sections below.
 - **Every message has a text form**, so any client can always show it.
 - Plain text still works: `o:send(text)` sends a line with no kind.
 
@@ -347,6 +347,37 @@ properties with those names.
 its key, else "something". In text that's all; in HTML it's a clickable
 `<dragon-entity>` (§5). Write the element yourself to choose its text:
 `<dragon-entity ref="{{.actor.id}}">the {{.actor.name}}</dragon-entity>`.
+
+### Sections
+
+A template marks a place other plugins can add to with
+`{{section "exits"}}`. Plugins fill it by handling the hook
+`section:<kind>.<section>`, so sections are ordered with `before` and
+`after`, rearranged in `game/wiring.lua`, and listed by `dragon hooks`,
+like any hook:
+
+```lua
+-- mapping/hooks.lua
+return {
+  ["section:room.exits"] = function(event)
+    table.insert(event.parts, { kind = "minimap", data = { room = event.data.room } })
+    return event
+  end,
+}
+```
+
+- The event has `data`, the message's data as the sender gave it (objects
+  are still objects), and `parts`, a list each handler adds to. A part is
+  text, or `{ kind, data[, block] }`, a message kind rendered in the same
+  format as the message. Parts are joined with line breaks in text.
+- A handler that cancels leaves the section empty. An empty section
+  renders as nothing, so `{{with section "exits"}}Exits: {{.}}{{end}}`
+  shows a heading only when there's something under it.
+- The hook runs once per message, not once per format.
+- Startup fails for a section hook whose kind doesn't exist or whose
+  template has no such section, and for an HTML template missing a section
+  its text template has, since parts would never reach the web.
+- A part can't have sections of its own.
 
 ### Text layout
 
