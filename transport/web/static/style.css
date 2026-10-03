@@ -95,6 +95,22 @@ dragon-entity {
 dragon-entity:hover { text-decoration-style: solid; }
 dragon-entity:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
+/* Layout helpers in message templates ({{columns}}, {{table}}, ...). */
+.dragon-columns {
+  columns: var(--columns);
+  column-gap: 2ch;
+  white-space: normal;
+}
+.dragon-columns > div { break-inside: avoid; }
+.dragon-table { border-collapse: collapse; white-space: normal; }
+.dragon-table th { text-align: left; font-weight: 600; border-bottom: 1px solid var(--border); }
+.dragon-table th, .dragon-table td { padding: 0 2ch 0 0; vertical-align: top; }
+.dragon-center { text-align: center; }
+.dragon-rule { border: 0; border-top: 1px solid var(--border); margin: 0.3rem 0; }
+.dragon-indent { padding-left: var(--indent); }
+.dragon-pad { display: inline-block; min-width: var(--pad); }
+.dragon-padleft { text-align: right; }
+
 .choices {
   margin: 0.2rem 0 0;
   padding-left: 2.2rem;

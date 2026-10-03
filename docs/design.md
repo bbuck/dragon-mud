@@ -348,13 +348,41 @@ its key, else "something". In text that's all; in HTML it's a clickable
 `<dragon-entity>` (§5). Write the element yourself to choose its text:
 `<dragon-entity ref="{{.actor.id}}">the {{.actor.name}}</dragon-entity>`.
 
+### Text layout
+
+Telnet wraps every line longer than `[telnet] wrap` (80 by default)
+between words, so prose never needs laying out by hand. Color codes take
+no room, wide characters take two columns, and continuation lines keep the
+line's indentation. `wrap = 0` leaves wrapping to the client, as Mudlet
+and screen-reader setups often prefer.
+
+Templates get layout helpers for what wrapping can't do. In text they pad
+with spaces to the wrap width (80 when the client wraps); rendered for the
+web, they become HTML the stylesheet lays out, so nothing is padded in a
+proportional font. HTML templates can use them too.
+
+```
+{{columns 3 .classes}}       up to 3 columns, top to bottom then across;
+                             fewer when the items don't fit
+{{table .rows}}              columns sized to their content; the last one
+{{table .header .rows}}      wraps to fit
+{{center .title}}
+{{rule}}  {{rule "="}}       a line across the width
+{{indent 4 .text}}           wrapped, every line indented
+{{pad 10 .name}}             at least 10 wide; padleft aligns right
+```
+
+Items can be entities: they show their names, clickable on the web.
+Per-session widths (telnet NAWS) are planned; templates would then render
+once per width in use.
+
 ### Renderers
 
 Messages are rendered on the game loop when they're sent, once per format,
 so a template error reaches the script that sent it.
 
-- **Telnet:** the text form, with ANSI color (none, 16-color fallback,
-  256-color). Prompt and GMCP are planned.
+- **Telnet:** the text form, wrapped, with ANSI color (none, 16-color
+  fallback, 256-color). Prompt and GMCP are planned.
 - **Web:** the HTML form, or the text form with color and entities as HTML,
   pushed over a WebSocket into named regions of the page (§5).
 
@@ -506,6 +534,7 @@ know which are running.
 [telnet]
 enabled = true
 address = ":4000"
+wrap = 80
 
 [web]
 address = ":8080"

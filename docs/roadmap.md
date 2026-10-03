@@ -46,7 +46,7 @@ over telnet and the web and talk to each other.
 - [x] Input modes (editors, menus, pending prompts); login as a mode, then
       character select and creation as game-controlled modes
       (`dragon:characters`, `dragon:character-creation`).
-- [ ] Text layout: telnet wrapping, and layout helpers (`columns`,
+- [x] Text layout: telnet wrapping, and layout helpers (`columns`,
       `table`, ...) with HTML equivalents.
 - [ ] Forms contributed by objects in scope (exits, verbs on held things).
 - [ ] Feed message kinds: `room`, `say`, `emote`, `ambient`, `echo`.

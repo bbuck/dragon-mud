@@ -61,3 +61,23 @@ func TestRepliesAreDropped(t *testing.T) {
 		t.Errorf("telnet got %q", got)
 	}
 }
+
+func TestLinesAreWrapped(t *testing.T) {
+	server, client := net.Pipe()
+	defer client.Close()
+
+	received := make(chan []byte, 1)
+	go func() {
+		b, _ := io.ReadAll(client)
+		received <- b
+	}()
+
+	c := &conn{conn: server, wrap: 20}
+	c.Write(message.Text("[G]A fire crackles[x] in a hearth carved like a dragon."))
+	server.Close()
+
+	want := "\033[32;1mA fire crackles\033[0m in a\r\nhearth carved like a\r\ndragon.\033[0m\r\n"
+	if got := string(<-received); got != want {
+		t.Errorf("sent %q, want %q", got, want)
+	}
+}

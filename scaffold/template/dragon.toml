@@ -17,6 +17,9 @@ builtins = [
 [telnet]
 enabled = true
 address = ":4000"
+# Lines longer than this are wrapped between words. Set to 0 to leave
+# wrapping to players' clients.
+wrap = 80
 
 [web]
 address = ":8080"

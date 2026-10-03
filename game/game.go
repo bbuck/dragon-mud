@@ -101,6 +101,10 @@ type Options struct {
 	// Store holds accounts and saves the world after each event.
 	Store Store
 
+	// TextWidth is the width text templates lay text out to. Zero uses
+	// message.DefaultWidth.
+	TextWidth int
+
 	// Hasher hashes passwords off the loop. Nil uses auth.DefaultParams,
 	// a few hashes at a time.
 	Hasher *auth.Hasher
@@ -124,6 +128,7 @@ type Game struct {
 	name      string
 	newEngine func() scripting.Engine
 	sources   []plugin.Source
+	textWidth int
 	store     Store
 	log       *slog.Logger
 
@@ -198,6 +203,7 @@ func fromOptions(opts Options) *Game {
 		name:      opts.Name,
 		newEngine: opts.NewEngine,
 		sources:   opts.Plugins,
+		textWidth: opts.TextWidth,
 		store:     opts.Store,
 		log:       opts.Log,
 
@@ -235,6 +241,8 @@ func (g *Game) load(ctx context.Context) (*scripts, error) {
 		messages:  message.NewTemplates(),
 		templates: message.NewTemplates(),
 	}
+	s.messages.SetWidth(g.textWidth)
+	s.templates.SetWidth(g.textWidth)
 	if err := g.loadInto(ctx, s); err != nil {
 		s.engine.Close()
 		return nil, err

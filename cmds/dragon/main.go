@@ -166,6 +166,7 @@ func runServe(args []string) error {
 		Name:      cfg.Name,
 		NewEngine: func() scripting.Engine { return lua.New() },
 		Plugins:   sources,
+		TextWidth: cfg.TextWidth(),
 		World:     w,
 		Store:     db,
 		Log:       log.With(termlog.PrefixKey, "game"),
@@ -191,7 +192,7 @@ func runServe(args []string) error {
 	}
 	if cfg.Telnet.Enabled {
 		tasks = append(tasks, func() error {
-			return telnet.Serve(ctx, cfg.Telnet.Address, g, log.With(termlog.PrefixKey, "telnet"))
+			return telnet.Serve(ctx, telnet.Options{Address: cfg.Telnet.Address, Wrap: cfg.Telnet.Wrap}, g, log.With(termlog.PrefixKey, "telnet"))
 		})
 	}
 	if cfg.Web.Client.Enabled {

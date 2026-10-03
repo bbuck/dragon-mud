@@ -39,6 +39,8 @@ func TestLoadErrors(t *testing.T) {
 		{"nothing enabled", "[telnet]\nenabled = false\n[web.client]\nenabled = false", "no way to play"},
 		{"unknown setting", "[telnet]\nport = 4000", `unknown setting "telnet.port"`},
 		{"bad toml", "name = ", "reading"},
+		{"narrow wrap", "[telnet]\nwrap = 10", "[telnet] wrap = 10 is too narrow. Use 20 or more, or 0 to let players' clients wrap lines."},
+		{"negative wrap", "[telnet]\nwrap = -1", "[telnet] wrap = -1 is too narrow."},
 	}
 
 	for _, tt := range tests {

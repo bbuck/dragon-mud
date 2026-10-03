@@ -66,6 +66,9 @@ type File struct {
 // format, so the game beats plugins beats built-ins one file at a time.
 type Templates struct {
 	files map[string]map[string]*compiled
+
+	// width is what text is laid out to; see layoutFuncs.
+	width int
 }
 
 type compiled struct {
@@ -89,6 +92,41 @@ func NewTemplates() *Templates {
 	return &Templates{files: make(map[string]map[string]*compiled)}
 }
 
+// SetWidth sets the width text templates lay text out to. Zero means
+// DefaultWidth.
+func (t *Templates) SetWidth(width int) {
+	t.width = width
+}
+
+// Width is the width text templates lay text out to.
+func (t *Templates) Width() int {
+	if t.width <= 0 {
+		return DefaultWidth
+	}
+
+	return t.width
+}
+
+// textFuncs, markedFuncs and htmlFuncs are the functions text templates,
+// text templates rendered for HTML, and HTML templates can call.
+func (t *Templates) textFuncs() texttemplate.FuncMap {
+	funcs := layoutFuncs(textLayout{width: t.Width}, func(s string) string { return s })
+	funcs["entity"] = textEntity
+	return funcs
+}
+
+func markedFuncs() texttemplate.FuncMap {
+	funcs := layoutFuncs(markedLayout{}, func(s string) string { return s })
+	funcs["entity"] = markedEntity
+	return funcs
+}
+
+func htmlFuncs() htmltemplate.FuncMap {
+	funcs := layoutFuncs(htmlLayout{}, func(s string) htmltemplate.HTML { return htmltemplate.HTML(s) })
+	funcs["entity"] = htmlEntity
+	return funcs
+}
+
 // Add parses f, replacing any template already added with its name and
 // format.
 func (t *Templates) Add(f File) error {
@@ -96,7 +134,7 @@ func (t *Templates) Add(f File) error {
 
 	switch f.Format {
 	case FormatText:
-		tmpl, err := texttemplate.New(f.Path).Funcs(texttemplate.FuncMap{"entity": textEntity}).Parse(f.Source)
+		tmpl, err := texttemplate.New(f.Path).Funcs(t.textFuncs()).Parse(f.Source)
 		if err != nil {
 			return err
 		}
@@ -104,11 +142,11 @@ func (t *Templates) Add(f File) error {
 		if err != nil {
 			return err
 		}
-		c.tmpl, c.marked = tmpl, marked.Funcs(texttemplate.FuncMap{"entity": markedEntity})
+		c.tmpl, c.marked = tmpl, marked.Funcs(markedFuncs())
 		c.blocks = blocks(f.Path, tmpl.Templates())
 
 	case FormatHTML:
-		tmpl, err := htmltemplate.New(f.Path).Funcs(htmltemplate.FuncMap{"entity": htmlEntity}).Parse(f.Source)
+		tmpl, err := htmltemplate.New(f.Path).Funcs(htmlFuncs()).Parse(f.Source)
 		if err != nil {
 			return err
 		}
@@ -226,12 +264,19 @@ const (
 
 var markRx = regexp.MustCompile(markStart + "([^" + markName + "]*)" + markName + "([^" + markEnd + "]*)" + markEnd)
 
-// textToHTML converts rendered text with marked entities to HTML.
+// textToHTML converts rendered text with marked entities and layout to
+// HTML.
 func textToHTML(text string) string {
-	html := strings.ReplaceAll(ansi.HTML(text), "\n", "<br>")
+	html := ansi.HTML(text)
+
+	// Block elements replace the line breaks around them.
+	html = blockMarkRx.ReplaceAllString(html, "$1")
+	html = strings.ReplaceAll(html, "\n", "<br>")
 
 	// ansi.HTML has escaped the id and name.
-	return markRx.ReplaceAllString(html, `<dragon-entity ref="$1">$2</dragon-entity>`)
+	html = markRx.ReplaceAllString(html, `<dragon-entity ref="$1">$2</dragon-entity>`)
+
+	return htmlLayout{}.html(html)
 }
 
 // textEntity is {{entity .x}} in text: the entity's name.

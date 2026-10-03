@@ -1,26 +1,16 @@
 -- Help for players: what commands there are and how to use them.
 
-local function pad(text, width)
-  return text .. string.rep(" ", width - #text)
-end
-
 return {
   help = {
     desc = "List commands, or show how to use one: help say",
     forms = {
+      -- messages/help_commands.txt.tmpl lays the list out with {{table}}.
       { "help", function(actor)
-          local commands = game.commands()
-          local width = 0
-          for _, cmd in ipairs(commands) do
-            width = math.max(width, #cmd.name)
+          local rows = {}
+          for _, cmd in ipairs(game.commands()) do
+            table.insert(rows, { "[c]" .. cmd.name .. "[x]", cmd.desc or "" })
           end
-
-          local lines = { "[W]Commands:[x]" }
-          for _, cmd in ipairs(commands) do
-            table.insert(lines, "  [c]" .. pad(cmd.name, width) .. "[x]  " .. (cmd.desc or ""))
-          end
-          table.insert(lines, "Type [c]help <command>[x] to see how to use one.")
-          actor:send(table.concat(lines, "\n"))
+          actor:send("help_commands", { rows = rows })
         end },
 
       { "help <topic:word>", function(actor, args)

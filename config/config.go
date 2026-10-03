@@ -67,6 +67,23 @@ var (
 type Telnet struct {
 	Enabled bool   `toml:"enabled"`
 	Address string `toml:"address"`
+
+	// Wrap is the width lines are wrapped at, or 0 to leave wrapping to
+	// the client. Templates lay text out to it too.
+	Wrap int `toml:"wrap"`
+}
+
+// MinWrap is the narrowest wrap width allowed.
+const MinWrap = 20
+
+// TextWidth is the width templates lay text out to: the telnet wrap
+// width, or 80 when the client wraps.
+func (c Config) TextWidth() int {
+	if c.Telnet.Wrap > 0 {
+		return c.Telnet.Wrap
+	}
+
+	return 80
 }
 
 // Web configures the web server.
@@ -87,7 +104,7 @@ func Default() Config {
 		Name:     "A DragonMUD Game",
 		Dragon:   true,
 		Builtins: slices.Clone(builtin.Names),
-		Telnet:   Telnet{Enabled: true, Address: ":4000"},
+		Telnet:   Telnet{Enabled: true, Address: ":4000", Wrap: 80},
 		Web:      Web{Address: ":8080", Client: Toggle{Enabled: true}},
 	}
 }
@@ -138,6 +155,9 @@ func (c Config) Validate() error {
 	}
 	if c.Telnet.Enabled && c.Telnet.Address == "" {
 		return errors.New("[telnet] is enabled but has no address")
+	}
+	if c.Telnet.Wrap < 0 || (c.Telnet.Wrap > 0 && c.Telnet.Wrap < MinWrap) {
+		return fmt.Errorf("[telnet] wrap = %d is too narrow. Use %d or more, or 0 to let players' clients wrap lines.", c.Telnet.Wrap, MinWrap)
 	}
 	if c.Web.Client.Enabled && c.Web.Address == "" {
 		return errors.New("[web.client] is enabled but [web] has no address")

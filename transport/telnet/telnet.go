@@ -22,10 +22,19 @@ const (
 	maxLineLength = 4096
 )
 
-// Serve accepts telnet connections on address until ctx is cancelled.
-func Serve(ctx context.Context, address string, g session.Handler, log *slog.Logger) error {
+// Options configures the telnet server.
+type Options struct {
+	Address string
+
+	// Wrap is the width lines are wrapped at, or 0 to leave wrapping to
+	// the client.
+	Wrap int
+}
+
+// Serve accepts telnet connections until ctx is cancelled.
+func Serve(ctx context.Context, opts Options, g session.Handler, log *slog.Logger) error {
 	var lc net.ListenConfig
-	listener, err := lc.Listen(ctx, "tcp", address)
+	listener, err := lc.Listen(ctx, "tcp", opts.Address)
 	if err != nil {
 		return err
 	}
@@ -50,14 +59,14 @@ func Serve(ctx context.Context, address string, g session.Handler, log *slog.Log
 			continue
 		}
 
-		go handle(conn, g, log)
+		go handle(conn, opts.Wrap, g, log)
 	}
 }
 
-func handle(netConn net.Conn, g session.Handler, log *slog.Logger) {
+func handle(netConn net.Conn, wrap int, g session.Handler, log *slog.Logger) {
 	log.Debug("telnet connection", "remote", netConn.RemoteAddr().String())
 
-	c := &conn{conn: netConn}
+	c := &conn{conn: netConn, wrap: wrap}
 	s := session.New(c)
 	g.Connect(s)
 	defer g.Disconnect(s)
@@ -75,6 +84,7 @@ func handle(netConn net.Conn, g session.Handler, log *slog.Logger) {
 // conn renders messages as ANSI text for one telnet client.
 type conn struct {
 	conn net.Conn
+	wrap int
 
 	mu sync.Mutex
 	// hidden is true while the server has asked the client not to echo
@@ -87,7 +97,7 @@ func (c *conn) Write(m message.Message) error {
 		return nil // telnet clients don't make requests
 	}
 
-	text := ansi.Colorize(m.Text + "[x]")
+	text := ansi.Colorize(ansi.Wrap(m.Text, c.wrap) + "[x]")
 	text = strings.ReplaceAll(text, "\n", "\r\n") + "\r\n"
 
 	c.mu.Lock()
