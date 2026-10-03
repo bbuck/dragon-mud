@@ -264,10 +264,13 @@ class DragonEntity extends HTMLElement {
 
 customElements.define("dragon-entity", DragonEntity);
 
+// Commands: <dragon-command value="go north">north</dragon-command>, which
+// {{command "go north" "north"}} writes. Clicking one, or Enter or Space,
+// runs its value exactly as if the player had typed it.
+//
 // Choices: <dragon-choice value="warrior">Warrior</dragon-choice> in a
-// prompt. Clicking one, or Enter or Space, answers with its value, exactly
-// as if the player had typed it.
-class DragonChoice extends HTMLElement {
+// prompt work the same way, answering with their value.
+class DragonCommand extends HTMLElement {
   connectedCallback() {
     if (this.hasAttribute("tabindex")) return; // already set up
     this.setAttribute("role", "button");
@@ -292,7 +295,8 @@ class DragonChoice extends HTMLElement {
   }
 }
 
-customElements.define("dragon-choice", DragonChoice);
+customElements.define("dragon-command", DragonCommand);
+customElements.define("dragon-choice", class DragonChoice extends DragonCommand {});
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") hideTooltip();

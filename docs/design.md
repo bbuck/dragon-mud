@@ -537,6 +537,11 @@ its key, else "something". In text that's all; in HTML it's a clickable
 `<dragon-entity>` (§6). Write the element yourself to choose its text:
 `<dragon-entity ref="{{.actor.id}}">the {{.actor.name}}</dragon-entity>`.
 
+**`{{command "go north" "north"}}`** writes a link that runs a command. In
+text it's the label (`north`), which is what a telnet player reads and
+types; in HTML, including text shown on the web, it's a `<dragon-command>`
+(§6). With no label, the command is its own label: `{{command "up"}}`.
+
 ### Sections
 
 A template marks a place other plugins can add to with
@@ -714,6 +719,13 @@ in screen readers. The core client makes each one a control:
 The engine never decides what a tooltip shows or what clicking does: games
 and plugins write both hooks and the template. Any object can be asked
 about by id; handlers that hide things cancel `dragon:get_tooltip`.
+
+### Commands
+
+`<dragon-command value="go north">north</dragon-command>` runs its value as
+if the player typed it, echoing it in their feed, on click, Enter or Space.
+`{{command}}` writes it (§5). `<dragon-choice>` behaves the same and is
+what prompts use for their answers.
 
 ### Fixtures
 

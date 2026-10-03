@@ -128,6 +128,7 @@ func (t *Templates) Width() int {
 func (t *Templates) textFuncs() texttemplate.FuncMap {
 	funcs := layoutFuncs(textLayout{width: t.Width}, func(s string) string { return s })
 	funcs["entity"] = textEntity
+	funcs["command"] = textCommand
 	funcs["section"] = func(name string) (string, error) { return t.section(modeText, name) }
 	return funcs
 }
@@ -135,6 +136,7 @@ func (t *Templates) textFuncs() texttemplate.FuncMap {
 func (t *Templates) markedFuncs() texttemplate.FuncMap {
 	funcs := layoutFuncs(markedLayout{}, func(s string) string { return s })
 	funcs["entity"] = markedEntity
+	funcs["command"] = markedCommand
 	funcs["section"] = func(name string) (string, error) { return t.section(modeMarked, name) }
 	return funcs
 }
@@ -142,6 +144,7 @@ func (t *Templates) markedFuncs() texttemplate.FuncMap {
 func (t *Templates) htmlFuncs() htmltemplate.FuncMap {
 	funcs := layoutFuncs(htmlLayout{}, func(s string) htmltemplate.HTML { return htmltemplate.HTML(s) })
 	funcs["entity"] = htmlEntity
+	funcs["command"] = htmlCommand
 	funcs["section"] = t.sectionHTML
 	return funcs
 }
@@ -303,9 +306,18 @@ const (
 	markStart = "\ue000"
 	markName  = "\ue001"
 	markEnd   = "\ue002"
+
+	commandStart = "\ue003"
+	commandLabel = "\ue004"
+	commandEnd   = "\ue005"
 )
 
-var markRx = regexp.MustCompile(markStart + "([^" + markName + "]*)" + markName + "([^" + markEnd + "]*)" + markEnd)
+var (
+	markRx    = regexp.MustCompile(markStart + "([^" + markName + "]*)" + markName + "([^" + markEnd + "]*)" + markEnd)
+	commandRx = regexp.MustCompile(commandStart + "([^" + commandLabel + "]*)" + commandLabel + "([^" + commandEnd + "]*)" + commandEnd)
+
+	unmark = strings.NewReplacer(markStart, "", markName, "", markEnd, "", commandStart, "", commandLabel, "", commandEnd, "")
+)
 
 // textToHTML converts rendered text with marked entities and layout to
 // HTML.
@@ -318,6 +330,7 @@ func textToHTML(text string) string {
 
 	// ansi.HTML has escaped the id and name.
 	html = markRx.ReplaceAllString(html, `<dragon-entity ref="$1">$2</dragon-entity>`)
+	html = commandRx.ReplaceAllString(html, `<dragon-command value="$1">$2</dragon-command>`)
 
 	return htmlLayout{}.html(html)
 }
@@ -340,9 +353,52 @@ func markedEntity(e any) (string, error) {
 	}
 
 	id, _ := entity["id"].(string)
-	clean := strings.NewReplacer(markStart, "", markName, "", markEnd, "")
 
-	return markStart + clean.Replace(id) + markName + clean.Replace(entity.Name()) + markEnd, nil
+	return markStart + unmark.Replace(id) + markName + unmark.Replace(entity.Name()) + markEnd, nil
+}
+
+// commandArgs reads {{command "go north" "north"}}: the command, and the
+// label to show, which is the command itself when left out.
+func commandArgs(command string, label []string) (string, string, error) {
+	switch {
+	case strings.TrimSpace(command) == "":
+		return "", "", errors.New(`command needs the command to run, like {{command "go north" "north"}}`)
+	case len(label) > 1:
+		return "", "", fmt.Errorf(`command takes the command and one label, like {{command "go north" "north"}}, but got %d labels`, len(label))
+	case len(label) == 1:
+		return command, label[0], nil
+	default:
+		return command, command, nil
+	}
+}
+
+// textCommand is {{command ...}} in text: the label, which is what a
+// telnet player reads and types.
+func textCommand(command string, label ...string) (string, error) {
+	_, text, err := commandArgs(command, label)
+	return text, err
+}
+
+// markedCommand is {{command ...}} in text that will be rendered as HTML.
+func markedCommand(command string, label ...string) (string, error) {
+	command, text, err := commandArgs(command, label)
+	if err != nil {
+		return "", err
+	}
+
+	return commandStart + unmark.Replace(command) + commandLabel + unmark.Replace(text) + commandEnd, nil
+}
+
+// htmlCommand is {{command ...}} in HTML: a <dragon-command> the web
+// client runs as if the player typed the command.
+func htmlCommand(command string, label ...string) (htmltemplate.HTML, error) {
+	command, text, err := commandArgs(command, label)
+	if err != nil {
+		return "", err
+	}
+
+	return htmltemplate.HTML(fmt.Sprintf(`<dragon-command value="%s">%s</dragon-command>`,
+		htmltemplate.HTMLEscapeString(command), htmltemplate.HTMLEscapeString(text))), nil
 }
 
 // htmlEntity is {{entity .x}} in HTML: the entity's name as a

@@ -252,3 +252,40 @@ func TestParseError(t *testing.T) {
 		t.Errorf("got %v, want an error with the file and line", err)
 	}
 }
+
+func TestCommands(t *testing.T) {
+	ts := NewTemplates()
+	add(t, ts, "exits", FormatText, "game", `Exits: [C]{{command "go north" "north"}}[x], {{command "up"}}`)
+	add(t, ts, "menu", FormatHTML, "game", `<li>{{command "buy \"rope\"" "Rope <cheap>"}}</li>`)
+	add(t, ts, "menu", FormatText, "game", `{{command "buy rope" "Rope"}}`)
+
+	if got := render(t, ts, "exits", FormatText, "", map[string]any{}); got != "Exits: [C]north[x], up" {
+		t.Errorf("text: got %q", got)
+	}
+
+	got := render(t, ts, "exits", FormatHTML, "", map[string]any{})
+	want := `Exits: <span class="ansi-fg-6 ansi-bold"><dragon-command value="go north">north</dragon-command></span>, <dragon-command value="up">up</dragon-command>`
+	if got != want {
+		t.Errorf("text as HTML:\n got %s\nwant %s", got, want)
+	}
+
+	got = render(t, ts, "menu", FormatHTML, "", map[string]any{})
+	want = `<li><dragon-command value="buy &#34;rope&#34;">Rope &lt;cheap&gt;</dragon-command></li>`
+	if got != want {
+		t.Errorf("HTML:\n got %s\nwant %s", got, want)
+	}
+}
+
+func TestCommandErrors(t *testing.T) {
+	cases := map[string]string{
+		`{{command ""}}`:           `command needs the command to run, like {{command "go north" "north"}}`,
+		`{{command "go" "a" "b"}}`: `command takes the command and one label, like {{command "go north" "north"}}, but got 2 labels`,
+	}
+	for source, want := range cases {
+		ts := NewTemplates()
+		add(t, ts, "v", FormatText, "game", source)
+		if _, _, err := ts.Render("v", FormatText, "", map[string]any{}); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: error = %v, want it to contain %q", source, err, want)
+		}
+	}
+}

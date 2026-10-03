@@ -123,14 +123,17 @@ dragon-entity:focus-visible { outline: 2px solid var(--accent); outline-offset: 
   white-space: normal;
 }
 
-dragon-choice {
+dragon-choice,
+dragon-command {
   color: var(--accent);
   cursor: pointer;
   border-radius: 2px;
 }
 
-dragon-choice:hover { text-decoration: underline; }
-dragon-choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+dragon-choice:hover,
+dragon-command:hover { text-decoration: underline; }
+dragon-choice:focus-visible,
+dragon-command:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .dragon-tooltip {
   position: fixed;
