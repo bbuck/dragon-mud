@@ -10,6 +10,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	glua "github.com/yuin/gopher-lua"
@@ -38,6 +40,9 @@ var removedGlobals = []string{"dofile", "loadfile", "require"}
 type Engine struct {
 	state   *glua.LState
 	handles handles
+
+	// modules are the loaded modules by name, for require.
+	modules map[string]*glua.LTable
 }
 
 // New returns an Engine with a fresh, sandboxed Lua state.
@@ -59,16 +64,39 @@ func New() *Engine {
 		state.SetGlobal(name, glua.LNil)
 	}
 
-	return &Engine{state: state, handles: newHandles()}
+	e := &Engine{state: state, handles: newHandles(), modules: make(map[string]*glua.LTable)}
+
+	// Outside a scope, require reaches only the engine's modules.
+	state.SetGlobal("require", state.NewFunction(func(state *glua.LState) int {
+		name := state.CheckString(1)
+		if t, ok := e.modules[name]; ok {
+			state.Push(t)
+			return 1
+		}
+		state.RaiseError("require: there's no module %q. Modules: %s.", name, strings.Join(e.moduleNames(nil), ", "))
+		return 0
+	}))
+
+	meta := state.NewTable()
+	meta.RawSetString("__index", state.NewFunction(func(state *glua.LState) int {
+		e.globalHint(state, state.CheckString(2), nil)
+		state.Push(glua.LNil)
+		return 1
+	}))
+	state.SetMetatable(state.G.Global, meta)
+
+	return e
 }
 
-// Load makes m available to scripts as a global table named m.Name.
+// Load makes m available to scripts through require(m.Name).
 func (e *Engine) Load(m scripting.Module) error {
 	if m.Name == "" {
 		return errors.New("lua: module has no name")
 	}
-
-	if e.state.GetGlobal(m.Name) != glua.LNil {
+	if !moduleRx.MatchString(m.Name) {
+		return fmt.Errorf("lua: module name %q isn't valid; use dot-separated words like \"dragon.world\"", m.Name)
+	}
+	if _, ok := e.modules[m.Name]; ok {
 		return fmt.Errorf("lua: module %q: name already in use", m.Name)
 	}
 
@@ -76,9 +104,47 @@ func (e *Engine) Load(m scripting.Module) error {
 	if err != nil {
 		return err
 	}
-	e.state.SetGlobal(m.Name, table)
+	e.modules[m.Name] = table
 
 	return nil
+}
+
+// moduleNames lists the engine's modules and extra, sorted.
+func (e *Engine) moduleNames(extra map[string]*glua.LTable) []string {
+	names := slices.Collect(maps.Keys(e.modules))
+	for name := range extra {
+		if !slices.Contains(names, name) {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+
+	return names
+}
+
+// reserved reports whether name is in a module namespace, such as
+// "dragon.wrld" when "dragon.world" is loaded, which require never looks
+// for in files.
+func (e *Engine) reserved(name string, extra map[string]*glua.LTable) bool {
+	first, _, _ := strings.Cut(name, ".")
+	for _, m := range e.moduleNames(extra) {
+		if ns, _, dotted := strings.Cut(m, "."); dotted && ns == first {
+			return true
+		}
+	}
+
+	return false
+}
+
+// globalHint raises an error when a script reads a global named like a
+// module, such as world for dragon.world: modules aren't globals.
+func (e *Engine) globalHint(state *glua.LState, key string, extra map[string]*glua.LTable) {
+	for _, name := range e.moduleNames(extra) {
+		short := name[strings.LastIndex(name, ".")+1:]
+		if short == key {
+			state.RaiseError("%s isn't a global. Add local %s = require(%q) at the top of the file.", key, key, name)
+		}
+	}
 }
 
 // moduleTable builds the table scripts see for m, naming its functions

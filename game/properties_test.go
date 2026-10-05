@@ -11,6 +11,7 @@ func TestPropertiesSurviveARestart(t *testing.T) {
 	files := fstest.MapFS{
 		"plugin.lua": file(`return { name = "game" }`),
 		"hooks.lua": file(`
+						local world = require("dragon.world")
 			return {
 				["dragon:booted"] = function()
 					if world.keyed("tavern") then return end
@@ -26,6 +27,7 @@ func TestPropertiesSurviveARestart(t *testing.T) {
 			}
 		`),
 		"commands.lua": file(`
+						local world = require("dragon.world")
 			return {
 				check = { execute = function(actor)
 					local tavern = world.keyed("tavern")
@@ -76,6 +78,7 @@ func TestStructuralFieldsArentProperties(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
 		"plugin.lua": file(`return { name = "game" }`),
 		"commands.lua": file(`
+						local world = require("dragon.world")
 			return {
 				try = { forms = { { "try <what>", function(actor, args)
 					local tries = {

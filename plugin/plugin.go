@@ -64,9 +64,9 @@ type Plugin struct {
 // Open reads the manifest in fsys. Built-in plugins get BuiltinPrefix on
 // their ID.
 //
-// values, if not nil, returns globals for the plugin's scripts of their own,
-// given its ID.
-func Open(ctx context.Context, engine scripting.Engine, fsys fs.FS, builtin bool, values func(id string) map[string]any) (*Plugin, error) {
+// own, if not nil, returns modules the plugin's scripts can require that
+// are theirs alone, given its ID.
+func Open(ctx context.Context, engine scripting.Engine, fsys fs.FS, builtin bool, own func(id string) []scripting.Module) (*Plugin, error) {
 	p := &Plugin{files: fsys}
 
 	source, err := p.read("plugin.lua")
@@ -107,11 +107,11 @@ func Open(ctx context.Context, engine scripting.Engine, fsys fs.FS, builtin bool
 	if err != nil {
 		return nil, err
 	}
-	var globals map[string]any
-	if values != nil {
-		globals = values(p.ID)
+	var mods []scripting.Module
+	if own != nil {
+		mods = own(p.ID)
 	}
-	if p.scope, err = engine.Scope(p.ID+"/"+ModulesDir, modules, globals); err != nil {
+	if p.scope, err = engine.Scope(p.ID+"/"+ModulesDir, modules, mods); err != nil {
 		return nil, err
 	}
 

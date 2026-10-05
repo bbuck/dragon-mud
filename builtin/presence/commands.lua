@@ -1,5 +1,7 @@
 -- Who's in the game, and leaving it.
 
+local game = require("dragon.game")
+
 local function name(o)
   return o:get("name") or "someone"
 end

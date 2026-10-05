@@ -40,7 +40,7 @@ func (g *Game) hooksModule(s *scripts) scripting.Module {
 	}
 
 	return scripting.Module{
-		Name: "hooks",
+		Name: "dragon.hooks",
 		Funcs: map[string]scripting.Func{
 			"run": func(a scripting.Args) (any, error) {
 				name, event, err := args(a)

@@ -103,6 +103,7 @@ func TestGameHandlerRunsAfterBasics(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
 		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
 		"hooks.lua": {Data: []byte(`
+						local game = require("dragon.game")
 			return {
 				["dragon:player_connected"] = function(event)
 					game.broadcast("Trumpets sound for " .. event.player:get("name") .. ".")
@@ -228,6 +229,7 @@ func TestHooksRunFromLua(t *testing.T) {
 			}
 		`)},
 		"commands.lua": {Data: []byte(`
+						local hooks = require("dragon.hooks")
 			return {
 				dance = {
 					forms = {

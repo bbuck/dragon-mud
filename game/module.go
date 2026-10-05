@@ -26,7 +26,7 @@ import (
 //	game.session(player)           the session playing player, or nil
 func (g *Game) module() scripting.Module {
 	return scripting.Module{
-		Name:   "game",
+		Name:   "dragon.game",
 		Values: map[string]any{"name": g.name},
 		Funcs: map[string]scripting.Func{
 			"broadcast":  g.mutatingFunc(g.scriptBroadcast),

@@ -303,7 +303,7 @@ func (g *Game) loadInto(ctx context.Context, s *scripts) error {
 func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, hooks *hook.Config) error {
 	engine, commands := s.engine, s.commands
 
-	p, err := plugin.Open(ctx, engine, src.Files, src.Builtin, g.pluginGlobals)
+	p, err := plugin.Open(ctx, engine, src.Files, src.Builtin, g.pluginModules)
 	if err != nil {
 		return err
 	}

@@ -47,7 +47,7 @@ func TestArgumentsFromLua(t *testing.T) {
 	var got scripting.Args
 	e := newEngine(t, &got, nil)
 
-	run(t, e, `test.record(nil, true, 1.5, "hi", {1, 2}, {a = 1, [3] = "x"})`)
+	run(t, e, `local test = require("test"); test.record(nil, true, 1.5, "hi", {1, 2}, {a = 1, [3] = "x"})`)
 
 	want := scripting.Args{
 		nil,
@@ -68,13 +68,13 @@ func TestReturnValuesToLua(t *testing.T) {
 		ret    any
 		script string
 	}{
-		{"int slice", []int{4, 5}, `local r = test.record(); assert(#r == 2 and r[1] == 4 and r[2] == 5)`},
-		{"map", map[string]int{"hp": 34}, `assert(test.record().hp == 34)`},
-		{"nested", map[string]any{"list": []string{"a"}}, `assert(test.record().list[1] == "a")`},
-		{"nil", nil, `assert(test.record() == nil)`},
-		{"uint", uint8(7), `assert(test.record() == 7)`},
-		{"results", scripting.Results{nil, "why"}, `local v, why = test.record(); assert(v == nil and why == "why")`},
-		{"no results", scripting.Results{}, `assert(select("#", test.record()) == 0)`},
+		{"int slice", []int{4, 5}, `local test = require("test"); local r = test.record(); assert(#r == 2 and r[1] == 4 and r[2] == 5)`},
+		{"map", map[string]int{"hp": 34}, `local test = require("test"); assert(test.record().hp == 34)`},
+		{"nested", map[string]any{"list": []string{"a"}}, `local test = require("test"); assert(test.record().list[1] == "a")`},
+		{"nil", nil, `local test = require("test"); assert(test.record() == nil)`},
+		{"uint", uint8(7), `local test = require("test"); assert(test.record() == 7)`},
+		{"results", scripting.Results{nil, "why"}, `local test = require("test"); local v, why = test.record(); assert(v == nil and why == "why")`},
+		{"no results", scripting.Results{}, `local test = require("test"); assert(select("#", test.record()) == 0)`},
 	}
 
 	for _, tt := range tests {
@@ -97,15 +97,18 @@ func TestModuleValues(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	run(t, e, `assert(game.name == "DragonMUD" and game.max_level == 50)`)
+	run(t, e, `local game = require("game"); assert(game.name == "DragonMUD" and game.max_level == 50)`)
 }
 
 func TestLoadRejectsNameInUse(t *testing.T) {
 	e := New()
 	defer e.Close()
 
-	if err := e.Load(scripting.Module{Name: "string"}); err == nil {
-		t.Error("loading a module named \"string\" should fail")
+	if err := e.Load(scripting.Module{Name: "dragon.world"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.Load(scripting.Module{Name: "dragon.world"}); err == nil {
+		t.Error("loading a second module named \"dragon.world\" should fail")
 	}
 }
 
@@ -128,13 +131,13 @@ func TestFuncErrorRaisesInLua(t *testing.T) {
 
 	// The error can be caught in Lua...
 	run(t, e, `
-		local ok, msg = pcall(die.roll, 6)
+		local die = require("die"); local ok, msg = pcall(die.roll, 6)
 		assert(not ok)
 		assert(string.find(msg, "die.roll: argument #1: expected string, got number", 1, true), msg)
 	`)
 
 	// ...and otherwise surfaces from Run.
-	err = e.Run(context.Background(), "plugin.lua", `die.roll()`)
+	err = e.Run(context.Background(), "plugin.lua", `local die = require("die"); die.roll()`)
 	if err == nil || !strings.Contains(err.Error(), "expected string, got nothing") {
 		t.Errorf("Run error = %v", err)
 	}
@@ -206,7 +209,7 @@ func TestCallingLuaFunctionsFromGo(t *testing.T) {
 	var got scripting.Args
 	e := newEngine(t, &got, nil)
 
-	run(t, e, `test.record(function(a, b) return a + b end)`)
+	run(t, e, `local test = require("test"); test.record(function(a, b) return a + b end)`)
 
 	fn, err := got.Function(0)
 	if err != nil {
@@ -224,7 +227,7 @@ func TestCallingLuaFunctionsFromGo(t *testing.T) {
 
 func TestFunctionFromAnotherEngine(t *testing.T) {
 	var got scripting.Args
-	run(t, newEngine(t, &got, nil), `test.record(function() end)`)
+	run(t, newEngine(t, &got, nil), `local test = require("test"); test.record(function() end)`)
 	fn, _ := got.Function(0)
 
 	other := New()
@@ -240,7 +243,7 @@ func TestFunctionPassedBackToLua(t *testing.T) {
 	var got scripting.Args
 	e := newEngine(t, &got, nil)
 
-	run(t, e, `test.record(function() return "hello" end)`)
+	run(t, e, `local test = require("test"); test.record(function() return "hello" end)`)
 	fn, _ := got.Function(0)
 
 	if err := e.Load(scripting.Module{
@@ -250,7 +253,7 @@ func TestFunctionPassedBackToLua(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	run(t, e, `assert(saved.fn() == "hello")`)
+	run(t, e, `local saved = require("saved"); assert(saved.fn() == "hello")`)
 }
 
 func TestSelfReferencingTable(t *testing.T) {
@@ -267,7 +270,7 @@ func TestSelfReferencingTable(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = e.Run(context.Background(), "cycle.lua", `local t = {}; t.self = t; test.take(t)`)
+	err = e.Run(context.Background(), "cycle.lua", `local test = require("test"); local t = {}; t.self = t; test.take(t)`)
 	if err == nil || !strings.Contains(err.Error(), "nested more than") {
 		t.Errorf("Run error = %v, want nesting error", err)
 	}
@@ -277,10 +280,17 @@ func TestSandbox(t *testing.T) {
 	e := New()
 	defer e.Close()
 
-	for _, name := range []string{"os", "io", "debug", "package", "dofile", "loadfile", "require"} {
+	for _, name := range []string{"os", "io", "debug", "package", "dofile", "loadfile"} {
 		t.Run(name, func(t *testing.T) {
 			run(t, e, `assert(`+name+` == nil, "`+name+` should not be available")`)
 		})
+	}
+
+	// require only reaches the engine's modules, never files or libraries.
+	for _, name := range []string{"os", "io", "debug"} {
+		if err := e.Run(context.Background(), "test", `require("`+name+`")`); err == nil {
+			t.Errorf("require(%q) succeeded", name)
+		}
 	}
 
 	run(t, e, `assert(string.upper("ok") == "OK" and math.floor(1.5) == 1 and table.concat({"a", "b"}) == "ab")`)

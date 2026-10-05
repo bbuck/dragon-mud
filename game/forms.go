@@ -24,7 +24,7 @@ import (
 //	                             matched)
 func (g *Game) formsModule(s *scripts) scripting.Module {
 	return scripting.Module{
-		Name: "forms",
+		Name: "dragon.forms",
 		Funcs: map[string]scripting.Func{
 			"new": func(args scripting.Args) (any, error) {
 				return g.newFormSet(s, args)

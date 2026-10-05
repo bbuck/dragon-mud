@@ -63,6 +63,7 @@ func TestBootedRunsOnceBeforeInput(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
 		"plugin.lua": file(`return { name = "game" }`),
 		"hooks.lua": file(`
+						local world = require("dragon.world")
 			return {
 				["dragon:booted"] = function()
 					local tavern = world.keyed("tavern") or world.create({ key = "tavern", properties = { boots = 0 } })
@@ -71,6 +72,7 @@ func TestBootedRunsOnceBeforeInput(t *testing.T) {
 			}
 		`),
 		"commands.lua": file(`
+						local world = require("dragon.world")
 			return {
 				boots = { execute = function(actor)
 					actor:send("booted " .. world.keyed("tavern"):get("boots") .. " times")

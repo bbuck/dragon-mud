@@ -349,6 +349,7 @@ func TestGamePluginOverridesLook(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
 		"plugin.lua": {Data: []byte(`return { name = "game", version = "0.1.0" }`)},
 		"commands.lua": {Data: []byte(`
+						local game = require("dragon.game")
 			return {
 				look = {
 					replace = true,
@@ -492,6 +493,7 @@ func TestLoginUpgradesOldHashes(t *testing.T) {
 var builder = fstest.MapFS{
 	"plugin.lua": {Data: []byte(`return { name = "game" }`)},
 	"commands.lua": {Data: []byte(`
+				local world = require("dragon.world")
 		local function title(o)
 			return o and o:get("title") or "nowhere"
 		end
@@ -596,6 +598,7 @@ func TestCreateWithOptions(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
 		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
 		"commands.lua": {Data: []byte(`
+						local world = require("dragon.world")
 			return {
 				forge = { execute = function(actor)
 					local sword = world.create{ properties = { damage = "1d8", weight = 3 } }
@@ -708,6 +711,7 @@ var doors = fstest.MapFS{
 		}
 	`)},
 	"commands.lua": {Data: []byte(`
+				local world = require("dragon.world")
 		return {
 			enter = { forms = {
 				{ "enter <door:door:open>", function(actor, args) actor:send("You step through the " .. args.door .. " door.") end },

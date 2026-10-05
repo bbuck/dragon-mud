@@ -55,6 +55,8 @@ func file(source string) *fstest.MapFile {
 var fighting = fstest.MapFS{
 	"plugin.lua": file(`return { name = "game" }`),
 	"commands.lua": file(`
+				local game = require("dragon.game")
+		local world = require("dragon.world")
 		return {
 			hit = { forms = { { "hit <target:object:online>", function(actor, args)
 				local data = { actor = actor, target = args.target }
@@ -212,6 +214,7 @@ func TestMessageFileErrors(t *testing.T) {
 var clickable = fstest.MapFS{
 	"plugin.lua": file(`return { name = "game" }`),
 	"commands.lua": file(`
+				local world = require("dragon.world")
 		return {
 			make = { forms = { { "make <what>", function(actor, args)
 				local here = world.create{ location = actor.location, properties = { name = args.what } }

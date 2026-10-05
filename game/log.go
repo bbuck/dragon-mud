@@ -10,13 +10,13 @@ import (
 	"bbuck.dev/dragon-mud/scripting"
 )
 
-// pluginGlobals are the globals each plugin's scripts get of their own.
-func (g *Game) pluginGlobals(pluginID string) map[string]any {
-	return map[string]any{"log": g.logModule(pluginID)}
+// pluginModules are the modules each plugin's scripts get of their own.
+func (g *Game) pluginModules(pluginID string) []scripting.Module {
+	return []scripting.Module{g.logModule(pluginID)}
 }
 
-// logModule is the "log" table a plugin's scripts get: it writes to the
-// server log, tagged with the plugin.
+// logModule is the "dragon.log" module a plugin's scripts get: it writes
+// to the server log, tagged with the plugin.
 //
 //	log.debug(message[, fields])
 //	log.info(message[, fields])
@@ -33,7 +33,7 @@ func (g *Game) logModule(pluginID string) scripting.Module {
 		"error": slog.LevelError,
 	}
 
-	module := scripting.Module{Name: "log", Funcs: make(map[string]scripting.Func, len(levels))}
+	module := scripting.Module{Name: "dragon.log", Funcs: make(map[string]scripting.Func, len(levels))}
 	for name, level := range levels {
 		module.Funcs[name] = func(args scripting.Args) (any, error) {
 			return nil, g.scriptLog(pluginID, name, level, args)

@@ -1,5 +1,7 @@
 -- Help for players: what commands there are and how to use them.
 
+local game = require("dragon.game")
+
 return {
   help = {
     desc = "List commands, or show how to use one: help say",

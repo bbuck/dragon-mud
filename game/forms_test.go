@@ -9,6 +9,7 @@ import (
 var shop = fstest.MapFS{
 	"plugin.lua": file(`return { name = "game" }`),
 	"hooks.lua": file(`
+				local forms = require("dragon.forms")
 		local shop = forms.new {
 			{ "buy <count:number> <item>", function(actor, args, who)
 				actor:send(who .. ": " .. args.count .. " " .. args.item .. ", coming up.")
@@ -29,6 +30,7 @@ var shop = fstest.MapFS{
 		}
 	`),
 	"commands.lua": file(`
+				local world = require("dragon.world")
 		return {
 			whoami = { execute = function(actor)
 				local npc = world.create({})
@@ -75,15 +77,15 @@ func TestFormSetErrors(t *testing.T) {
 	}{
 		"not a list": {
 			hooks: `forms.new("buy <item>")`,
-			want:  `game/hooks.lua:1: forms.new: takes a list of forms, like forms.new { { "buy <item>", function(actor, args) ... end } }, not a string.`,
+			want:  `game/hooks.lua:2: dragon.forms.new: takes a list of forms, like forms.new { { "buy <item>", function(actor, args) ... end } }, not a string.`,
 		},
 		"empty": {
 			hooks: `forms.new {}`,
-			want:  `forms.new: was given no forms. Pass at least one`,
+			want:  `dragon.forms.new: was given no forms. Pass at least one`,
 		},
 		"no function": {
 			hooks: `forms.new { { "buy <item>" } }`,
-			want:  `forms.new: form #1 ("buy <item>") needs a function after its pattern`,
+			want:  `dragon.forms.new: form #1 ("buy <item>") needs a function after its pattern`,
 		},
 		"unknown slot type": {
 			hooks: `forms.new { { "buy <item:thingy>", function() end } }`,
@@ -95,7 +97,7 @@ func TestFormSetErrors(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			_, err := newGame(t, fstest.MapFS{
 				"plugin.lua": file(`return { name = "game" }`),
-				"hooks.lua":  file(tc.hooks + "\nreturn {}"),
+				"hooks.lua":  file("local forms = require(\"dragon.forms\")\n" + tc.hooks + "\nreturn {}"),
 			})
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("error = %v, want it to contain %q", err, tc.want)

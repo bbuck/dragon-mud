@@ -17,6 +17,8 @@ import (
 var confirming = fstest.MapFS{
 	"plugin.lua": file(`return { name = "game" }`),
 	"commands.lua": file(`
+				local game = require("dragon.game")
+		local world = require("dragon.world")
 		return {
 			destroy = { forms = { { "destroy <thing:object:held>", function(actor, args)
 				game.session(actor):push_mode("confirm_destroy", { thing = args.thing })
@@ -28,6 +30,7 @@ var confirming = fstest.MapFS{
 		}
 	`),
 	"modes.lua": file(`
+				local world = require("dragon.world")
 		return {
 			confirm_destroy = {
 				enter = function(session, state)
@@ -80,6 +83,7 @@ func TestModeStateAndResume(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
 		"plugin.lua": file(`return { name = "game" }`),
 		"commands.lua": file(`
+						local game = require("dragon.game")
 			return {
 				describe = { execute = function(actor)
 					game.session(actor):push_mode("describe")
@@ -135,6 +139,7 @@ func TestPassthroughMode(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
 		"plugin.lua": file(`return { name = "game" }`),
 		"commands.lua": file(`
+						local game = require("dragon.game")
 			return { fight = { execute = function(actor)
 				game.session(actor):push_mode("combat")
 				actor:send("En garde!")
@@ -224,6 +229,8 @@ func TestChoosingAmongCharacters(t *testing.T) {
 	g := startGameWith(t, db, fstest.MapFS{
 		"plugin.lua": file(`return { name = "game" }`),
 		"commands.lua": file(`
+						local game = require("dragon.game")
+			local world = require("dragon.world")
 			return { alt = { execute = function(actor)
 				game.session(actor).account:add_character(world.create({ properties = { name = "Zed" } }))
 				actor:send("Added Zed.")
@@ -337,6 +344,7 @@ func TestModeErrors(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
 		"plugin.lua": file(`return { name = "game" }`),
 		"commands.lua": file(`
+						local game = require("dragon.game")
 			return {
 				go = { forms = { { "go <where>", function(actor, args)
 					game.session(actor):push_mode(args.where, { fn = function() end })
@@ -368,6 +376,7 @@ func TestReloadEndsRemovedModes(t *testing.T) {
 	files := fstest.MapFS{
 		"plugin.lua": file(`return { name = "game" }`),
 		"commands.lua": file(`
+						local game = require("dragon.game")
 			return { wait = { execute = function(actor) game.session(actor):push_mode("waiting") end } }
 		`),
 		"modes.lua": file(`return { waiting = { input = function(session) session:send("Still waiting.") end } }`),
@@ -437,6 +446,7 @@ func TestCreationSetsStructureAndNotifies(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
 		"plugin.lua": file(`return { name = "game" }`),
 		"hooks.lua": file(`
+						local world = require("dragon.world")
 			return {
 				["dragon:booted"] = function()
 					if world.keyed("elf") then return end
@@ -453,6 +463,7 @@ func TestCreationSetsStructureAndNotifies(t *testing.T) {
 			}
 		`),
 		"modes.lua": file(`
+						local world = require("dragon.world")
 			return {
 				choose_race = {
 					enter = function(session)
@@ -462,6 +473,7 @@ func TestCreationSetsStructureAndNotifies(t *testing.T) {
 			}
 		`),
 		"commands.lua": file(`
+						local world = require("dragon.world")
 			return { me = { execute = function(actor)
 				actor:send(table.concat({
 					actor:get("name"), actor:get("ears"), actor.location:get("name"),

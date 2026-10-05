@@ -862,8 +862,15 @@ Lua 5.1) is the default. JavaScript (goja), a custom language, or anything
 else can be added without changing the engine or the modules.
 
 - **Modules, not reflection.** The engine exposes a designed API as modules of
-  Go functions (`die.roll`, `room.get`). Modules are written once and work in
-  every language. Go types are never exposed directly.
+  Go functions. Modules are written once and work in every language. Go
+  types are never exposed directly.
+- **Modules are required, not globals:** `local world =
+  require("dragon.world")`. The engine's are `dragon.game`, `dragon.world`,
+  `dragon.hooks`, `dragon.forms` and `dragon.log`. Names starting `dragon.`
+  only ever reach engine modules, so a plugin's `lua/` can't shadow one,
+  and a misspelled one is an error listing them. Reading `world` without
+  requiring it is an error that says which line to add. Lua's own
+  libraries (`string`, `table`, `math`, `coroutine`) stay global.
 - **Boundary values** are nil, bool, number, string, list, map, script
   function and handle. `scripting.Args` gives uniform argument errors in
   every language.
@@ -874,8 +881,8 @@ else can be added without changing the engine or the modules.
 - **Sandbox.** Lua gets base, table, string, math and coroutine only.
   `dofile`, `loadfile` and the standard `require` are removed.
 - **Each plugin has its own scope.** A plugin's files share globals of
-  their own, falling back to the engine's modules and libraries, so one
-  plugin's globals never collide with another's. `require("items")` loads
+  their own, falling back to Lua's libraries, so one plugin's globals never
+  collide with another's. `require("items")` loads
   `lua/items.lua` (or `lua/items/init.lua`) from the same plugin, once per
   load; `require("items.find")` loads `lua/items/find.lua`. It works inside
   functions as well as at the top of a file. Another plugin's modules are
@@ -911,11 +918,11 @@ else can be added without changing the engine or the modules.
   `character` (either can be nil) and `mode`. Methods: `send`, `prompt`,
   `push_mode`, `pop_mode`, `replace_mode`, `play` and `close` (§4). An
   **account** handle has `name` and `characters`, and `add_character(o)`.
-  The `world` module creates, finds and destroys objects, and the `forms`
-  module builds form sets (§2). `log.debug`, `log.info`, `log.warn` and
-  `log.error` (`message[, fields]`) write to the server log, tagged with
-  the plugin; objects in `fields` show as their description. Each plugin
-  gets its own `log`. `o:is_player()` is true when an account
+  `dragon.world` creates, finds and destroys objects, and `dragon.forms`
+  builds form sets (§2). `dragon.log`'s `debug`, `info`, `warn` and `error`
+  (`message[, fields]`) write to the server log, tagged with the plugin;
+  objects in `fields` show as their description. Each plugin's
+  `dragon.log` is its own. `o:is_player()` is true when an account
   owns `o` as a character. A command's actor
   is the player's character object.
 - **Properties can hold objects.** They're stored as refs

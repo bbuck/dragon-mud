@@ -41,6 +41,9 @@
 -- different creation flow, add steps. For entirely your own, leave
 -- "characters" out of builtins in dragon.toml.
 
+local world = require("dragon.world")
+local hooks = require("dragon.hooks")
+
 local function name(o)
   return o:get("name") or "someone"
 end

@@ -4,6 +4,8 @@
 -- value is the function that handles it. A game turns these off, or changes
 -- the order handlers run in, from game/wiring.lua.
 
+local game = require("dragon.game")
+
 local function name(o)
   return o:get("name") or "someone"
 end

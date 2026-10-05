@@ -79,7 +79,7 @@ func TestHandleFieldsAndMethods(t *testing.T) {
 	e, _ := handleEngine(t, values)
 
 	result, err := e.Eval(context.Background(), "test", `
-		local c = counters.get("hits")
+		local counters = require("counters"); local c = counters.get("hits")
 		local after = c:add(2)
 		return { name = c.name, value = c.value, after = after, text = tostring(c) }
 	`)
@@ -100,7 +100,7 @@ func TestHandleIdentity(t *testing.T) {
 	e, _ := handleEngine(t, map[string]int{})
 
 	result, err := e.Eval(context.Background(), "test", `
-		local a, b = counters.get("x"), counters.get("x")
+		local counters = require("counters"); local a, b = counters.get("x"), counters.get("x")
 		local seen = { [a] = true }
 		return { same = a == b, keyed = seen[b] == true, other = a ~= counters.get("y"),
 		         via_method = a:other("y") == counters.get("y") }
@@ -119,12 +119,12 @@ func TestHandleIdentity(t *testing.T) {
 func TestHandlesCrossTheBoundary(t *testing.T) {
 	e, typ := handleEngine(t, map[string]int{})
 
-	name, err := e.Eval(context.Background(), "test", `return counters.name_of(counters.get("z"))`)
+	name, err := e.Eval(context.Background(), "test", `local counters = require("counters"); return counters.name_of(counters.get("z"))`)
 	if err != nil || name != "z" {
 		t.Errorf("name_of = %v, %v", name, err)
 	}
 
-	value, err := e.Eval(context.Background(), "test", `return counters.get("z")`)
+	value, err := e.Eval(context.Background(), "test", `local counters = require("counters"); return counters.get("z")`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestHandlesCrossTheBoundary(t *testing.T) {
 
 	// A handle passed back into Lua is the same value it was.
 	fn, err := e.Eval(context.Background(), "test", `
-		local z = counters.get("z")
+		local counters = require("counters"); local z = counters.get("z")
 		return function(h) return h == z end
 	`)
 	if err != nil {
@@ -150,13 +150,13 @@ func TestHandleErrors(t *testing.T) {
 	e, _ := handleEngine(t, map[string]int{})
 
 	tests := map[string]string{
-		`counters.get("x"):sub(1)`:                     `counter has no field or method "sub"`,
-		`counters.get("x").name = "y"`:                 "can't be assigned",
-		`counters.get("x").add(1)`:                     "call it with a colon",
-		`counters.get("x"):add("lots")`:                "counter:add: argument #1: expected integer",
-		`local _ = counters.get("x").broken`:           "counter.broken: this field is broken",
-		`counters.name_of("x")`:                        "expected counter, got string",
-		`getmetatable(counters.get("x")).__index = {}`: "attempt to index",
+		`local counters = require("counters"); counters.get("x"):sub(1)`:                     `counter has no field or method "sub"`,
+		`local counters = require("counters"); counters.get("x").name = "y"`:                 "can't be assigned",
+		`local counters = require("counters"); counters.get("x").add(1)`:                     "call it with a colon",
+		`local counters = require("counters"); counters.get("x"):add("lots")`:                "counter:add: argument #1: expected integer",
+		`local counters = require("counters"); local _ = counters.get("x").broken`:           "counter.broken: this field is broken",
+		`local counters = require("counters"); counters.name_of("x")`:                        "expected counter, got string",
+		`local counters = require("counters"); getmetatable(counters.get("x")).__index = {}`: "attempt to index",
 	}
 
 	for source, want := range tests {

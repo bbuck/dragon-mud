@@ -110,7 +110,7 @@ func (g *Game) objectType() *scripting.Type {
 //	world.destroy(o)           destroy o; its contents move to its location
 func (g *Game) worldModule() scripting.Module {
 	return scripting.Module{
-		Name: "world",
+		Name: "dragon.world",
 		Funcs: map[string]scripting.Func{
 			"create": g.mutatingFunc(g.scriptCreate),
 			"get": func(args scripting.Args) (any, error) {

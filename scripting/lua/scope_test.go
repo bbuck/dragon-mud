@@ -55,12 +55,12 @@ func TestScopesKeepTheirOwnGlobals(t *testing.T) {
 	t.Cleanup(e.Close)
 
 	a := newScope(t, e, "a/lua", fstest.MapFS{}, nil)
-	b := newScope(t, e, "b/lua", fstest.MapFS{}, map[string]any{"mine": "b's"})
+	b := newScope(t, e, "b/lua", fstest.MapFS{}, []scripting.Module{{Name: "dragon.mine", Values: map[string]any{"owner": "b"}}})
 
 	if _, err := a.Eval(context.Background(), "a.lua", `shared = "a"`); err != nil {
 		t.Fatal(err)
 	}
-	got, err := b.Eval(context.Background(), "b.lua", `return { shared = shared, string = string.upper("ok"), mine = mine }`)
+	got, err := b.Eval(context.Background(), "b.lua", `return { shared = shared, string = string.upper("ok"), mine = require("dragon.mine").owner }`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,7 @@ func TestScopesKeepTheirOwnGlobals(t *testing.T) {
 	if m["string"] != "OK" {
 		t.Errorf("b can't reach the engine's globals: %v", m["string"])
 	}
-	if m["mine"] != "b's" {
+	if m["mine"] != "b" {
 		t.Errorf("b's own value = %v", m["mine"])
 	}
 }
@@ -123,13 +123,44 @@ func TestScopeRequireErrors(t *testing.T) {
 	}
 }
 
-func newScope(t *testing.T, e *Engine, dir string, modules fstest.MapFS, values map[string]any) scripting.Scope {
+func newScope(t *testing.T, e *Engine, dir string, files fstest.MapFS, modules []scripting.Module) scripting.Scope {
 	t.Helper()
 
-	s, err := e.Scope(dir, modules, values)
+	s, err := e.Scope(dir, files, modules)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	return s
+}
+
+func TestEngineModulesAreRequired(t *testing.T) {
+	e := New()
+	t.Cleanup(e.Close)
+	if err := e.Load(scripting.Module{Name: "dragon.world", Values: map[string]any{"size": 3}}); err != nil {
+		t.Fatal(err)
+	}
+
+	// A plugin's own lua/dragon/world.lua can't shadow the engine's module.
+	s := newScope(t, e, "game/lua", fstest.MapFS{"dragon/world.lua": file(`return { size = "mine" }`)}, nil)
+	got, err := s.Eval(context.Background(), "game/hooks.lua", `return require("dragon.world").size`)
+	if err != nil || fmt.Sprint(got) != "3" {
+		t.Errorf("size = %v, %v; want the engine's 3", got, err)
+	}
+
+	for source, want := range map[string]string{
+		`return world.size`:             `world isn't a global. Add local world = require("dragon.world") at the top of the file.`,
+		`return require("dragon.wrld")`: `require: there's no module "dragon.wrld". Modules: dragon.world.`,
+	} {
+		_, err := s.Eval(context.Background(), "game/hooks.lua", source)
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: error = %v, want it to contain %q", source, err, want)
+		}
+	}
+
+	// Outside any scope, require still reaches the engine's modules.
+	got, err = e.Eval(context.Background(), "plugin.lua", `return require("dragon.world").size`)
+	if err != nil || fmt.Sprint(got) != "3" {
+		t.Errorf("outside a scope: %v, %v", got, err)
+	}
 }

@@ -22,10 +22,14 @@ var moduleRx = regexp.MustCompile(`^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$`)
 // back to the engine's, holding a require for the plugin's modules. Chunks
 // evaluated in the scope, and every function they define, use it.
 type scope struct {
-	e       *Engine
-	dir     string
-	modules fs.FS
-	env     *glua.LTable
+	e     *Engine
+	dir   string
+	files fs.FS
+	env   *glua.LTable
+
+	// modules are the scope's own modules, which take precedence over the
+	// engine's.
+	modules map[string]*glua.LTable
 
 	// loaded holds each module's value, so a module runs once per scope.
 	loaded map[string]glua.LValue
@@ -34,22 +38,30 @@ type scope struct {
 	loading []string
 }
 
-// Scope returns a scope whose require loads "a.b" from a/b.lua or
-// a/b/init.lua in modules, with values as globals of its own.
-func (e *Engine) Scope(dir string, modules fs.FS, values map[string]any) (scripting.Scope, error) {
-	s := &scope{e: e, dir: dir, modules: modules, loaded: make(map[string]glua.LValue)}
+// Scope returns a scope whose require loads modules by name, then "a.b"
+// from a/b.lua or a/b/init.lua in files.
+func (e *Engine) Scope(dir string, files fs.FS, modules []scripting.Module) (scripting.Scope, error) {
+	s := &scope{e: e, dir: dir, files: files, modules: make(map[string]*glua.LTable), loaded: make(map[string]glua.LValue)}
+	for _, m := range modules {
+		if !moduleRx.MatchString(m.Name) {
+			return nil, fmt.Errorf("lua: scope %s: module name %q isn't valid", dir, m.Name)
+		}
+		table, err := e.moduleTable(m)
+		if err != nil {
+			return nil, err
+		}
+		s.modules[m.Name] = table
+	}
 
 	s.env = e.state.NewTable()
 	meta := e.state.NewTable()
-	meta.RawSetString("__index", e.state.G.Global)
+	meta.RawSetString("__index", e.state.NewFunction(func(state *glua.LState) int {
+		key := state.CheckString(2)
+		e.globalHint(state, key, s.modules)
+		state.Push(state.GetField(state.G.Global, key))
+		return 1
+	}))
 	e.state.SetMetatable(s.env, meta)
-	for name, value := range values {
-		lv, err := e.toLua(value, 0)
-		if err != nil {
-			return nil, fmt.Errorf("lua: scope %s: value %q: %w", dir, name, err)
-		}
-		s.env.RawSetString(name, lv)
-	}
 	s.env.RawSetString("require", e.state.NewFunction(s.require))
 
 	return s, nil
@@ -73,6 +85,17 @@ func (s *scope) require(state *glua.LState) int {
 	if v, ok := s.loaded[name]; ok {
 		state.Push(v)
 		return 1
+	}
+	if t, ok := s.modules[name]; ok {
+		state.Push(t)
+		return 1
+	}
+	if t, ok := s.e.modules[name]; ok {
+		state.Push(t)
+		return 1
+	}
+	if s.e.reserved(name, s.modules) {
+		state.RaiseError("require: there's no module %q. Modules: %s.", name, strings.Join(s.e.moduleNames(s.modules), ", "))
 	}
 	if !moduleRx.MatchString(name) {
 		state.RaiseError("require: %q isn't a module name. Name modules by their path under %s with dots, like require(\"items\") for %s/items.lua or require(\"items.find\") for %s/items/find.lua.",
@@ -116,7 +139,7 @@ func (s *scope) find(name string) (string, string, error) {
 	base := strings.ReplaceAll(name, ".", "/")
 	tried := []string{base + ".lua", base + "/init.lua"}
 	for _, file := range tried {
-		source, err := fs.ReadFile(s.modules, file)
+		source, err := fs.ReadFile(s.files, file)
 		if errors.Is(err, fs.ErrNotExist) {
 			continue
 		}
@@ -137,7 +160,7 @@ func (s *scope) find(name string) (string, string, error) {
 // names lists the modules in the scope, as require would name them.
 func (s *scope) names() []string {
 	var names []string
-	fs.WalkDir(s.modules, ".", func(file string, d fs.DirEntry, err error) error {
+	fs.WalkDir(s.files, ".", func(file string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || path.Ext(file) != ".lua" {
 			return nil
 		}

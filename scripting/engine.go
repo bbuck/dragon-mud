@@ -26,8 +26,9 @@ import (
 // Engine runs scripts in one language. An Engine is not safe for concurrent
 // use; it belongs to the game loop.
 type Engine interface {
-	// Load makes a module available to scripts under m.Name. It is an error
-	// to load a module whose name is already in use.
+	// Load makes a module available to scripts through require(m.Name),
+	// such as require("dragon.world"). It is an error to load a module whose
+	// name is already in use. Modules aren't globals.
 	Load(m Module) error
 
 	// Run executes source. name identifies the script in error messages. If
@@ -41,11 +42,13 @@ type Engine interface {
 	Eval(ctx context.Context, name, source string) (any, error)
 
 	// Scope returns a scope for one plugin's scripts: globals of their own,
-	// starting with values (a Module among them becomes its table) and
-	// falling back to the engine's, and a require
-	// that loads the modules in modules. dir describes where modules are,
-	// such as "game/lua", for script names and error messages.
-	Scope(dir string, modules fs.FS, values map[string]any) (Scope, error)
+	// falling back to the engine's, and a require that loads the engine's
+	// modules, the scope's own modules (which take precedence), and the
+	// plugin's script modules in files. A module name's first part, such as
+	// "dragon" in "dragon.world", is reserved for modules: require never
+	// looks in files for it. dir describes where files are, such as
+	// "game/lua", for script names and error messages.
+	Scope(dir string, files fs.FS, modules []Module) (Scope, error)
 
 	// Close releases the engine's resources.
 	Close()
