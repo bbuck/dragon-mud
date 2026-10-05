@@ -856,3 +856,48 @@ func TestObjectModifiersCombine(t *testing.T) {
 		alice.expect(want)
 	}
 }
+
+func TestScriptsRunCommands(t *testing.T) {
+	files := fstest.MapFS{}
+	for name, f := range oneRoom {
+		files[name] = f
+	}
+	files["commands.lua"] = file(`
+		local game = require("dragon.game")
+		local world = require("dragon.world")
+		return {
+			hail = { execute = function(actor) game.run(actor, "say Hail") end },
+			guard = { execute = function(actor)
+				local guard = world.create({ location = actor.location, properties = { name = "the guard" } })
+				game.run(guard, "say Halt!")
+			end },
+			try = { forms = { { "try <line>", function(actor, args)
+				local ok, why = game.run(actor, args.line)
+				actor:send("ran: " .. tostring(ok) .. ", " .. tostring(why))
+			end } } },
+			empty = { execute = function(actor) game.run(actor, " ") end },
+		}
+	`)
+	g := startGame(t, files)
+
+	alice := connect(t, g)
+	alice.login("Alice")
+	bob := connect(t, g)
+	bob.login("Bob")
+
+	alice.send("hail")
+	bob.expect(`Alice says, "Hail"`)
+
+	alice.send("guard")
+	bob.expect(`the guard says, "Halt!"`)
+
+	alice.send("try dance")
+	alice.expect("ran: false, Huh? Type [c]help[x] for a list of commands.")
+	alice.send("try say")
+	alice.expect("ran: false, Usage:")
+	alice.send("try say hi")
+	alice.expect("ran: true, nil")
+
+	alice.send("empty")
+	alice.expect(`dragon.game.run: argument #2: the line to run is empty; pass a command, like game.run(actor, "say Hail")`)
+}

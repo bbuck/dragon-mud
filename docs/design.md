@@ -927,7 +927,11 @@ else can be added without changing the engine or the modules.
   `push_mode`, `pop_mode`, `replace_mode`, `play` and `close` (§4). An
   **account** handle has `name` and `characters`, and `add_character(o)`.
   `dragon.world` creates, finds and destroys objects, and `dragon.forms`
-  builds form sets (§2). `dragon.log`'s `debug`, `info`, `warn` and `error`
+  builds form sets (§2). `game.run(actor, line)` runs a line as if `actor`
+  typed it, through the same commands and `dragon:unmatched_input`, so a
+  command can be another by a different name (`hail` runs `say Hail`) and
+  NPCs act through the commands players use. It shows nothing itself: it
+  returns true, or false and what the actor would have been told. `dragon.log`'s `debug`, `info`, `warn` and `error`
   (`message[, fields]`) write to the server log, tagged with the plugin;
   objects in `fields` show as their description. Each plugin's
   `dragon.log` is its own. `o:is_player()` is true when an account

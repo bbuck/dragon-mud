@@ -1,6 +1,8 @@
 package game
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -24,6 +26,8 @@ import (
 //	                               where forms is a list of { pattern, desc }
 //	game.disconnect(player[, text]) send an optional farewell and disconnect
 //	game.session(player)           the session playing player, or nil
+//	game.run(actor, line)          run line as if actor typed it; true, or
+//	                               false and what they'd have been told
 func (g *Game) module() scripting.Module {
 	return scripting.Module{
 		Name:   "dragon.game",
@@ -34,6 +38,7 @@ func (g *Game) module() scripting.Module {
 			"commands":   g.scriptCommands,
 			"disconnect": g.mutatingFunc(g.scriptDisconnect),
 			"session":    g.scriptSession,
+			"run":        g.mutatingFunc(g.scriptRun),
 		},
 	}
 }
@@ -170,4 +175,33 @@ func (g *Game) scriptSession(args scripting.Args) (any, error) {
 	}
 
 	return nil, nil
+}
+
+// scriptRun runs a line as if an object typed it, so a command can be
+// another command by another name and NPCs can act through commands. It
+// shows nothing itself: when nothing ran, the caller gets the message and
+// decides what to do with it.
+func (g *Game) scriptRun(args scripting.Args) (any, error) {
+	o, err := g.objectArg(args, 0)
+	if err != nil {
+		return nil, err
+	}
+	line, err := args.String(1)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(line) == "" {
+		return nil, errors.New(`argument #2: the line to run is empty; pass a command, like game.run(actor, "say Hail")`)
+	}
+
+	// Called from a running script, whose deadline applies.
+	ran, miss, err := g.runCommand(context.Background(), g.handle(o), line)
+	if err != nil {
+		return nil, err
+	}
+	if !ran {
+		return scripting.Results{false, miss}, nil
+	}
+
+	return true, nil
 }

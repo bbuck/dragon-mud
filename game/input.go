@@ -44,36 +44,51 @@ func (g *Game) dispatch(ctx context.Context, p *player, line string) {
 	ctx, cancel := context.WithTimeout(ctx, scriptTimeout)
 	defer cancel()
 
-	actor := g.handle(p.character)
-
-	g.resolving = true
-	match, miss, err := g.commands.Parse(ctx, actor, line)
-	g.resolving = false
-
-	if miss != nil && g.unmatched(ctx, actor, line, miss) {
-		return
-	}
-
+	ran, miss, err := g.runCommand(ctx, g.handle(p.character), line)
 	switch {
 	case err != nil:
-		g.log.Error("resolving input failed", "input", line, "error", err)
+		g.log.Error("command failed", "input", line, "error", err)
 		p.s.Send(message.System(fmt.Sprintf("[R]%v[x]", err)))
+	case !ran:
+		p.s.Send(message.System(miss))
+	}
+}
 
-	case miss != nil && miss.Reason != "":
-		p.s.Send(message.System(miss.Reason))
+// runCommand runs line as if actor typed it: the most specific form that
+// matches, or else the dragon:unmatched_input hook. When nothing ran, miss
+// is what the actor would be told.
+func (g *Game) runCommand(ctx context.Context, actor any, line string) (ran bool, miss string, err error) {
+	g.resolving = true
+	match, noMatch, err := g.commands.Parse(ctx, actor, line)
+	g.resolving = false
+	if err != nil {
+		return false, "", err
+	}
 
-	case miss != nil && len(miss.Usage) > 0:
-		p.s.Send(message.System("Usage:\n  [c]" + strings.Join(miss.Usage, "[x]\n  [c]") + "[x]"))
-
-	case miss != nil:
-		p.s.Send(message.System("Huh? Type [c]help[x] for a list of commands."))
-
-	default:
-		form := match.Form
-		if _, err := form.Execute.Call(ctx, actor, match.Args); err != nil {
-			g.log.Error("command failed", "command", form.Command.Name, "form", form.Pattern.Source, "plugin", form.Plugin, "error", err)
-			p.s.Send(message.System(fmt.Sprintf("[R]%s (%q from %s) failed: %v[x]", form.Command.Name, form.Pattern.Source, form.Plugin, err)))
+	if noMatch != nil {
+		if g.unmatched(ctx, actor, line, noMatch) {
+			return true, "", nil
 		}
+		return false, missMessage(noMatch), nil
+	}
+
+	form := match.Form
+	if _, err := form.Execute.Call(ctx, actor, match.Args); err != nil {
+		return false, "", fmt.Errorf("%s (%q from %s) failed: %w", form.Command.Name, form.Pattern.Source, form.Plugin, err)
+	}
+
+	return true, "", nil
+}
+
+// missMessage is what a player is told when nothing matched their input.
+func missMessage(miss *command.NoMatch) string {
+	switch {
+	case miss.Reason != "":
+		return miss.Reason
+	case len(miss.Usage) > 0:
+		return "Usage:\n  [c]" + strings.Join(miss.Usage, "[x]\n  [c]") + "[x]"
+	default:
+		return "Huh? Type [c]help[x] for a list of commands."
 	}
 }
 
