@@ -90,14 +90,14 @@ func (t *Templates) renderPart(mode int, p Part) (string, error) {
 
 	switch mode {
 	case modeText:
-		return text.render(text.tmpl, p.Block, p.Data)
+		return text.render(p.View, text.tmpl, p.Block, p.Data)
 	case modeMarked:
-		return text.render(text.marked, p.Block, p.Data)
+		return text.render(p.View, text.marked, p.Block, p.Data)
 	default:
 		if html, ok := t.files[p.View][FormatHTML]; ok {
-			return html.render(html.tmpl, p.Block, p.Data)
+			return html.render(p.View, html.tmpl, p.Block, p.Data)
 		}
-		s, err := text.render(text.marked, p.Block, p.Data)
+		s, err := text.render(p.View, text.marked, p.Block, p.Data)
 		return textToHTML(s), err
 	}
 }

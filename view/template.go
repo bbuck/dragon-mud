@@ -255,12 +255,12 @@ func (t *Templates) Render(name, format, block string, data any) (out string, ok
 	c, ok := t.files[name][format]
 	switch {
 	case ok:
-		out, err = c.render(c.tmpl, block, data)
+		out, err = c.render(name, c.tmpl, block, data)
 		return out, true, err
 
 	case format == FormatHTML:
 		if c, ok = t.files[name][FormatText]; ok {
-			out, err = c.render(c.marked, block, data)
+			out, err = c.render(name, c.marked, block, data)
 			return textToHTML(out), true, err
 		}
 	}
@@ -268,7 +268,7 @@ func (t *Templates) Render(name, format, block string, data any) (out string, ok
 	return "", false, nil
 }
 
-func (c *compiled) render(tmpl executor, block string, data any) (string, error) {
+func (c *compiled) render(name string, tmpl executor, block string, data any) (string, error) {
 	if block != "" && !slices.Contains(c.blocks, block) {
 		defines := "It doesn't define any blocks"
 		if len(c.blocks) > 0 {
@@ -278,11 +278,11 @@ func (c *compiled) render(tmpl executor, block string, data any) (string, error)
 			c.path, block, defines, block)
 	}
 
-	name := block
-	if name == "" {
-		name = c.path
+	executed := block
+	if executed == "" {
+		executed = c.path
 	}
-	if err := checkData(c.refs[name], data); err != nil {
+	if err := checkData(c.refs[executed], data); err != nil {
 		return "", err
 	}
 
@@ -297,7 +297,14 @@ func (c *compiled) render(tmpl executor, block string, data any) (string, error)
 		return "", err
 	}
 
-	return strings.Trim(b.String(), "\r\n"), nil
+	out := strings.Trim(b.String(), "\r\n")
+	if out == "" && block == "" && len(c.blocks) > 0 {
+		// Everything is inside {{define}}s, so only a block can show it.
+		return "", fmt.Errorf("%s rendered nothing: all of it is in blocks (%s). Send one as the third argument, like o:send(%q, data, %q).",
+			c.path, strings.Join(c.blocks, ", "), name, c.blocks[0])
+	}
+
+	return out, nil
 }
 
 // Entities in text rendered for HTML are marked with private-use

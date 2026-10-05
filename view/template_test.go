@@ -58,7 +58,6 @@ func TestRenderWholeTemplateAndBlocks(t *testing.T) {
 		{"whole file, trimmed", "ambient", "", map[string]any{"text": "A wind blows."}, "[c]A wind blows.[x]"},
 		{"block", "hit", "actor", data, "You hit goblin."},
 		{"block on its own lines", "hit", "others", data, "Bob hits goblin."},
-		{"whole file of blocks is empty", "hit", "", data, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -287,5 +286,20 @@ func TestCommandErrors(t *testing.T) {
 		if _, _, err := ts.Render("v", FormatText, "", map[string]any{}); err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("%s: error = %v, want it to contain %q", source, err, want)
 		}
+	}
+}
+
+func TestOnlyBlocksNeedsABlock(t *testing.T) {
+	ts := NewTemplates()
+	add(t, ts, "say", FormatText, "dragon:chat", `{{define "actor"}}You say hi.{{end}}{{define "others"}}Someone says hi.{{end}}`)
+
+	_, _, err := ts.Render("say", FormatText, "", map[string]any{})
+	want := `dragon:chat/views/say.txt.tmpl rendered nothing: all of it is in blocks (actor, others). Send one as the third argument, like o:send("say", data, "actor").`
+	if err == nil || err.Error() != want {
+		t.Errorf("error = %v\nwant %s", err, want)
+	}
+
+	if got := render(t, ts, "say", FormatText, "others", map[string]any{}); got != "Someone says hi." {
+		t.Errorf("with a block: %q", got)
 	}
 }

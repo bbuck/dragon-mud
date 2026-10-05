@@ -530,7 +530,8 @@ game.broadcast("dance", { actor = actor }, nil, actor)
   sender names it as the third argument:
   `actor:send("hit", data, "actor")`. Which block a player sees (their own
   view of an action, someone else's) is the sending plugin's choice; the
-  engine never picks one.
+  engine never picks one. Sending a view that's all blocks without naming
+  one is an error listing them, since it would show nothing.
 - **Precedence** is per file: the game, then plugins, then built-ins. A game
   can restyle a plugin's HTML by adding only `game/views/say.html.tmpl`.
 - A view without a `.txt.tmpl` is a startup error, and so is a misnamed file
