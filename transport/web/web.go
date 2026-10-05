@@ -205,6 +205,6 @@ func render(m message.Message) string {
 
 	return fmt.Sprintf(
 		`<div hx-swap-oob="beforeend:#feed"><div class="msg msg-%s">%s</div></div>`,
-		template.HTMLEscapeString(m.Kind), body,
+		template.HTMLEscapeString(strings.ReplaceAll(m.Kind, "/", "-")), body,
 	)
 }

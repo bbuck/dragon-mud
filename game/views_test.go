@@ -181,9 +181,14 @@ func TestMessageFileErrors(t *testing.T) {
 			"game/views/hit.tmpl isn't a template name. Name templates <name>.txt.tmpl or <name>.html.tmpl, where the name is lowercase letters, digits and underscores, like say.txt.tmpl.",
 		},
 		{
-			"directory",
-			fstest.MapFS{"views/combat/hit.txt.tmpl": file("hit")},
-			"game/views/combat is a directory, but views/ only holds template files like say.txt.tmpl.",
+			"misnamed directory",
+			fstest.MapFS{"views/Combat/hit.txt.tmpl": file("hit")},
+			"game/views/Combat isn't a template directory name. Name directories with lowercase letters, digits and underscores, like views/chat/, so their templates have names like chat/say.",
+		},
+		{
+			"nested HTML without text",
+			fstest.MapFS{"views/combat/hit.html.tmpl": file("<b>hit</b>")},
+			"game/views/combat/hit.html.tmpl has no text version. Add views/combat/hit.txt.tmpl",
 		},
 		{
 			"parse error",
@@ -448,5 +453,31 @@ func TestScaffoldedGame(t *testing.T) {
 	g.Request(alice.s, session.Request{ID: "2", Name: "entity_tooltip", Data: map[string]any{"ref": id}})
 	if got := alice.expectReply("2").HTML; got != "<strong>Alice</strong>" {
 		t.Errorf("tooltip = %q", got)
+	}
+}
+
+func TestNestedViews(t *testing.T) {
+	g := startGame(t, fstest.MapFS{
+		"plugin.lua":                  file(`return { name = "game" }`),
+		"views/chat/shout.txt.tmpl":   file(`{{entity .actor}} shouts {{section "volume"}}!`),
+		"views/chat/shout.html.tmpl":  file(`<b>{{entity .actor}}</b> shouts {{section "volume"}}!`),
+		"views/.hidden/junk.txt.tmpl": file(`ignored`),
+		"views/chat/loud.txt.tmpl":    file(`VERY`),
+		"hooks.lua": file(`return { ["section:chat/shout.volume"] = function(event)
+			table.insert(event.parts, { view = "chat/loud" })
+			return event
+		end }`),
+		"commands.lua": file(`return { shout = { execute = function(actor) actor:send("chat/shout", { actor = actor }) end } }`),
+	})
+
+	alice := connect(t, g)
+	alice.login("Alice")
+	alice.send("shout")
+	m := alice.expect("Alice shouts VERY!")
+	if m.Kind != "chat/shout" {
+		t.Errorf("kind = %q, want chat/shout", m.Kind)
+	}
+	if !strings.Contains(m.HTML, "</b> shouts VERY!") {
+		t.Errorf("HTML = %s", m.HTML)
 	}
 }

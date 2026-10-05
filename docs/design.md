@@ -501,7 +501,14 @@ A view is a template file in a plugin's `views/` directory, one per format:
 views/
   say.txt.tmpl     required: telnet, and the web when there's no HTML
   say.html.tmpl    optional: the web
+  chat/
+    shout.txt.tmpl the view "chat/shout"
 ```
+
+Views can be grouped in directories: `views/chat/shout.txt.tmpl` is the
+view `chat/shout`, sent with `actor:send("chat/shout", data)`. Its
+sections are hooked as `section:chat/shout.<section>`, and on the web its
+class is `.msg-chat-shout`.
 
 Most views only need the text template: the web shows it with color as
 HTML and entities still clickable. Add HTML when the web should look
@@ -699,7 +706,8 @@ final.
 - **Feed structure** comes from views: `room` renders as a heading
   with prose, `say` and `emote` as dialogue and action, `ambient` in italics,
   `echo` (the player's own command) small and muted. Each message is a
-  `.msg-<kind>` element, so a stylesheet can style any kind. `dragon:chat`
+  `.msg-<view>` element (`/` becomes `-`), so a stylesheet can style any
+  view. `dragon:chat`
   sends `say` and `emote`; `dragon new` puts `room` and `ambient` in the
   game's `views/` until `dragon:rooms` provides them; the engine sends
   `echo`, `system` and `prompt`.

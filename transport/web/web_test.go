@@ -168,3 +168,10 @@ func TestRenderHTML(t *testing.T) {
 		t.Errorf("render = %s\nwant %s", got, want)
 	}
 }
+
+func TestNestedViewClass(t *testing.T) {
+	got := render(message.Message{Kind: "chat/say", HTML: "hi"})
+	if !strings.Contains(got, `class="msg msg-chat-say"`) {
+		t.Errorf("render = %s, want the class msg-chat-say", got)
+	}
+}

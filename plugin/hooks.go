@@ -14,7 +14,7 @@ import (
 
 var (
 	hookNameRx    = regexp.MustCompile(`^[a-z][a-z0-9_]*(:[a-z][a-z0-9_]*)?$`)
-	sectionHookRx = regexp.MustCompile(`^section:[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$`)
+	sectionHookRx = regexp.MustCompile(`^section:[a-z][a-z0-9_]*(/[a-z][a-z0-9_]*)*\.[a-z][a-z0-9_]*$`)
 )
 
 // hookKeys are the fields a handler entry in hooks.lua may have.
@@ -48,7 +48,7 @@ func (p *Plugin) Hooks(ctx context.Context) ([]hook.Handler, error) {
 	for _, name := range slices.Sorted(maps.Keys(table)) {
 		where := fmt.Sprintf("%s: %s", file, name)
 		if strings.HasPrefix(name, "section:") && !sectionHookRx.MatchString(name) || !strings.HasPrefix(name, "section:") && !hookNameRx.MatchString(name) {
-			return nil, fmt.Errorf("%s isn't a valid hook name. Hook names are lowercase words joined by underscores, with an optional namespace, like can_move or mapping:map_changed, or section:<kind>.<section> to add to a message's section, like section:room.exits.", where)
+			return nil, fmt.Errorf("%s isn't a valid hook name. Hook names are lowercase words joined by underscores, with an optional namespace, like can_move or mapping:map_changed, or section:<view>.<section> to add to a view's section, like section:room.exits or section:chat/say.badges.", where)
 		}
 
 		h := hook.Handler{Hook: name, Plugin: p.ID}

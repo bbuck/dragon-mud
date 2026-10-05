@@ -89,7 +89,7 @@ func TestSectionErrors(t *testing.T) {
 		{
 			"bad hook name",
 			fstest.MapFS{"hooks.lua": file(`return { ["section:room"] = function(event) end }`)},
-			`or section:<kind>.<section> to add to a message's section, like section:room.exits.`,
+			`or section:<view>.<section> to add to a view's section, like section:room.exits or section:chat/say.badges.`,
 		},
 	}
 
