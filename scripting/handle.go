@@ -1,6 +1,10 @@
 package scripting
 
-import "fmt"
+import (
+	"fmt"
+	"maps"
+	"slices"
+)
 
 // Handle is a reference to something Go owns, such as a world object, that
 // scripts hold and call methods on. Scripts can't see inside a handle; they
@@ -32,6 +36,19 @@ type Type struct {
 	// String describes a handle for printing and error messages. Nil uses
 	// the type name and key.
 	String func(key any) string
+
+	// Hint, if set, adds advice when a script reads a name the type doesn't
+	// have, or assigns any name (assign is true then), such as pointing at
+	// a method that does what the script meant.
+	Hint func(name string, assign bool) string
+}
+
+// Names returns the type's field and method names, sorted, for errors.
+func (t *Type) Names() (fields, methods []string) {
+	fields = slices.Sorted(maps.Keys(t.Fields))
+	methods = slices.Sorted(maps.Keys(t.Methods))
+
+	return fields, methods
 }
 
 // Field computes a field's value for the handle with key.

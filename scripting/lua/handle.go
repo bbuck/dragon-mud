@@ -2,7 +2,9 @@ package lua
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
+	"strings"
 
 	glua "github.com/yuin/gopher-lua"
 
@@ -80,12 +82,32 @@ func (e *Engine) metatable(t *scripting.Type) *glua.LTable {
 			return 1
 		}
 
-		state.RaiseError("%s has no field or method %q", t.Name, key)
+		fields, names := t.Names()
+		msg := fmt.Sprintf("%s has no field or method %q.", t.Name, key)
+		if len(fields) > 0 {
+			msg += " Its fields are " + strings.Join(fields, ", ") + "."
+		}
+		if len(names) > 0 {
+			msg += " Its methods are " + strings.Join(names, ", ") + "."
+		}
+		if t.Hint != nil {
+			if hint := t.Hint(key, false); hint != "" {
+				msg += " " + hint
+			}
+		}
+		state.RaiseError("%s", msg)
 		return 0
 	}))
 
 	e.state.SetField(mt, "__newindex", e.state.NewFunction(func(state *glua.LState) int {
-		state.RaiseError("%s fields can't be assigned; use its methods", t.Name)
+		key := state.CheckString(2)
+		msg := fmt.Sprintf("%s.%s can't be assigned: %s fields are read-only; use its methods.", t.Name, key, t.Name)
+		if t.Hint != nil {
+			if hint := t.Hint(key, true); hint != "" {
+				msg += " " + hint
+			}
+		}
+		state.RaiseError("%s", msg)
 		return 0
 	}))
 

@@ -98,6 +98,20 @@ func (g *Game) objectType() *scripting.Type {
 			}
 			return fmt.Sprintf("object %s (destroyed)", key)
 		},
+		Hint: func(name string, assign bool) string {
+			switch {
+			case name == "location" && assign:
+				return "Move it with o:move_to(place)."
+			case name == "parent" && assign:
+				return "Set it with o:set_parent(parent)."
+			case name == "key" && assign:
+				return "Set it with o:set_key(key)."
+			case assign:
+				return fmt.Sprintf("To store %s as a property, write o:set(%q, value).", name, name)
+			default:
+				return fmt.Sprintf("If %s is a property, read it with o:get(%q).", name, name)
+			}
+		},
 	}
 }
 

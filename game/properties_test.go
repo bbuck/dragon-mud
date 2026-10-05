@@ -107,3 +107,31 @@ func TestStructuralFieldsArentProperties(t *testing.T) {
 		alice.expect(want)
 	}
 }
+
+func TestObjectFieldErrors(t *testing.T) {
+	g := startGame(t, fstest.MapFS{
+		"plugin.lua": file(`return { name = "game" }`),
+		"commands.lua": file(`
+			return {
+				readname = { execute = function(actor) return actor.name end },
+				setname = { execute = function(actor) actor.name = "Bob" end },
+				move = { execute = function(actor) actor.location = actor end },
+			}
+		`),
+	})
+
+	alice := connect(t, g)
+	alice.login("Alice")
+
+	for input, want := range map[string]string{
+		"readname": `object has no field or method "name". Its fields are contents, id, key, location, parent. Its methods are `,
+		"setname":  `object.name can't be assigned: object fields are read-only; use its methods. To store name as a property, write o:set("name", value).`,
+		"move":     `object.location can't be assigned: object fields are read-only; use its methods. Move it with o:move_to(place).`,
+	} {
+		alice.send(input)
+		alice.expect(want)
+	}
+
+	alice.send("readname")
+	alice.expect(`If name is a property, read it with o:get("name").`)
+}
