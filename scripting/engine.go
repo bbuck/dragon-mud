@@ -41,10 +41,11 @@ type Engine interface {
 	Eval(ctx context.Context, name, source string) (any, error)
 
 	// Scope returns a scope for one plugin's scripts: globals of their own,
-	// falling back to the engine's, and a require that loads the modules in
-	// modules. dir describes where modules are, such as "game/lua", for
-	// script names and error messages.
-	Scope(dir string, modules fs.FS) Scope
+	// starting with values (a Module among them becomes its table) and
+	// falling back to the engine's, and a require
+	// that loads the modules in modules. dir describes where modules are,
+	// such as "game/lua", for script names and error messages.
+	Scope(dir string, modules fs.FS, values map[string]any) (Scope, error)
 
 	// Close releases the engine's resources.
 	Close()

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+
+	"bbuck.dev/dragon-mud/scripting"
 )
 
 func file(source string) *fstest.MapFile {
@@ -22,7 +24,7 @@ func TestScopeRequire(t *testing.T) {
 		"items/find.lua": file(`return { find = function(name) return "found " .. name end }`),
 		"quiet.lua":      file(`x = 1`),
 	}
-	s := e.Scope("game/lua", modules)
+	s := newScope(t, e, "game/lua", modules, nil)
 
 	got, err := s.Eval(context.Background(), "game/commands.lua", `
 		local items = require("items")
@@ -52,13 +54,13 @@ func TestScopesKeepTheirOwnGlobals(t *testing.T) {
 	e := New()
 	t.Cleanup(e.Close)
 
-	a := e.Scope("a/lua", fstest.MapFS{})
-	b := e.Scope("b/lua", fstest.MapFS{})
+	a := newScope(t, e, "a/lua", fstest.MapFS{}, nil)
+	b := newScope(t, e, "b/lua", fstest.MapFS{}, map[string]any{"mine": "b's"})
 
 	if _, err := a.Eval(context.Background(), "a.lua", `shared = "a"`); err != nil {
 		t.Fatal(err)
 	}
-	got, err := b.Eval(context.Background(), "b.lua", `return { shared = shared, string = string.upper("ok") }`)
+	got, err := b.Eval(context.Background(), "b.lua", `return { shared = shared, string = string.upper("ok"), mine = mine }`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,6 +71,9 @@ func TestScopesKeepTheirOwnGlobals(t *testing.T) {
 	}
 	if m["string"] != "OK" {
 		t.Errorf("b can't reach the engine's globals: %v", m["string"])
+	}
+	if m["mine"] != "b's" {
+		t.Errorf("b's own value = %v", m["mine"])
 	}
 }
 
@@ -110,10 +115,21 @@ func TestScopeRequireErrors(t *testing.T) {
 			e := New()
 			t.Cleanup(e.Close)
 
-			_, err := e.Scope("game/lua", tc.modules).Eval(context.Background(), "game/commands.lua", tc.source)
+			_, err := newScope(t, e, "game/lua", tc.modules, nil).Eval(context.Background(), "game/commands.lua", tc.source)
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("error = %v, want it to contain %q", err, tc.want)
 			}
 		})
 	}
+}
+
+func newScope(t *testing.T, e *Engine, dir string, modules fstest.MapFS, values map[string]any) scripting.Scope {
+	t.Helper()
+
+	s, err := e.Scope(dir, modules, values)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return s
 }

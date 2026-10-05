@@ -177,6 +177,8 @@ func (e *Engine) toLua(value any, depth int) (glua.LValue, error) {
 		return nil, errors.New("function belongs to a different engine")
 	case scripting.Func:
 		return e.wrap("function", v), nil
+	case scripting.Module:
+		return e.moduleTable(v)
 	case scripting.Handle:
 		return e.handleToLua(v)
 	}

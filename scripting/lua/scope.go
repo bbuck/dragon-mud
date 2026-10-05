@@ -35,17 +35,24 @@ type scope struct {
 }
 
 // Scope returns a scope whose require loads "a.b" from a/b.lua or
-// a/b/init.lua in modules.
-func (e *Engine) Scope(dir string, modules fs.FS) scripting.Scope {
+// a/b/init.lua in modules, with values as globals of its own.
+func (e *Engine) Scope(dir string, modules fs.FS, values map[string]any) (scripting.Scope, error) {
 	s := &scope{e: e, dir: dir, modules: modules, loaded: make(map[string]glua.LValue)}
 
 	s.env = e.state.NewTable()
 	meta := e.state.NewTable()
 	meta.RawSetString("__index", e.state.G.Global)
 	e.state.SetMetatable(s.env, meta)
+	for name, value := range values {
+		lv, err := e.toLua(value, 0)
+		if err != nil {
+			return nil, fmt.Errorf("lua: scope %s: value %q: %w", dir, name, err)
+		}
+		s.env.RawSetString(name, lv)
+	}
 	s.env.RawSetString("require", e.state.NewFunction(s.require))
 
-	return s
+	return s, nil
 }
 
 // Eval executes source in the scope and returns its first return value.

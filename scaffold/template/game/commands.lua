@@ -12,6 +12,10 @@
 -- actor:send(view, data, block) sends a view instead: a template in views/
 -- filled in with data. See views/dance.txt.tmpl.
 --
+-- log.info("message", { player = actor }) writes to the server log, for
+-- seeing what your code is doing. log.debug lines show when dragon.toml's
+-- [[log]] has level = "debug".
+--
 -- Defining a command the engine already has (look, say, ...) adds your
 -- forms to it. Set replace = true to use only yours.
 

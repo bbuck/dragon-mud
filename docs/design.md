@@ -912,7 +912,10 @@ else can be added without changing the engine or the modules.
   `push_mode`, `pop_mode`, `replace_mode`, `play` and `close` (§4). An
   **account** handle has `name` and `characters`, and `add_character(o)`.
   The `world` module creates, finds and destroys objects, and the `forms`
-  module builds form sets (§2). `o:is_player()` is true when an account
+  module builds form sets (§2). `log.debug`, `log.info`, `log.warn` and
+  `log.error` (`message[, fields]`) write to the server log, tagged with
+  the plugin; objects in `fields` show as their description. Each plugin
+  gets its own `log`. `o:is_player()` is true when an account
   owns `o` as a character. A command's actor
   is the player's character object.
 - **Properties can hold objects.** They're stored as refs

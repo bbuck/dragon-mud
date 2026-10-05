@@ -72,12 +72,24 @@ func (e *Engine) Load(m scripting.Module) error {
 		return fmt.Errorf("lua: module %q: name already in use", m.Name)
 	}
 
+	table, err := e.moduleTable(m)
+	if err != nil {
+		return err
+	}
+	e.state.SetGlobal(m.Name, table)
+
+	return nil
+}
+
+// moduleTable builds the table scripts see for m, naming its functions
+// m.Name.function in errors.
+func (e *Engine) moduleTable(m scripting.Module) (*glua.LTable, error) {
 	table := e.state.NewTable()
 
 	for name, value := range m.Values {
 		lv, err := e.toLua(value, 0)
 		if err != nil {
-			return fmt.Errorf("lua: module %q value %q: %w", m.Name, name, err)
+			return nil, fmt.Errorf("lua: module %q value %q: %w", m.Name, name, err)
 		}
 		e.state.SetField(table, name, lv)
 	}
@@ -86,9 +98,7 @@ func (e *Engine) Load(m scripting.Module) error {
 		e.state.SetField(table, name, e.wrap(m.Name+"."+name, fn))
 	}
 
-	e.state.SetGlobal(m.Name, table)
-
-	return nil
+	return table, nil
 }
 
 // Run executes source as a Lua chunk.
