@@ -1,6 +1,7 @@
 {{/*
-  The "room" view: a place's title and description. room.html.tmpl beside
-  this file is the web's version, a heading and prose.
+  The "room" view: where the player is. .room is the room, with its
+  properties: .room.name, .room.description. room.html.tmpl beside this
+  file is the web's version, a heading and prose.
 */}}
-[Y]{{.title}}[x]
-{{.description}}
+[Y]{{.room.name}}[x]
+{{.room.description}}

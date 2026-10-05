@@ -53,8 +53,9 @@ type Slot struct {
 	Type string
 
 	// Modifiers are the type's modifiers, such as "here" in
-	// <thing:object:here>.
-	Modifiers []string
+	// <thing:object:here>, or here or held, and online, in
+	// <thing:object:here|held,online>.
+	Modifiers Modifiers
 }
 
 // Typed reports whether the slot resolves through a slot type rather than
@@ -164,7 +165,7 @@ func compile(source string, words []string) (Pattern, error) {
 		}
 		parts := strings.Split(strings.TrimSuffix(strings.TrimPrefix(word, "<"), ">"), ":")
 		if len(parts) > 3 {
-			return Pattern{}, fmt.Errorf("slot %q has too many parts. Write <name:type:modifier,modifier>; separate several modifiers with commas.", word)
+			return Pattern{}, fmt.Errorf("slot %q has too many parts. Write <name:type:modifiers>, like <thing:object:here|held,online>: | for either, commas for both.", word)
 		}
 
 		slot := &Slot{Name: parts[0]}
@@ -180,12 +181,11 @@ func compile(source string, words []string) (Pattern, error) {
 			slot.Type = parts[1]
 		}
 		if len(parts) > 2 {
-			for _, m := range strings.Split(parts[2], ",") {
-				if m == "" {
-					return Pattern{}, fmt.Errorf("slot <%s> has an empty modifier. Remove the extra comma or colon.", slot.Name)
-				}
-				slot.Modifiers = append(slot.Modifiers, m)
+			mods, err := parseModifiers(slot.Name, parts[2])
+			if err != nil {
+				return Pattern{}, err
 			}
+			slot.Modifiers = mods
 		}
 
 		p.Elements = append(p.Elements, Element{Slot: slot})
@@ -249,13 +249,11 @@ func (p Pattern) key() string {
 			}
 			continue
 		}
-		mods := slices.Clone(e.Slot.Modifiers)
-		slices.Sort(mods)
 		typ := e.Slot.Type
 		if typ == "" {
 			typ = TypeText
 		}
-		fmt.Fprintf(&b, "<%s:%s>", typ, strings.Join(mods, ","))
+		fmt.Fprintf(&b, "<%s:%s>", typ, e.Slot.Modifiers.key())
 	}
 
 	return b.String()

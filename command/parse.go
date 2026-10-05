@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"strings"
 )
 
 // Match is the form that won and the values of its slots.
@@ -147,15 +146,10 @@ func (r *Registry) resolve(ctx context.Context, actor any, input string, tokens 
 		i++
 
 		t := r.slotType(e.Slot)
-		key := resolveKey{typ: t.Name, modifiers: strings.Join(e.Slot.Modifiers, ","), text: text}
+		key := resolveKey{typ: t.Name, modifiers: e.Slot.Modifiers.key(), text: text}
 		res, ok := cache[key]
 		if !ok {
-			mods := make(map[string]bool, len(e.Slot.Modifiers))
-			for _, m := range e.Slot.Modifiers {
-				mods[m] = true
-			}
-
-			value, found, reason, err := t.Resolve(ctx, actor, text, mods)
+			value, found, reason, err := t.Resolve(ctx, actor, text, e.Slot.Modifiers)
 			if err != nil {
 				return nil, nil, fmt.Errorf("slot type %q (from %s): %w", t.Name, t.Plugin, err)
 			}

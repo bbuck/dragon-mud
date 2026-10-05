@@ -100,8 +100,12 @@ func (g *Game) unmatched(ctx context.Context, actor any, line string, miss *comm
 }
 
 // scriptSlot adapts a slot type a plugin wrote in its scripting language.
-// The resolver is called as resolve(actor, text, modifiers) and returns the
-// value, or nil and a reason the player will see.
+// The resolver is called as resolve(actor, text, modifiers, requirements)
+// and returns the value, or nil and a reason the player will see.
+// modifiers is the set of modifiers the slot names, { open = true }, which
+// is all most slot types need. requirements is how they combine: a list
+// of requirements that must all hold, each a list of alternatives, so
+// here|held,online is { { "here", "held" }, { "online" } }.
 func (g *Game) scriptSlot(pluginID string, def plugin.SlotDef) command.SlotType {
 	return command.SlotType{
 		Name:      def.Name,
@@ -109,13 +113,17 @@ func (g *Game) scriptSlot(pluginID string, def plugin.SlotDef) command.SlotType 
 		Plugin:    pluginID,
 		Modifiers: def.Modifiers,
 		Single:    def.Single,
-		Resolve: func(ctx context.Context, actor any, text string, modifiers map[string]bool) (any, bool, string, error) {
-			mods := make(map[string]any, len(modifiers))
-			for m := range modifiers {
-				mods[m] = true
+		Resolve: func(ctx context.Context, actor any, text string, modifiers command.Modifiers) (any, bool, string, error) {
+			named := make(map[string]any)
+			for _, m := range modifiers.Names() {
+				named[m] = true
+			}
+			reqs := make([]any, len(modifiers))
+			for i, alts := range modifiers {
+				reqs[i] = slices.Clone(alts)
 			}
 
-			results, err := def.Resolve.CallAll(ctx, actor, text, mods)
+			results, err := def.Resolve.CallAll(ctx, actor, text, named, reqs)
 			if err != nil {
 				return nil, false, "", err
 			}
@@ -135,26 +143,29 @@ func (g *Game) scriptSlot(pluginID string, def plugin.SlotDef) command.SlotType 
 	}
 }
 
-// objectSlot is the built-in "object" slot type. Its modifiers say where to
-// look:
+// objectSlot is the built-in "object" slot type. Its modifiers say where an
+// object may be:
 //
 //	here      in the actor's location
 //	held      in the actor's inventory (its contents)
-//	online    players in the game
-//	anywhere  any object, by key or id (for builders)
+//	online    a character someone is playing
+//	anywhere  any object; by name only through the other modifiers, but by
+//	          key or id on its own (for builders)
 //
-// With no modifiers it looks here and held. "me" and "self" are always the
-// actor. Objects match by their name property or any of their aliases;
-// "2.sword" picks the second match. "#id" picks exactly the object with that
-// id, if it's somewhere the modifiers look; the web client sends these when
-// players click things.
+// Modifiers combine as patterns write them: here|held is either, and
+// here,online is both, so an online player in the room. With no modifiers
+// it's here|held. "me", "self" and the actor's own #id are always the
+// actor. Objects match by
+// their name property or any of their aliases; "2.sword" picks the second
+// match. "#id" picks exactly the object with that id, if the modifiers
+// allow it; the web client sends these when players click things.
 func (g *Game) objectSlot() command.SlotType {
 	return command.SlotType{
 		Name:      "object",
 		Desc:      "An object, found by name.",
 		Plugin:    "engine",
 		Modifiers: []string{"here", "held", "online", "anywhere"},
-		Resolve: func(_ context.Context, actor any, text string, mods map[string]bool) (any, bool, string, error) {
+		Resolve: func(_ context.Context, actor any, text string, mods command.Modifiers) (any, bool, string, error) {
 			h, ok := actor.(scripting.Handle)
 			if !ok {
 				return nil, false, "", errors.New("object slots only work for players in the game, so a mode that runs before session:play can't use them")
@@ -168,47 +179,43 @@ func (g *Game) objectSlot() command.SlotType {
 				return g.handle(self), true, "", nil
 			}
 
+			if len(mods) == 0 {
+				mods = command.Modifiers{{"here", "held"}}
+			}
+			allowed := func(o *world.Object) bool {
+				for _, alts := range mods {
+					if !slices.ContainsFunc(alts, func(m string) bool { return g.objectIs(m, self, o) }) {
+						return false
+					}
+				}
+				return true
+			}
+
 			id, byID := strings.CutPrefix(text, "#")
-			if mods["anywhere"] {
-				if o, ok := g.world.Get(world.ID(id)); ok && byID {
+			if byID && world.ID(id) == self.ID() {
+				// Clicking your own name is "me".
+				return g.handle(self), true, "", nil
+			}
+			if byID {
+				if o, ok := g.world.Get(world.ID(id)); ok && allowed(o) {
 					return g.handle(o), true, "", nil
 				}
-				if o, ok := g.world.Keyed(text); ok {
+				return nil, false, notFoundByID(mods), nil
+			}
+			if mods.Has("anywhere") {
+				if o, ok := g.world.Keyed(text); ok && allowed(o) {
 					return g.handle(o), true, "", nil
 				}
-				if o, ok := g.world.Get(world.ID(text)); ok {
+				if o, ok := g.world.Get(world.ID(text)); ok && allowed(o) {
 					return g.handle(o), true, "", nil
 				}
 			}
 
 			var candidates []*world.Object
-			if len(mods) == 0 || mods["here"] {
-				if loc := self.Location(); loc != nil {
-					for _, o := range loc.Contents() {
-						if o != self {
-							candidates = append(candidates, o)
-						}
-					}
+			for _, o := range g.objectCandidates(mods, self) {
+				if allowed(o) {
+					candidates = append(candidates, o)
 				}
-			}
-			if len(mods) == 0 || mods["held"] {
-				candidates = append(candidates, self.Contents()...)
-			}
-			if mods["online"] {
-				for _, p := range g.players {
-					if p.character != nil && !slices.Contains(candidates, p.character) {
-						candidates = append(candidates, p.character)
-					}
-				}
-			}
-
-			if byID {
-				for _, o := range candidates {
-					if o.ID() == world.ID(id) {
-						return g.handle(o), true, "", nil
-					}
-				}
-				return nil, false, notFoundByID(mods), nil
 			}
 
 			o, reason := pick(candidates, text)
@@ -219,6 +226,71 @@ func (g *Game) objectSlot() command.SlotType {
 			return g.handle(o), true, "", nil
 		},
 	}
+}
+
+// objectIs reports whether o is where the object slot modifier m says,
+// for actor self.
+func (g *Game) objectIs(m string, self, o *world.Object) bool {
+	switch m {
+	case "here":
+		return o != self && self.Location() != nil && o.Location() == self.Location()
+	case "held":
+		return o.Location() == self
+	case "online":
+		for _, p := range g.players {
+			if p.character == o {
+				return true
+			}
+		}
+		return false
+	case "anywhere":
+		return true
+	}
+
+	return false
+}
+
+// objectCandidates lists the objects to look through by name: those of the
+// first requirement that names only places it can list. anywhere can't be
+// listed, so a slot that's only anywhere finds objects by key or id alone.
+func (g *Game) objectCandidates(mods command.Modifiers, self *world.Object) []*world.Object {
+	for _, alts := range mods {
+		if slices.Contains(alts, "anywhere") {
+			continue
+		}
+
+		var list []*world.Object
+		add := func(o *world.Object) {
+			if !slices.Contains(list, o) {
+				list = append(list, o)
+			}
+		}
+		for _, m := range alts {
+			switch m {
+			case "here":
+				if loc := self.Location(); loc != nil {
+					for _, o := range loc.Contents() {
+						if o != self {
+							add(o)
+						}
+					}
+				}
+			case "held":
+				for _, o := range self.Contents() {
+					add(o)
+				}
+			case "online":
+				for _, p := range g.players {
+					if p.character != nil {
+						add(p.character)
+					}
+				}
+			}
+		}
+		return list
+	}
+
+	return nil
 }
 
 // pick finds the object text names among candidates. "2.sword" picks the
@@ -279,13 +351,13 @@ func names(o *world.Object, text string) bool {
 	return false
 }
 
-func notFound(text string, mods map[string]bool, reason string) string {
+func notFound(text string, mods command.Modifiers, reason string) string {
 	switch {
 	case reason != "":
 		return reason
-	case mods["online"] && len(mods) == 1:
+	case mods.Only("online"):
 		return fmt.Sprintf("No one called '%s' is playing right now.", text)
-	case mods["held"] && len(mods) == 1:
+	case mods.Only("held"):
 		return fmt.Sprintf("You aren't carrying '%s'.", text)
 	default:
 		return fmt.Sprintf("You don't see '%s' here.", text)
@@ -294,11 +366,11 @@ func notFound(text string, mods map[string]bool, reason string) string {
 
 // notFoundByID is notFound for "#id", which means nothing to players, so
 // it isn't repeated back to them.
-func notFoundByID(mods map[string]bool) string {
+func notFoundByID(mods command.Modifiers) string {
 	switch {
-	case mods["online"] && len(mods) == 1:
+	case mods.Only("online"):
 		return "They aren't playing right now."
-	case mods["held"] && len(mods) == 1:
+	case mods.Only("held"):
 		return "You aren't carrying that."
 	default:
 		return "You don't see that here."

@@ -5,11 +5,12 @@
 local look = {}
 
 function look.room(actor)
-  actor:send("room", {
-    title = "The Dragon's Rest",
-    description = "A low-beamed tavern, warm with the smell of woodsmoke and spiced cider. "
-      .. "A fire crackles in a hearth carved to look like a sleeping dragon.",
-  })
+  if not actor.location then
+    actor:send("You are nowhere at all.")
+    return
+  end
+
+  actor:send("room", { room = actor.location })
 end
 
 return look

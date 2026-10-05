@@ -31,7 +31,10 @@ var nameRx = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
 // and a reason the player can read ("You don't see 'bob' here.") when the
 // text doesn't resolve; err is for resolvers that broke. Resolvers run
 // speculatively on every input, so they must not change anything.
-type Resolver func(ctx context.Context, actor any, text string, modifiers map[string]bool) (value any, ok bool, reason string, err error)
+// modifiers are the slot's modifiers as written; a resolver honors them
+// as requirements that must all hold, each satisfied by any of its
+// alternatives.
+type Resolver func(ctx context.Context, actor any, text string, modifiers Modifiers) (value any, ok bool, reason string, err error)
 
 // SlotType is a kind of slot, such as "object" or a plugin's "exit".
 type SlotType struct {
@@ -112,19 +115,19 @@ func NewRegistry() *Registry {
 
 	r.slots[TypeText] = &SlotType{
 		Name: TypeText, Desc: "Any text.", Plugin: "engine",
-		Resolve: func(_ context.Context, _ any, text string, _ map[string]bool) (any, bool, string, error) {
+		Resolve: func(_ context.Context, _ any, text string, _ Modifiers) (any, bool, string, error) {
 			return text, true, "", nil
 		},
 	}
 	r.slots[TypeWord] = &SlotType{
 		Name: TypeWord, Desc: "One word.", Plugin: "engine", Single: true,
-		Resolve: func(_ context.Context, _ any, text string, _ map[string]bool) (any, bool, string, error) {
+		Resolve: func(_ context.Context, _ any, text string, _ Modifiers) (any, bool, string, error) {
 			return text, true, "", nil
 		},
 	}
 	r.slots[TypeNumber] = &SlotType{
 		Name: TypeNumber, Desc: "A number.", Plugin: "engine", Single: true,
-		Resolve: func(_ context.Context, _ any, text string, _ map[string]bool) (any, bool, string, error) {
+		Resolve: func(_ context.Context, _ any, text string, _ Modifiers) (any, bool, string, error) {
 			n, err := strconv.ParseFloat(text, 64)
 			if err != nil {
 				return nil, false, fmt.Sprintf("'%s' isn't a number.", text), nil
@@ -287,13 +290,13 @@ func (r *Registry) checkSlots(p Pattern) error {
 			return fmt.Errorf("slot <%s> uses type %q, which no loaded plugin provides.%s Known types: %s.",
 				e.Slot.Name, e.Slot.Type, DidYouMean(e.Slot.Type, known), strings.Join(known, ", "))
 		}
-		for _, m := range e.Slot.Modifiers {
+		for _, m := range e.Slot.Modifiers.Names() {
 			if slices.Contains(t.Modifiers, m) {
 				continue
 			}
 			if len(t.Modifiers) == 0 {
 				return fmt.Errorf("slot <%s> gives type %q the modifier %q, but %q takes no modifiers. Remove \":%s\".",
-					e.Slot.Name, t.Name, m, t.Name, strings.Join(e.Slot.Modifiers, ","))
+					e.Slot.Name, t.Name, m, t.Name, e.Slot.Modifiers)
 			}
 			return fmt.Errorf("slot <%s> gives type %q the modifier %q, which it doesn't have.%s %q's modifiers: %s.",
 				e.Slot.Name, t.Name, m, DidYouMean(m, t.Modifiers), t.Name, strings.Join(t.Modifiers, ", "))

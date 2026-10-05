@@ -198,15 +198,17 @@ say = {
   desc = "Say something.",
   forms = {
     { "say <message>", function(actor, args) ... end },
-    { "say <message> to <target:object:here,online>", function(actor, args) ... end },
+    { "say <message> to <target:object:here>", function(actor, args) ... end },
     { "'<message>", function(actor, args) ... end },
   },
 },
 ```
 
 - **Patterns** are literal words and slots: `<name>` takes free text,
-  `<name:type>` resolves it through a slot type, and
-  `<name:type:modifier,modifier>` passes modifiers. `[optional parts]`
+  `<name:type>` resolves it through a slot type, and `<name:type:modifiers>`
+  passes modifiers: `|` for either, commas for both, so
+  `<who:object:here|held,online>` is (here or held) and online.
+  `[optional parts]`
   expand into a form with and without them. A leading punctuation
   character is its own word, so `'<message>` matches `'hi`. An
   **abbreviated word** gives its shortest form, then the rest in
@@ -228,12 +230,18 @@ say = {
   'bob' here."), else the usage of commands whose first word matched, else
   "Huh?".
 - **Slot types** are registered like commands: the engine's `text`, `word`,
-  `number` and `object` (modifiers `here`, `held`, `online`, `anywhere`;
-  `2.sword` picks the second match; `#id` picks exactly that object, if
-  it's within the modifiers' reach; ambiguity is an error), and any a
-  plugin's `slots.lua` returns, each with declared `modifiers` and
-  `resolve(actor, text, modifiers)` returning the value, or nil and a
-  reason. Patterns using unknown types or modifiers fail at startup, with a
+  `number` and `object`, and any a plugin's `slots.lua` returns.
+  `object`'s modifiers say where an object may be: `here` (in the actor's
+  room), `held` (carried), `online` (a character someone is playing) and
+  `anywhere` (any object, by key or `#id` alone); with none it's
+  `here|held`. `here,online` is an online player in the room, and
+  `online` alone is any online player. `2.sword` picks the second match;
+  `#id` picks exactly that object if the modifiers allow it; `me`,
+  `self` and your own `#id` are you; ambiguity is an error. A plugin's
+  slot type declares its `modifiers` and
+  `resolve(actor, text, modifiers, requirements)`, returning the value, or
+  nil and a reason: `modifiers` is the set named (`{ open = true }`), and
+  `requirements` how they combine (`{ { "here", "held" }, { "online" } }`). Patterns using unknown types or modifiers fail at startup, with a
   suggestion.
 - **Resolvers only look.** They run speculatively for every candidate, so
   while they run the world is read-only and any change is an error.

@@ -166,8 +166,11 @@ type SlotDef struct {
 	Single    bool
 	Replace   bool
 
-	// Resolve is called as resolve(actor, text, modifiers) and returns the
-	// value, or nil and a reason the player can read.
+	// Resolve is called as resolve(actor, text, modifiers, requirements)
+	// and returns the value, or nil and a reason the player can read.
+	// modifiers is the set the slot names, { open = true };
+	// requirements is how they combine: { { "here", "held" }, { "online" } }
+	// for here|held,online.
 	Resolve scripting.Function
 }
 

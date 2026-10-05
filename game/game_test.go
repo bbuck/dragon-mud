@@ -653,8 +653,26 @@ func TestCreateWithOptions(t *testing.T) {
 	alice.expect("failed=true left=0")
 }
 
+// oneRoom is a game where every player starts in the same room, for tests
+// of things players do to each other.
+var oneRoom = fstest.MapFS{
+	"plugin.lua": file(`return { name = "game" }`),
+	"hooks.lua":  file(`return require("room")`),
+	"lua/room.lua": file(`
+		local world = require("dragon.world")
+		return {
+			["dragon:booted"] = function()
+				if not world.keyed("room") then world.create({ key = "room" }) end
+			end,
+			["dragon:player_connected"] = function(event)
+				if not event.player.location then event.player:move_to(world.keyed("room")) end
+			end,
+		}
+	`),
+}
+
 func TestSayTo(t *testing.T) {
-	g := startGame(t, nil)
+	g := startGame(t, oneRoom)
 
 	alice := connect(t, g)
 	alice.login("alice")
@@ -679,7 +697,7 @@ func TestSayTo(t *testing.T) {
 	alice.expect("Usage:")
 
 	alice.send("help say")
-	alice.expect("say <message> to <target:object:here,online>")
+	alice.expect("say <message> to <target:object:here>")
 }
 
 // doors is a game plugin with its own slot type.
@@ -790,5 +808,51 @@ func TestBadCommandsFileIsExplained(t *testing.T) {
 	want := `game/commands.lua: command "jump" has an unknown field "froms". Did you mean "forms"? Allowed fields: desc, forms, execute, replace.`
 	if err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("error = %v\nwant it to contain %q", err, want)
+	}
+}
+
+func TestObjectModifiersCombine(t *testing.T) {
+	files := fstest.MapFS{}
+	for name, f := range oneRoom {
+		files[name] = f
+	}
+	files["commands.lua"] = file(`
+		local world = require("dragon.world")
+		return {
+			setup = { execute = function(actor)
+				world.create({ location = actor.location, properties = { name = "guard" } })
+				world.create({ location = actor, properties = { name = "gem" } })
+				actor:send("Ready.")
+			end },
+			away = { execute = function(actor) actor:move_to(world.create({})) actor:send("Gone.") end },
+			poke = { forms = { { "poke <who:object:here,online>", function(actor, args) actor:send("Poked " .. args.who:get("name") .. ".") end } } },
+			tell = { forms = { { "tell <who:object:online>", function(actor, args) actor:send("Told " .. args.who:get("name") .. ".") end } } },
+			eye = { forms = { { "eye <x:object:here|held>", function(actor, args) actor:send("Eyed " .. args.x:get("name") .. ".") end } } },
+		}
+	`)
+	g := startGame(t, files)
+
+	alice := connect(t, g)
+	alice.login("Alice")
+	bob := connect(t, g)
+	bob.login("Bob")
+	carol := connect(t, g)
+	carol.login("Carol")
+	carol.send("away")
+	carol.expect("Gone.")
+	alice.send("setup")
+	alice.expect("Ready.")
+
+	for input, want := range map[string]string{
+		"poke bob":   "Poked Bob.",                  // here and online
+		"poke guard": "You don't see 'guard' here.", // here, but not a player
+		"poke carol": "You don't see 'carol' here.", // online, but not here
+		"tell carol": "Told Carol.",                 // online anywhere
+		"eye guard":  "Eyed guard.",                 // here
+		"eye gem":    "Eyed gem.",                   // held
+		"eye carol":  "You don't see 'carol' here.", // neither
+	} {
+		alice.send(input)
+		alice.expect(want)
 	}
 }

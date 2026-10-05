@@ -31,7 +31,7 @@ return {
     replace = true,
     forms = {
       { "look", look.room },
-      { "look <thing:object:here,online>", function(actor, args)
+      { "look <thing:object:here|held>", function(actor, args)
           actor:send("look_at", { thing = args.thing })
         end },
     },

@@ -48,7 +48,7 @@ return {
     forms = {
       { "say <message>", say },
       { "'<message>", say },
-      { "say <message> to <target:object:here,online>", function(actor, args)
+      { "say <message> to <target:object:here>", function(actor, args)
           local target = args.target
           local message = before_say(actor, args.message, target)
           if not message then

@@ -22,7 +22,7 @@ var _ scripting.Function = fn("")
 func people(here ...string) SlotType {
 	return SlotType{
 		Name: "person", Plugin: "test", Modifiers: []string{"here", "anywhere"},
-		Resolve: func(_ context.Context, _ any, text string, mods map[string]bool) (any, bool, string, error) {
+		Resolve: func(_ context.Context, _ any, text string, mods Modifiers) (any, bool, string, error) {
 			for _, name := range here {
 				if strings.EqualFold(name, text) {
 					return name, true, "", nil
@@ -282,7 +282,7 @@ func TestSlotChecks(t *testing.T) {
 		"get <who:persn>":          `type "persn", which no loaded plugin provides. Did you mean "person"?`,
 		"get <who:person:hree>":    `slot <who> gives type "person" the modifier "hree", which it doesn't have. Did you mean "here"? "person"'s modifiers: here, anywhere.`,
 		"get <n:number:big>":       `"number" takes no modifiers. Remove ":big".`,
-		"get <who:person:here,,x>": "slot <who> has an empty modifier. Remove the extra comma or colon.",
+		"get <who:person:here,,x>": `slot <who> has an empty modifier in "here,,x". Remove the extra comma, | or colon.`,
 	}
 	for pattern, want := range tests {
 		err := r.Add(CommandDef{Name: "get", Plugin: "game", Forms: forms(pattern)})
@@ -304,7 +304,7 @@ func TestResolversAreCached(t *testing.T) {
 	calls := 0
 	counting := SlotType{
 		Name: "person", Plugin: "test",
-		Resolve: func(_ context.Context, _ any, text string, _ map[string]bool) (any, bool, string, error) {
+		Resolve: func(_ context.Context, _ any, text string, _ Modifiers) (any, bool, string, error) {
 			calls++
 			return text, text == "bob", "nope", nil
 		},
@@ -380,6 +380,33 @@ func TestAbbreviationErrors(t *testing.T) {
 	for _, bad := range []string{"d(own", "down)", "(down)", "d()", "d(o)(wn)", "d(o)wn"} {
 		_, err := ParsePattern(bad)
 		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("ParsePattern(%q) error = %v", bad, err)
+		}
+	}
+}
+
+func TestModifierSyntax(t *testing.T) {
+	patterns, err := ParsePattern("look <thing:person:here|anywhere,here>")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mods := patterns[0].Elements[1].Slot.Modifiers
+	if want := (Modifiers{{"here", "anywhere"}, {"here"}}); !reflect.DeepEqual(mods, want) {
+		t.Errorf("modifiers = %v, want %v", mods, want)
+	}
+	if mods.String() != "here|anywhere,here" {
+		t.Errorf("String() = %q", mods.String())
+	}
+
+	// The same modifiers in another order are the same form.
+	r := registry(t, []SlotType{people("Bob")}, CommandDef{Name: "look", Forms: forms("look <thing:person:here|anywhere>")})
+	err = r.Add(CommandDef{Name: "look", Plugin: "test", Forms: forms("look <thing:person:anywhere|here>")})
+	if err == nil {
+		t.Error("here|anywhere and anywhere|here should be the same form")
+	}
+
+	for _, bad := range []string{"look <t:person:here|>", "look <t:person:|here>", "look <t:person:here,>"} {
+		if _, err := ParsePattern(bad); err == nil || !strings.Contains(err.Error(), "has an empty modifier") {
 			t.Errorf("ParsePattern(%q) error = %v", bad, err)
 		}
 	}

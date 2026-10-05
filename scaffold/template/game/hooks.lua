@@ -13,25 +13,36 @@
 --
 --   return { hooks = { ["dragon:player_connected"] = { disable = { "dragon:presence" } } } }
 
+local world = require("dragon.world")
 local look = require("look") -- lua/look.lua
 
 return {
   -- A notification sent once when the server starts, before anyone can
-  -- type. A good place to make sure the world has what the game needs:
-  --
-  -- ["dragon:booted"] = function()
-  --   if not world.keyed("start") then
-  --     world.create({ key = "start", properties = { name = "The Dragon's Rest" } })
-  --   end
-  -- end,
+  -- type: the place to make sure the world has what the game needs. The
+  -- first time the game runs, this makes the tavern everyone starts in.
+  -- After that it's in the database, and changing it here changes nothing.
+  ["dragon:booted"] = function()
+    if not world.keyed("tavern") then
+      world.create({ key = "tavern", properties = {
+        name = "The Dragon's Rest",
+        description = "A low-beamed tavern, warm with the smell of woodsmoke and spiced cider. "
+          .. "A fire crackles in a hearth carved to look like a sleeping dragon.",
+      } })
+    end
+  end,
 
   -- A notification: event.player has just entered the game, or taken
   -- their character over from another connection (event.reconnected).
+  -- New characters are nowhere until something puts them somewhere.
   ["dragon:player_connected"] = function(event)
-    if not event.reconnected then
-      event.player:send("ambient", { text = "The barkeep looks up and nods at you." })
+    local player = event.player
+    if not player.location then
+      player:move_to(world.keyed("tavern"))
     end
-    look.room(event.player)
+    if not event.reconnected then
+      player:send("ambient", { text = "The barkeep looks up and nods at you." })
+    end
+    look.room(player)
   end,
 
   -- What clicking something in the web client does: set event.command to

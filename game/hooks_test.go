@@ -38,17 +38,18 @@ func (c *client) expectWithout(want, unwanted string) {
 
 func TestGameHooksChangeAndCancelSay(t *testing.T) {
 	files := fstest.MapFS{
-		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
+		"plugin.lua":   {Data: []byte(`return { name = "game" }`)},
+		"lua/room.lua": oneRoom["lua/room.lua"],
 		"hooks.lua": {Data: []byte(`
-			return {
-				["dragon:before_say"] = function(event)
-					if event.message:find("darn") then
-						return false, "Mind your language."
-					end
-					event.message = event.message:upper()
-					return event
-				end,
-			}
+			local handlers = require("room")
+			handlers["dragon:before_say"] = function(event)
+				if event.message:find("darn") then
+					return false, "Mind your language."
+				end
+				event.message = event.message:upper()
+				return event
+			end
+			return handlers
 		`)},
 	}
 	g := startGame(t, files)
