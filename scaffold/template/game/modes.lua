@@ -14,28 +14,28 @@
 -- mapping:edit_map, so they don't collide.
 
 return {
-  -- session:push_mode("editor", { target = object, property = "description" })
-  editor = {
-    desc = "Write several lines of text.",
+	-- session:push_mode("editor", { target = object, property = "description" })
+	editor = {
+		desc = "Write several lines of text.",
 
-    enter = function(session, state)
-      state.lines = {}
-      session:prompt("Type your text a line at a time. A line with only [c].[x] saves it; [c]~q[x] cancels.")
-      return state
-    end,
+		enter = function(session, state)
+			state.lines = {}
+			session:prompt("Type your text a line at a time. A line with only [c].[x] saves it; [c]~q[x] cancels.")
+			return state
+		end,
 
-    input = function(session, line, state)
-      if line == "." then
-        state.target:set(state.property, table.concat(state.lines, "\n"))
-        session:send("Saved.")
-        session:pop_mode()
-      elseif line == "~q" then
-        session:send("Cancelled.")
-        session:pop_mode()
-      else
-        table.insert(state.lines, line)
-        return state
-      end
-    end,
-  },
+		input = function(session, line, state)
+			if line == "." then
+				state.target:set(state.property, table.concat(state.lines, "\n"))
+				session:send("Saved.")
+				session:pop_mode()
+			elseif line == "~q" then
+				session:send("Cancelled.")
+				session:pop_mode()
+			else
+				table.insert(state.lines, line)
+				return state
+			end
+		end,
+	},
 }

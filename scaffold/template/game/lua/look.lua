@@ -5,12 +5,12 @@
 local look = {}
 
 function look.room(actor)
-  if not actor.location then
-    actor:send("You are nowhere at all.")
-    return
-  end
+	if not actor.location then
+		actor:send("You are nowhere at all.")
+		return
+	end
 
-  actor:send("room", { room = actor.location })
+	actor:send("room", { room = actor.location })
 end
 
 return look

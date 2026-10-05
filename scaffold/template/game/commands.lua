@@ -26,42 +26,42 @@ local game = require("dragon.game")
 local look = require("look") -- lua/look.lua
 
 return {
-  look = {
-    desc = "Look around.",
-    replace = true,
-    forms = {
-      { "look", look.room },
-      { "look <thing:object:here|held>", function(actor, args)
-          actor:send("look_at", { thing = args.thing })
-        end },
-    },
-  },
+	look = {
+		desc = "Look around.",
+		replace = true,
+		forms = {
+			{ "look", look.room },
+			{ "look <thing:object:here|held>", function(actor, args)
+					actor:send("look_at", { thing = args.thing })
+				end },
+		},
+	},
 
-  describe = {
-    desc = "Write how others see you when they look at you.",
-    forms = {
-      -- The editor mode (modes.lua) saves the text to actor's description.
-      { "describe", function(actor)
-          game.session(actor):push_mode("editor", { target = actor, property = "description" })
-        end },
-    },
-  },
+	describe = {
+		desc = "Write how others see you when they look at you.",
+		forms = {
+			-- The editor mode (modes.lua) saves the text to actor's description.
+			{ "describe", function(actor)
+					game.session(actor):push_mode("editor", { target = actor, property = "description" })
+				end },
+		},
+	},
 
-  dance = {
-    desc = "Dance a little jig, or dance with someone.",
-    forms = {
-      { "dance", function(actor)
-          local data = { actor = actor }
-          actor:send("dance", data, "actor")
-          -- Everyone else sees the "others" block; skip the dancer.
-          game.broadcast("dance", data, "others", actor)
-        end },
-      { "dance with <partner:object:here,online>", function(actor, args)
-          local data = { actor = actor, partner = args.partner }
-          actor:send("dance_with", data, "actor")
-          args.partner:send("dance_with", data, "partner")
-          game.broadcast("dance_with", data, "others", { actor, args.partner })
-        end },
-    },
-  },
+	dance = {
+		desc = "Dance a little jig, or dance with someone.",
+		forms = {
+			{ "dance", function(actor)
+					local data = { actor = actor }
+					actor:send("dance", data, "actor")
+					-- Everyone else sees the "others" block; skip the dancer.
+					game.broadcast("dance", data, "others", actor)
+				end },
+			{ "dance with <partner:object:here,online>", function(actor, args)
+					local data = { actor = actor, partner = args.partner }
+					actor:send("dance_with", data, "actor")
+					args.partner:send("dance_with", data, "partner")
+					game.broadcast("dance_with", data, "others", { actor, args.partner })
+				end },
+		},
+	},
 }

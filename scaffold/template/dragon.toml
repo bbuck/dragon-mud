@@ -10,7 +10,7 @@ dragon = true
 # the order listed here.
 builtins = [
 {{- range .Builtins}}
-  "{{.}}",
+	"{{.}}",
 {{- end}}
 ]
 
