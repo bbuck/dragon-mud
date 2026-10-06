@@ -55,15 +55,28 @@ over telnet and the web and talk to each other.
       entity scripts and anything else with its own vocabulary.
 - [x] `actor:is_player()`.
 - [x] Feed views: `room`, `say`, `emote`, `ambient`, `echo`.
+- [x] `game.run(actor, line)`: commands by another name, and NPCs acting
+      through the commands players use.
+- [x] `game.broadcast_to(location, ...)`: messages to what's directly
+      inside an object.
+- [ ] Article and case helpers in templates (`{{the .x}}`, `{{A .x}}`,
+      `{{cap}}`).
+- [ ] Declared hook fields: one name per role (`actor` for whoever acts),
+      fields documented by `dragon hooks <name>`, and events that error
+      on a field the hook doesn't have.
 
 ## Milestone 3: Plugins for real
 
 - [x] Local plugins in `game/plugins/<name>/`.
 - [x] `require` for a plugin's own modules in `lua/`.
 - [ ] Full manifest: provides, depends, capabilities.
-- [ ] `plugin.require` for plugin APIs.
+- [ ] `plugin.require` for plugin APIs. First use: `dragon:chat` offers
+      `chat.say(actor, message, target)` so games stop reusing its `say`
+      view and coupling to its data shape (lesson 3 below).
 - [ ] Schema types and extensions; namespaced added fields. Open: can an
       object have several types (a bag is an item and a container)?
+      Schemas are also how property typos (`descrition`) get caught
+      (lesson 6 below).
 - [ ] Tasks (`dragon <plugin>:<task>`, `dragon tasks`).
 - [ ] `dragon add/update/remove/list`, `dragon.lock`, vendoring.
 - [ ] Import maps, plugin JS, the `dragon` client API, client events.
@@ -82,7 +95,19 @@ over telnet and the web and talk to each other.
       in the admin editor, `o:handle` with parent inheritance, `o:send`
       calling the view's handler.
 - [ ] `dragon:rooms`: rooms, exits, movement, `can_move`; rooms deliver
-      views to their contents and offer unmatched input to them.
+      views to their contents and offer unmatched input to them. Moving
+      is `rooms:can_move` (hook), `rooms:left` in the old room, `move_to`,
+      then `rooms:entered` in the new one (notifications carrying `actor`,
+      so mobs moving count too).
+- [ ] Built-in actions come in pairs: a hook before (change or cancel)
+      and a notification after (react). `dragon:chat` gets `dragon:said`
+      and `dragon:emoted`, so NPCs answer after the player's line, not
+      inside `dragon:before_say` (lesson 2 below).
+- [ ] `dragon:chat` and `dragon:presence` reach the actor's location with
+      `game.broadcast_to`, falling back to the whole game for actors who
+      are nowhere (lesson 4 below).
+- [ ] Speech triggers: a plugin helper for "react when someone says X"
+      (lesson 5 below).
 - [ ] `dragon:items`.
 - [ ] `dragon:mapping` (validates the plugin design end to end).
 - [ ] State updates, slots, web panels, tooltips; telnet prompt and GMCP.
@@ -119,6 +144,37 @@ over telnet and the web and talk to each other.
   every scripting engine must pass.
 - TLS for telnet.
 - Plugin index.
+
+## Lessons from test games
+
+What building `test_dragon` (a two-room tavern with a bartender and a
+hermit, built on the engine as it was on 2026-10-03) showed.
+
+1. **NPCs had to send views by hand to speak.** The keeper rendered a
+   `hail` view to each player itself. NPCs should act through the same
+   commands players use: now `game.run(npc, "say ...")`.
+2. **NPC reactions ran before what they reacted to.** The only hook on
+   speech was `dragon:before_say`, so the keeper answered before the
+   player's line appeared. Every built-in action needs a notification
+   after it, not only a hook before.
+3. **Reusing another plugin's view couples you to its data.** Sending
+   `say` with `speaker` instead of `actor` broke twice. Missing data is now
+   an error, but plugins should offer functions (`chat.say`) rather than
+   games reusing their views.
+4. **Speech reached the whole game.** `say`, `emote` and custom actions
+   used `game.broadcast`, so the cellar heard the tavern. Locations are
+   core, so `game.broadcast_to` now exists; the built-ins should use it.
+5. **Matching speech was hand-rolled** (`string.find(message, "hail")`).
+   Keyword triggers are worth a helper, as a plugin.
+6. **Freeform properties hide typos.** `descrition` went unnoticed;
+   schemas will catch it.
+7. **Silent failures cost the most time.** A template reading data that
+   wasn't sent, a blocks-only view sent without a block, `actor.name`
+   for a property, and `<no value>` in telnet all looked like other
+   bugs. Each is now an error saying what to change; keep finding these.
+8. **Names carried their articles** ("the bartender", "a dingy hermit"),
+   which reads wrong as soon as a sentence needs the other article or a
+   capital. Names should be bare, with article helpers in templates.
 
 ## Documentation to write
 
