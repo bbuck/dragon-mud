@@ -82,10 +82,11 @@ events by itself, because it can't know who an event is for: a room's
 contents for `rooms:entered`, the defender (and maybe bystanders) for
 `combat:attacked`, nobody for `dragon:booted`. So **the plugin that defines
 an event declares who hears it, and the engine does the delivery.** It's
-one more part of the hook declaration that already lists its fields:
+one more part of the hook declaration that already lists its fields
+(§4):
 
 ```lua
--- dragon:rooms' declarations
+-- rooms/events.lua
 ["rooms:entered"] = {
   fields = { actor = "who arrived", room = "where", from = { "where from", optional = true } },
   audience = { "room.contents", "actor" },
@@ -482,6 +483,49 @@ return {
   the handlers left it, or `nil` and the reason one cancelled.
 - A plugin has one handler per hook.
 
+### Declaring hooks
+
+**The plugin that runs a hook or notification declares it** in its
+`events.lua`: what it's for, and the fields its event has. The engine
+declares its own (`dragon:booted`, `dragon:player_connected`, ...,
+and `section:*`). A field is a description, or a table with the
+description first when it can be left out:
+
+```lua
+-- chat/events.lua
+return {
+  ["dragon:before_say"] = {
+    desc = "Someone is about to say something. Change event.message, or cancel with a reason they'll see.",
+    fields = {
+      actor = "who's speaking",
+      message = "what they'll say",
+      target = { "who they're speaking to, when they name someone", optional = true },
+    },
+  },
+}
+```
+
+- Running a hook nothing declares is an error, with the nearest declared
+  name, so a misspelled `hooks.run` fails instead of reaching no one.
+- An event with a field its hook doesn't have, or without a field it
+  needs, is an error naming both, whether it comes from `hooks.run`,
+  `hooks.notify` or a handler's returned event. Fields handlers set
+  (`handled`, `command`) are declared optional. `extra = "..."` lets an
+  event carry other fields too, and says what they're for, as
+  `dragon:get_tooltip` does for its template's data.
+- **One name per role.** Whoever acts is `actor`, in every event:
+  speaking, moving, connecting. Other roles are named for what they are
+  (`target`, `entity`, `viewer` for whoever a client request is for), so a
+  handler can guess a field without looking it up.
+- A hook has one declaration; two plugins declaring one name is a startup
+  error. Plugin hooks carry their plugin's name (`mapping:map_drawn`).
+- Handlers for a hook nothing declares are logged at startup, since they
+  can never run: a misspelling, or a hook from a plugin the game leaves
+  out. That's not an error, so dropping a built-in doesn't break a game
+  that handles its hooks.
+- `dragon hooks <name>` prints the declaration and its fields with the
+  handlers; `dragon hooks` lists every declared or handled hook.
+
 ### Notifications (after the fact)
 
 `player_entered_room`, `mob_died`. Can't modify or cancel. Order is
@@ -491,9 +535,9 @@ handler is logged and the rest still run. Code sends one with
 `hooks.notify(name, event)`.
 
 The engine sends `dragon:booted` once when the game starts, before any
-input is handled (not on reload); `dragon:player_connected` (`player`, and
-`reconnected` when the player took over their character from another
-connection); and `dragon:player_disconnected` (`player`). `dragon:presence` handles both to announce
+input is handled (not on reload); `dragon:player_connected` (`actor`, and
+`reconnected`, true when the player took over their character from another
+connection); and `dragon:player_disconnected` (`actor`). `dragon:presence` handles both to announce
 arrivals and departures where the player is, or to everyone for a player
 who is nowhere; its arrival handler runs after the game's, which is where a
 game puts new characters somewhere. `say` and `emote` reach the actor's

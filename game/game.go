@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"slices"
+	"strings"
 	"time"
 
 	"bbuck.dev/dragon-mud/auth"
@@ -274,7 +276,7 @@ func (g *Game) loadInto(ctx context.Context, s *scripts) error {
 		return err
 	}
 
-	var hooks hook.Config
+	hooks := hook.Config{Decls: slices.Clone(engineEvents)}
 	for _, src := range g.sources {
 		if err := g.loadPlugin(ctx, s, src, &hooks); err != nil {
 			return fmt.Errorf("%s: %w", src.Origin, err)
@@ -292,6 +294,15 @@ func (g *Game) loadInto(ctx context.Context, s *scripts) error {
 	var err error
 	if s.hooks, err = hook.New(hooks); err != nil {
 		return err
+	}
+	for _, name := range s.hooks.Undeclared() {
+		chain, _ := s.hooks.Chain(name)
+		var files []string
+		for _, h := range chain.Handlers {
+			files = append(files, h.File())
+		}
+		g.log.Warn("no plugin declares "+name+", so its handlers never run; it may be misspelled, or from a plugin the game doesn't load."+command.DidYouMean(name, s.hooks.Declared()),
+			"hook", name, "handlers", strings.Join(files, ", "))
 	}
 	s.views.SetSections(g.sectionParts)
 
@@ -350,6 +361,12 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ho
 	}
 	hooks.Plugins = append(hooks.Plugins, p.ID)
 	hooks.Handlers = append(hooks.Handlers, handlers...)
+
+	decls, err := p.Events(ctx)
+	if err != nil {
+		return err
+	}
+	hooks.Decls = append(hooks.Decls, decls...)
 
 	switch {
 	case src.Game:
@@ -505,7 +522,7 @@ func (g *Game) handleEvent(ctx context.Context, e event) {
 		delete(g.players, e.s.ID())
 		if p.character != nil {
 			g.log.Info("player left", "name", p.displayName())
-			g.notify(ctx, "dragon:player_disconnected", map[string]any{"player": g.handle(p.character)})
+			g.notify(ctx, notifyDisconnected, map[string]any{"actor": g.handle(p.character)})
 		}
 
 	case reloadEvent:

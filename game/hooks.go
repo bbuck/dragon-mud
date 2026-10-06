@@ -69,6 +69,11 @@ func (g *Game) hooksModule(s *scripts) scripting.Module {
 					return nil, err
 				}
 
+				// A mistake in the event is the caller's, so it's raised;
+				// handlers failing is theirs, so it's logged.
+				if err := s.hooks.Check(name, event); err != nil {
+					return nil, err
+				}
 				if err := s.hooks.Notify(context.Background(), name, event); err != nil {
 					g.log.Error("notification failed", "notification", name, "error", err)
 				}

@@ -17,6 +17,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"bbuck.dev/dragon-mud/ansi"
 	"bbuck.dev/dragon-mud/builtin"
 	"bbuck.dev/dragon-mud/command"
 	"bbuck.dev/dragon-mud/config"
@@ -46,8 +47,8 @@ const usage = `dragon creates and runs DragonMUD games.
 Usage:
   dragon new <directory> [-name "Game Name"]   create a new game
   dragon serve [-dir <directory>]              run the game in a directory
-  dragon hooks [<name>] [-dir <directory>]     list hooks, or show the order
-                                               a hook's handlers run in
+  dragon hooks [<name>] [-dir <directory>]     list hooks, or show one's fields
+                                               and the order its handlers run in
   dragon version                               print the engine version
 `
 
@@ -250,11 +251,19 @@ func runHooks(args []string, out io.Writer) error {
 	return showHook(out, hooks, name)
 }
 
-// listHooks prints every hook with handlers and who handles it.
+// hookNames returns every hook that's declared or has handlers, sorted.
+func hookNames(hooks *hook.Registry) []string {
+	names := append(hooks.Declared(), hooks.Names()...)
+	slices.Sort(names)
+
+	return slices.Compact(names)
+}
+
+// listHooks prints every hook and who handles it.
 func listHooks(out io.Writer, hooks *hook.Registry) error {
-	names := hooks.Names()
+	names := hookNames(hooks)
 	if len(names) == 0 {
-		fmt.Fprintln(out, "No plugin handles any hooks yet. Add handlers in game/hooks.lua.")
+		fmt.Fprintln(out, "No plugin declares or handles any hooks yet. Declare the ones a plugin runs in its events.lua, and add handlers in hooks.lua.")
 		return nil
 	}
 
@@ -269,33 +278,79 @@ func listHooks(out io.Writer, hooks *hook.Registry) error {
 			plugins[i] = h.Plugin
 		}
 		line := strings.Join(plugins, ", ")
+		if line == "" {
+			line = "(no handlers)"
+		}
 		if len(c.Disabled) > 0 {
 			line += fmt.Sprintf(" (%d disabled)", len(c.Disabled))
+		}
+		if _, ok := hooks.Decl(name); !ok {
+			line += " (not declared, so never run)"
 		}
 		fmt.Fprintf(w, "  %s\t%s\n", name, line)
 	}
 	w.Flush()
 
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Run dragon hooks <name> to see why a hook's handlers run in that order.")
+	fmt.Fprintln(out, "Run dragon hooks <name> to see a hook's fields, and why its handlers run in that order.")
 
 	return nil
 }
 
-// showHook prints one hook's handlers in order and why they're in it.
+// showHook prints one hook's declaration, and its handlers in order and
+// why they're in it.
 func showHook(out io.Writer, hooks *hook.Registry, name string) error {
-	c, ok := hooks.Chain(name)
-	if !ok {
-		names := hooks.Names()
+	d, declared := hooks.Decl(name)
+	c, handled := hooks.Chain(name)
+	if !declared && !handled {
+		names := hookNames(hooks)
 		if len(names) == 0 {
-			return fmt.Errorf("no plugin handles %q; no plugin handles any hooks yet", name)
+			return fmt.Errorf("no plugin declares or handles %q; no plugin declares or handles any hooks yet", name)
 		}
-		return fmt.Errorf("no plugin handles %q.%s Hooks with handlers: %s.",
+		return fmt.Errorf("no plugin declares or handles %q.%s Hooks: %s.",
 			name, command.DidYouMean(name, names), strings.Join(names, ", "))
 	}
 
-	fmt.Fprintf(out, "%s runs these handlers in order:\n\n", name)
+	if declared {
+		where := "by the engine"
+		if d.Plugin != "" {
+			where = "in " + d.File()
+		}
+		fmt.Fprintf(out, "%s, declared %s.\n", name, where)
+		if d.Desc != "" {
+			fmt.Fprintln(out, ansi.Wrap("  "+d.Desc, 78))
+		}
 
+		fmt.Fprintln(out)
+		if len(d.Fields) == 0 && d.Extra == "" {
+			fmt.Fprintln(out, "Its event has no fields.")
+		} else {
+			fmt.Fprintln(out, "Fields:")
+			w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
+			for _, f := range d.Fields {
+				desc := f.Desc
+				if f.Optional {
+					desc += " (optional)"
+				}
+				fmt.Fprintf(w, "  %s\t%s\n", f.Name, desc)
+			}
+			if d.Extra != "" {
+				fmt.Fprintf(w, "  anything else\t%s\n", d.Extra)
+			}
+			w.Flush()
+		}
+	} else {
+		fmt.Fprintf(out, "No plugin declares %s, so nothing runs it and its handlers never run. It may be misspelled, or from a plugin the game doesn't load.%s\n",
+			name, command.DidYouMean(name, hooks.Declared()))
+	}
+
+	fmt.Fprintln(out)
+	if !handled {
+		fmt.Fprintln(out, "No plugin handles it yet. Add a handler in a plugin's hooks.lua.")
+		return nil
+	}
+
+	fmt.Fprintln(out, "Handlers, in the order they run:")
 	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 	for i, h := range c.Handlers {
 		why := hooks.Explain(c, h)

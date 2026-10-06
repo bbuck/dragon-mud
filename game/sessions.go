@@ -483,15 +483,15 @@ func (g *Game) play(ctx context.Context, p *player, character *world.Object) err
 	g.clearModes(ctx, p, leavePlaying)
 
 	if p.character != nil {
-		g.notify(ctx, "dragon:player_disconnected", map[string]any{"player": g.handle(p.character)})
+		g.notify(ctx, notifyDisconnected, map[string]any{"actor": g.handle(p.character)})
 	}
 	p.character = character
 	name := p.displayName()
 
 	g.log.Info("player arrived", "name", name, "account", p.account.Name)
 	p.s.Send(message.System(fmt.Sprintf("Welcome, [W]%s[x]! Type [c]help[x] to see what you can do.", name)))
-	g.notify(ctx, "dragon:player_connected", map[string]any{
-		"player":      g.handle(character),
+	g.notify(ctx, notifyConnected, map[string]any{
+		"actor":       g.handle(character),
 		"reconnected": takeover,
 	})
 

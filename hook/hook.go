@@ -62,6 +62,9 @@ type Config struct {
 	// Handlers are every plugin's handlers, in any order.
 	Handlers []Handler
 
+	// Decls are every hook's declaration, the engine's and the plugins'.
+	Decls []Decl
+
 	// Wiring is keyed by hook name.
 	Wiring map[string]Wiring
 
@@ -82,9 +85,11 @@ type Chain struct {
 	Wired bool
 }
 
-// Registry holds every hook's chain.
+// Registry holds every hook's chain and declaration.
 type Registry struct {
 	chains     map[string]*Chain
+	decls      map[string]Decl
+	prefixes   []Decl
 	plugins    []string
 	wiringFile string
 }
@@ -126,7 +131,18 @@ func New(cfg Config) (*Registry, error) {
 		byHook[h.Hook] = append(byHook[h.Hook], h)
 	}
 
-	r := &Registry{chains: make(map[string]*Chain), plugins: cfg.Plugins, wiringFile: cfg.WiringFile}
+	r := &Registry{chains: make(map[string]*Chain), decls: make(map[string]Decl), plugins: cfg.Plugins, wiringFile: cfg.WiringFile}
+	for _, d := range cfg.Decls {
+		if d.Prefix {
+			r.prefixes = append(r.prefixes, d)
+			continue
+		}
+		if other, ok := r.decls[d.Name]; ok {
+			return nil, fmt.Errorf("%s and %s both declare %q. A hook has one declaration, from the plugin that runs it; rename one of them, with its plugin's name in front, like %q.",
+				other.File(), d.File(), d.Name, d.Plugin+":"+localName(d.Name))
+		}
+		r.decls[d.Name] = d
+	}
 	names := slices.Sorted(maps.Keys(byHook))
 
 	for _, name := range slices.Sorted(maps.Keys(cfg.Wiring)) {
@@ -349,6 +365,54 @@ func (r *Registry) Chain(name string) (Chain, bool) {
 	return *c, true
 }
 
+// Decl returns the declaration of the hook name.
+func (r *Registry) Decl(name string) (Decl, bool) {
+	if d, ok := r.decls[name]; ok {
+		return d, true
+	}
+	for _, d := range r.prefixes {
+		if strings.HasPrefix(name, d.Name) {
+			return d, true
+		}
+	}
+
+	return Decl{}, false
+}
+
+// Declared returns every declared hook, sorted. Prefix declarations aren't
+// included.
+func (r *Registry) Declared() []string {
+	return slices.Sorted(maps.Keys(r.decls))
+}
+
+// Undeclared returns the hooks that have handlers but no declaration,
+// sorted: handlers for a plugin that isn't loaded, or for a misspelled
+// hook.
+func (r *Registry) Undeclared() []string {
+	var names []string
+	for _, name := range r.Names() {
+		if _, ok := r.Decl(name); !ok {
+			names = append(names, name)
+		}
+	}
+
+	return names
+}
+
+// Check returns an error if the hook name isn't declared or event doesn't
+// match its declaration. Run and Notify check their events with it.
+func (r *Registry) Check(name string, event map[string]any) error {
+	d, ok := r.Decl(name)
+	if !ok {
+		return undeclared(name, r.Declared())
+	}
+	if problem := d.problem(name, event); problem != "" {
+		return fmt.Errorf("%s: the event %s", name, problem)
+	}
+
+	return nil
+}
+
 // WiringFile is where the game's wiring is, for messages.
 func (r *Registry) WiringFile() string {
 	return r.wiringFile
@@ -361,13 +425,19 @@ func (r *Registry) Names() []string {
 
 // Run runs the hook name's handlers in order on payload. Each handler sees
 // the payload the one before it returned. A handler that cancels stops the
-// chain. A handler that fails stops it with an error that names the
-// handler. A hook with no handlers returns payload unchanged.
+// chain. A handler that fails, or returns a payload that doesn't match the
+// hook's declaration, stops it with an error that names the handler. A
+// hook with no handlers returns payload unchanged. An undeclared hook, or
+// a payload that doesn't match, is an error.
 func (r *Registry) Run(ctx context.Context, name string, payload map[string]any) (Result, error) {
 	result := Result{Payload: payload}
 	if result.Payload == nil {
 		result.Payload = map[string]any{}
 	}
+	if err := r.Check(name, result.Payload); err != nil {
+		return result, err
+	}
+	d, _ := r.Decl(name)
 
 	c, ok := r.chains[name]
 	if !ok {
@@ -388,6 +458,9 @@ func (r *Registry) Run(ctx context.Context, name string, payload map[string]any)
 		switch v := first.(type) {
 		case nil:
 		case map[string]any:
+			if problem := d.problem(name, v); problem != "" {
+				return result, fmt.Errorf("%s: the %s handler returned an event that %s Change the event it was given and return that.", h.File(), name, problem)
+			}
 			result.Payload = v
 		case bool:
 			if v {
@@ -416,14 +489,18 @@ const returnsHelp = "A hook handler returns nothing to leave the event as it is,
 
 // Notify calls every handler of the notification name with payload. A
 // handler that fails doesn't stop the others; every failure is returned,
-// each naming its handler.
+// each naming its handler. An undeclared notification, or a payload that
+// doesn't match its declaration, is an error and no handler runs.
 func (r *Registry) Notify(ctx context.Context, name string, payload map[string]any) error {
+	if payload == nil {
+		payload = map[string]any{}
+	}
+	if err := r.Check(name, payload); err != nil {
+		return err
+	}
 	c, ok := r.chains[name]
 	if !ok {
 		return nil
-	}
-	if payload == nil {
-		payload = map[string]any{}
 	}
 
 	var errs []error
@@ -476,6 +553,15 @@ func (r *Registry) Explain(c Chain, h Handler) string {
 	}
 
 	return strings.Join(parts, "; ")
+}
+
+// localName is name without its namespace.
+func localName(name string) string {
+	if _, after, ok := strings.Cut(name, ":"); ok {
+		return after
+	}
+
+	return name
 }
 
 func quoteAll(ids []string) string {

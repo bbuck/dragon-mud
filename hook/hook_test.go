@@ -61,6 +61,16 @@ func order(t *testing.T, r *Registry, name string) []string {
 
 var plugins = []string{"dragon:chat", "armor", "shields", "game"}
 
+// decls declares the hooks these tests run.
+var decls = []Decl{
+	{Name: "hit", Plugin: "dragon:chat", Fields: []Field{
+		{Name: "damage", Desc: "how much", Optional: true},
+		{Name: "seen", Desc: "who saw it", Optional: true},
+	}},
+	{Name: "died", Plugin: "dragon:chat"},
+	{Name: "nothing", Plugin: "dragon:chat", Fields: []Field{{Name: "a", Desc: "a", Optional: true}}},
+}
+
 func TestLoadOrderIsTheDefault(t *testing.T) {
 	r, err := New(Config{
 		Plugins: plugins,
@@ -252,6 +262,7 @@ func TestRunPassesThePayloadAlong(t *testing.T) {
 	r, err := New(Config{
 		Plugins:  plugins,
 		Handlers: []Handler{handler("hit", "armor"), keep, handler("hit", "game")},
+		Decls:    decls,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -281,7 +292,7 @@ func TestRunCancels(t *testing.T) {
 		return nil, nil
 	})}
 
-	r, err := New(Config{Plugins: plugins, Handlers: []Handler{cancel, never}})
+	r, err := New(Config{Plugins: plugins, Handlers: []Handler{cancel, never}, Decls: decls})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -309,7 +320,7 @@ func TestRunRejectsBadReturns(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			h := Handler{Hook: "hit", Plugin: "armor", Fn: fn(func(...any) ([]any, error) { return tt.returns, nil })}
-			r, err := New(Config{Plugins: plugins, Handlers: []Handler{h}})
+			r, err := New(Config{Plugins: plugins, Handlers: []Handler{h}, Decls: decls})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -323,7 +334,7 @@ func TestRunRejectsBadReturns(t *testing.T) {
 }
 
 func TestRunWithoutHandlers(t *testing.T) {
-	r, err := New(Config{Plugins: plugins})
+	r, err := New(Config{Plugins: plugins, Decls: decls})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -346,7 +357,7 @@ func TestNotifyKeepsGoingAfterFailures(t *testing.T) {
 		return []any{false, "ignored"}, nil
 	})}
 
-	r, err := New(Config{Plugins: plugins, Handlers: []Handler{failing, ok}})
+	r, err := New(Config{Plugins: plugins, Handlers: []Handler{failing, ok}, Decls: decls})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -357,5 +368,92 @@ func TestNotifyKeepsGoingAfterFailures(t *testing.T) {
 	}
 	if !reflect.DeepEqual(called, []string{"armor", "game"}) {
 		t.Errorf("called %v", called)
+	}
+}
+
+func TestEventsMatchTheirDeclaration(t *testing.T) {
+	say := Decl{Name: "dragon:before_say", Plugin: "dragon:chat", Fields: []Field{
+		{Name: "actor", Desc: "who's speaking"},
+		{Name: "message", Desc: "what they say"},
+		{Name: "target", Desc: "who they speak to", Optional: true},
+	}}
+	tooltip := Decl{Name: "tooltip", Fields: []Field{{Name: "entity", Desc: "what"}}, Extra: "data for the template"}
+	section := Decl{Name: "section:", Prefix: true, Fields: []Field{{Name: "data", Desc: "the view's data"}}}
+	r, err := New(Config{Plugins: plugins, Decls: []Decl{say, tooltip, section, {Name: "booted"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name  string
+		hook  string
+		event map[string]any
+		want  string
+	}{
+		{"fits", "dragon:before_say", map[string]any{"actor": 1, "message": "hi"}, ""},
+		{"optional given", "dragon:before_say", map[string]any{"actor": 1, "message": "hi", "target": 2}, ""},
+		{"unknown field", "dragon:before_say", map[string]any{"actor": 1, "message": "hi", "mesage": "hi"},
+			`dragon:before_say: the event has a field "mesage", which dragon:before_say doesn't have. Did you mean "message"? Its fields are actor, message and target. Run dragon hooks dragon:before_say to see what each is for.`},
+		{"missing field", "dragon:before_say", map[string]any{"speaker": 1, "message": "hi"},
+			`the event has a field "speaker"`},
+		{"missing required", "dragon:before_say", map[string]any{"message": "hi"},
+			`dragon:before_say: the event is missing actor (who's speaking), which dragon:before_say needs.`},
+		{"no fields", "booted", map[string]any{"actor": 1}, `which booted doesn't have. It has no fields.`},
+		{"extra allowed", "tooltip", map[string]any{"entity": 1, "colour": "red"}, ""},
+		{"prefix", "section:room.exits", map[string]any{"data": 1}, ""},
+		{"prefix checks", "section:room.exits", map[string]any{"data": 1, "parts": 2}, `has a field "parts"`},
+		{"undeclared", "dragon:before_sya", nil,
+			`no plugin declares the hook "dragon:before_sya". Did you mean "dragon:before_say"? The plugin that runs a hook or notification declares it in its events.lua`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := r.Run(context.Background(), tt.hook, tt.event)
+			notifyErr := r.Notify(context.Background(), tt.hook, tt.event)
+			for _, err := range []error{err, notifyErr} {
+				switch {
+				case tt.want == "" && err != nil:
+					t.Errorf("got %v", err)
+				case tt.want != "" && (err == nil || !strings.Contains(err.Error(), tt.want)):
+					t.Errorf("got %v\nwant it to contain %q", err, tt.want)
+				}
+			}
+		})
+	}
+}
+
+func TestHandlersReturnDeclaredFields(t *testing.T) {
+	typo := Handler{Hook: "hit", Plugin: "armor", Fn: fn(func(...any) ([]any, error) {
+		return []any{map[string]any{"damage": 1, "damge": 2}}, nil
+	})}
+	r, err := New(Config{Plugins: plugins, Handlers: []Handler{typo}, Decls: decls})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = r.Run(context.Background(), "hit", map[string]any{"damage": 1})
+	want := `armor/hooks.lua: the hit handler returned an event that has a field "damge", which hit doesn't have. Did you mean "damage"?`
+	if err == nil || !strings.Contains(err.Error(), want) {
+		t.Errorf("got %v\nwant it to contain %q", err, want)
+	}
+}
+
+func TestOneDeclarationPerHook(t *testing.T) {
+	_, err := New(Config{Plugins: plugins, Decls: []Decl{
+		{Name: "hit", Plugin: "armor"},
+		{Name: "hit", Plugin: "shields"},
+	}})
+	want := `armor/events.lua and shields/events.lua both declare "hit". A hook has one declaration, from the plugin that runs it; rename one of them, with its plugin's name in front, like "shields:hit".`
+	if err == nil || err.Error() != want {
+		t.Errorf("got %v\nwant %q", err, want)
+	}
+}
+
+func TestUndeclaredHandlers(t *testing.T) {
+	r, err := New(Config{Plugins: plugins, Handlers: []Handler{handler("hit", "armor"), handler("mapping:drawn", "game")}, Decls: decls})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := r.Undeclared(); !reflect.DeepEqual(got, []string{"mapping:drawn"}) {
+		t.Errorf("Undeclared() = %v", got)
 	}
 }

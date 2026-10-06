@@ -7,9 +7,9 @@
 --
 -- Handlers run in load order: built-in plugins, then installed plugins,
 -- then this file, so your game has the last word. Run `dragon hooks` to see
--- every handler, and `dragon hooks dragon:before_say` to see one hook's order. To
--- turn another plugin's handler off or reorder them, return a table from
--- game/wiring.lua:
+-- every hook, and `dragon hooks dragon:before_say` to see one hook's fields
+-- and the order its handlers run in. To turn another plugin's handler off or
+-- reorder them, return a table from game/wiring.lua:
 --
 --   return { hooks = { ["dragon:player_connected"] = { disable = { "dragon:presence" } } } }
 
@@ -31,11 +31,12 @@ return {
 		end
 	end,
 
-	-- A notification: event.player has just entered the game, or taken
-	-- their character over from another connection (event.reconnected).
-	-- New characters are nowhere until something puts them somewhere.
+	-- A notification: event.actor, a player, has just entered the game, or
+	-- taken their character over from another connection
+	-- (event.reconnected). New characters are nowhere until something puts
+	-- them somewhere.
 	["dragon:player_connected"] = function(event)
-		local player = event.player
+		local player = event.actor
 		if not player.location then
 			player:move_to(world.keyed("tavern"))
 		end

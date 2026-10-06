@@ -111,7 +111,7 @@ func TestArrivalWaitsForTheGame(t *testing.T) {
 			local game = require("dragon.game")
 			return {
 				["dragon:player_connected"] = function(event)
-					game.broadcast("Trumpets sound for " .. event.player:get("name") .. ".")
+					game.broadcast("Trumpets sound for " .. event.actor:get("name") .. ".")
 				end,
 			}
 		`)},
@@ -225,6 +225,13 @@ func TestOnlyTheGameWires(t *testing.T) {
 func TestHooksRunFromLua(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
 		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
+		"events.lua": {Data: []byte(`
+			return {
+				can_dance = { fields = { partner = "who with" } },
+				danced = { fields = { actor = "who danced" } },
+				nothing_handles_this = {},
+			}
+		`)},
 		"hooks.lua": {Data: []byte(`
 			return {
 				can_dance = function(event)
@@ -294,5 +301,120 @@ func TestHooksForTheCLI(t *testing.T) {
 	}
 	if !reflect.DeepEqual(order, []string{"game", "dragon:presence"}) {
 		t.Errorf("order = %v", order)
+	}
+}
+
+func TestEventsAreChecked(t *testing.T) {
+	g := startGame(t, fstest.MapFS{
+		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
+		"events.lua": {Data: []byte(`
+			return {
+				greeted = {
+					desc = "Someone was greeted.",
+					fields = { actor = "who greeted", target = { "who they greeted", optional = true } },
+				},
+			}
+		`)},
+		"hooks.lua": {Data: []byte(`
+			return {
+				greeted = function(event) event.actor:send("Greeted.") end,
+			}
+		`)},
+		"commands.lua": {Data: []byte(`
+			local hooks = require("dragon.hooks")
+			return {
+				greet = { execute = function(actor) hooks.notify("greeted", { actor = actor }) end },
+				typo = { execute = function(actor) hooks.notify("greeted", { speaker = actor }) end },
+				misspelled = { execute = function(actor) hooks.run("greted", { actor = actor }) end },
+			}
+		`)},
+	})
+
+	alice := connect(t, g)
+	alice.login("Alice")
+
+	alice.send("greet")
+	alice.expect("Greeted.")
+	alice.send("typo")
+	alice.expect(`dragon.hooks.notify: greeted: the event has a field "speaker", which greeted doesn't have. Its fields are actor and target.`)
+	alice.send("misspelled")
+	alice.expect(`dragon.hooks.run: no plugin declares the hook "greted". Did you mean "greeted"?`)
+}
+
+func TestEventsFileErrors(t *testing.T) {
+	tests := []struct {
+		name   string
+		events string
+		want   string
+	}{
+		{
+			"not a table",
+			`return { greeted = "someone was greeted" }`,
+			`game/events.lua: greeted must be a table like { desc = "...", fields = { actor = "who did it" } }, not a string.`,
+		},
+		{
+			"unknown key",
+			`return { greeted = { field = {} } }`,
+			`game/events.lua: greeted has an unknown field "field". Did you mean "fields"?`,
+		},
+		{
+			"field without a description",
+			`return { greeted = { fields = { actor = true } } }`,
+			`game/events.lua: greeted: field actor must be a description, like actor = "who did it", or a table like { "who did it", optional = true }, not a boolean.`,
+		},
+		{
+			"optional field without a description",
+			`return { greeted = { fields = { target = { optional = true } } } }`,
+			`game/events.lua: greeted: field target must start with its description, like { "where from", optional = true }.`,
+		},
+		{
+			"misspelled optional",
+			`return { greeted = { fields = { target = { "who", optinal = true } } } }`,
+			`game/events.lua: greeted: field target has an unknown field "optinal". Did you mean "optional"?`,
+		},
+		{
+			"reserved namespace",
+			`return { ["dragon:greeted"] = {} }`,
+			`game/events.lua: dragon:greeted uses the "dragon:" namespace, which is reserved for the engine's built-in plugins. Use your plugin's name instead, like "game:greeted".`,
+		},
+		{
+			"section",
+			`return { ["section:room.exits"] = {} }`,
+			`the engine declares section hooks, so plugins don't.`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := newGame(t, fstest.MapFS{
+				"plugin.lua": {Data: []byte(`return { name = "game" }`)},
+				"events.lua": {Data: []byte(tt.events)},
+			})
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Errorf("error = %v\nwant it to contain %q", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestUndeclaredHandlersAreLogged(t *testing.T) {
+	var log strings.Builder
+	_, err := New(context.Background(), Options{
+		Name:      "Test Realm",
+		NewEngine: func() scripting.Engine { return lua.New() },
+		Plugins: sources(t, fstest.MapFS{
+			"plugin.lua": {Data: []byte(`return { name = "game" }`)},
+			"hooks.lua":  {Data: []byte(`return { ["dragon:player_conected"] = function() end }`)},
+		}),
+		Store: openStore(t),
+		Log:   slog.New(slog.NewTextHandler(&log, nil)),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := `no plugin declares dragon:player_conected, so its handlers never run; it may be misspelled, or from a plugin the game doesn't load. Did you mean \"dragon:player_connected\"?"`
+	if !strings.Contains(log.String(), want) || !strings.Contains(log.String(), "handlers=game/hooks.lua") {
+		t.Errorf("log = %s\nwant it to contain %s", log.String(), want)
 	}
 }

@@ -61,7 +61,7 @@ over telnet and the web and talk to each other.
       inside an object.
 - [x] Article and case helpers in templates (`{{the .x}}`, `{{A .x}}`,
       `{{cap}}`).
-- [ ] Declared hook fields: one name per role (`actor` for whoever acts),
+- [x] Declared hook fields: one name per role (`actor` for whoever acts),
       fields documented by `dragon hooks <name>`, and events that error
       on a field the hook doesn't have.
 
@@ -85,9 +85,8 @@ over telnet and the web and talk to each other.
       plugin provides (commands and forms, slot types, hook handlers, the
       hooks and notifications it runs, and later messages, schema and
       tasks), so a game author knows what they can add to, replace or wire
-      from `game/`. Hooks a plugin runs need declaring, since they can't be
-      found statically. The same data generates each plugin's reference
-      docs.
+      from `game/`. The hooks a plugin runs come from its `events.lua`.
+      The same data generates each plugin's reference docs.
 
 ## Milestone 4: World
 

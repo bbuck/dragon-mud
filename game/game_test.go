@@ -665,7 +665,7 @@ var oneRoom = fstest.MapFS{
 				if not world.keyed("room") then world.create({ key = "room" }) end
 			end,
 			["dragon:player_connected"] = function(event)
-				if not event.player.location then event.player:move_to(world.keyed("room")) end
+				if not event.actor.location then event.actor:move_to(world.keyed("room")) end
 			end,
 		}
 	`),
