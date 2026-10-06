@@ -191,8 +191,10 @@ type scripts struct {
 	// origins maps each loaded plugin's id to where it came from.
 	origins map[string]string
 
-	// game is the game's own plugin, if it has one.
-	game *plugin.Plugin
+	// game is the game's own plugin, if it has one, and plugins every
+	// plugin, in load order.
+	game    *plugin.Plugin
+	plugins []*plugin.Plugin
 
 	// client handles what the web client sends, by full event name, and
 	// web is what each plugin serves to it, in load order.
@@ -325,6 +327,7 @@ func (g *Game) loadInto(ctx context.Context, s *scripts) error {
 		}
 		s.origins[p.ID] = src.Origin
 		plugins = append(plugins, p)
+		s.plugins = append(s.plugins, p)
 		if p.ID == plugin.GameID {
 			s.game = p
 		}

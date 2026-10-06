@@ -252,6 +252,12 @@ func (p *Plugin) Eval(ctx context.Context, name, source string) (any, error) {
 	return p.scope.Eval(ctx, name, source)
 }
 
+// APIs returns the module that has each API the plugin provides, such as
+// "api" for lua/api.lua.
+func (p *Plugin) APIs() map[string]string {
+	return maps.Clone(p.apis)
+}
+
 // Loaded reports whether init.lua has run.
 func (p *Plugin) Loaded() bool {
 	return p.exports != nil

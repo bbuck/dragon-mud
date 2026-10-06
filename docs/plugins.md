@@ -109,6 +109,17 @@ mygame/
   data/             database, logs (not committed)
 ```
 
+### Seeing what a plugin provides
+
+`dragon plugin` lists every plugin the game loads, in load order, and
+`dragon plugin <name>` shows everything one provides: its APIs,
+dependencies and capabilities; its commands and their forms, slot types
+and modes; the events it sends and the ones it handles, with where each
+handler runs after ordering and wiring; its views and templates; its
+object types and the fields it adds to others; its tasks; and what it
+adds to the web client. A built-in can be named without `dragon:` when
+no other plugin shares its name (`dragon plugin chat`).
+
 ## Built-in plugins and kits
 
 Built-in plugins (`dragon:chat`, `dragon:presence`, `dragon:help`,

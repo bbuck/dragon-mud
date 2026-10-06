@@ -98,12 +98,14 @@ over telnet and the web and talk to each other.
 - [x] Import maps, plugin JS, the `dragon` client API, client events.
 - [x] `dragon test` with scripted sessions. Conformance suites for APIs
       are still to come.
-- [ ] Plugin introspection: `dragon plugin <name>` shows everything a
-      plugin provides (commands and forms, slot types, hook handlers, the
-      hooks and notifications it runs, and later messages, schema and
-      tasks), so a game author knows what they can add to, replace or wire
-      from `game/`. The hooks a plugin runs come from its `events.declare`.
-      The same data generates each plugin's reference docs.
+- [x] Plugin introspection: `dragon plugin <name>` shows everything a
+      plugin provides (APIs, dependencies, capabilities, commands and
+      forms, slot types, modes, the events it sends and handles and where
+      its handlers run, views and templates, types and added fields,
+      tasks, and what it adds to the web client), so a game author knows
+      what they can add to, replace or wire from `game/`. `dragon plugin`
+      lists every plugin. Generating reference docs from the same data is
+      still to come.
 
 ## Milestone 4: World
 

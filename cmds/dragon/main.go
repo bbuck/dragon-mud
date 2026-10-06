@@ -50,6 +50,8 @@ Usage:
   dragon serve [-dir <directory>]              run the game in a directory
   dragon events [<name>] [-dir <directory>]    list events, or show one's fields
                                                and the order its handlers run in
+  dragon plugin [<name>] [-dir <directory>]    list plugins, or show everything
+                                               one provides
   dragon tasks [-dir <directory>]              list the tasks plugins provide
   dragon test [-dir <directory>] [-run <regexp>]
                                                run the game's tests
@@ -96,6 +98,8 @@ func main() {
 		err = runRemove(os.Args[2:], os.Stdout)
 	case "list":
 		err = runList(os.Args[2:], os.Stdout)
+	case "plugin":
+		err = runPlugin(os.Args[2:], os.Stdout)
 	default:
 		if strings.Contains(os.Args[1], ":") {
 			err = runTask(os.Args[1], os.Args[2:], os.Stdout)
