@@ -1,4 +1,4 @@
--- What a player sees when they look around. Any file here can be shared
+-- What a player sees when they look around. Any file in lua/ can be shared
 -- with require: commands.lua and handlers.lua both load this one with
 -- require("look").
 

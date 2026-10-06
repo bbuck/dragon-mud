@@ -8,8 +8,9 @@ contracts are in [design.md](design.md).
 ## Conventions
 
 **A plugin's `init.lua` returns everything it provides**, as one table.
-Its other Lua files are modules it loads with `require`, so their names
-are the plugin's own business: only what `init.lua` returns matters.
+Its other Lua files are modules in `lua/` that it loads with `require`,
+as in a Neovim config, so their names are the plugin's own business: only
+what `init.lua` returns matters.
 Loading a file has no side effects, which keeps hot reload simple and maps
 cleanly to other languages (`export default { ... }` in JavaScript).
 
@@ -47,24 +48,27 @@ tasks in `mapping` become `mapping:rebuild`, client events become
 ## Package layout
 
 A plugin is a directory. Every part is optional except the manifest. The
-Lua files are named however the plugin likes; these are the usual names.
+files in `lua/` are named however the plugin likes; these are the usual
+names.
 
 ```
 mapping/
   plugin.toml       manifest: name, version, provides, depends, capabilities
-  init.lua          everything the plugin provides, from its other files
-  commands.lua      player commands and their forms
-  modes.lua         input modes (see design.md §4)
-  events.lua        the events it sends, and their fields
-  handlers.lua      handlers for events (see design.md §4)
+  init.lua          everything the plugin provides, from its modules
+  lua/              modules, loaded with require
+    commands.lua    player commands and their forms
+    modes.lua       input modes (see design.md §4)
+    events.lua      the events it sends, and their fields
+    handlers.lua    handlers for events (see design.md §4)
   views/            views: templates scripts send (*.txt.tmpl, *.html.tmpl)
   templates/        other templates, such as entity_tooltip.html.tmpl
   web/              ES modules, CSS, assets for the game client
   admin/            builder UI extensions
 ```
 
-`require("items")` loads `items.lua` (or `items/init.lua`) from the
-plugin's directory, and `require("items.find")` loads `items/find.lua`.
+`require("items")` loads `lua/items.lua` (or `lua/items/init.lua`), and
+`require("items.find")` loads `lua/items/find.lua`. A `.lua` file next to
+`init.lua` is an error, since `require` would never find it.
 
 ### The game is a plugin
 

@@ -132,7 +132,7 @@ func sources(t *testing.T, gameFiles fstest.MapFS) []plugin.Source {
 	return sources
 }
 
-// withInit returns files with an init.lua that exports its commands.lua,
+// withInit returns files with an init.lua that exports its lua/commands.lua,
 // slots.lua, modes.lua, events.lua (declarations), handlers.lua and
 // wiring.lua, unless files has its own. It's made when it's read, so tests
 // that change files and reload get one that matches. Tests of init.lua
@@ -150,12 +150,12 @@ func (f initFS) Open(name string) (fs.File, error) {
 
 	var exports, events []string
 	for _, name := range []string{"commands", "slots", "modes"} {
-		if _, ok := f.files[name+".lua"]; ok {
+		if _, ok := f.files["lua/"+name+".lua"]; ok {
 			exports = append(exports, fmt.Sprintf("%s = require(%q)", name, name))
 		}
 	}
 	for _, part := range [][2]string{{"events", "declare"}, {"handlers", "handlers"}, {"wiring", "wiring"}} {
-		if _, ok := f.files[part[0]+".lua"]; ok {
+		if _, ok := f.files["lua/"+part[0]+".lua"]; ok {
 			events = append(events, fmt.Sprintf("%s = require(%q)", part[1], part[0]))
 		}
 	}
@@ -384,7 +384,7 @@ func TestQuit(t *testing.T) {
 
 func TestGamePluginOverridesLook(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"commands.lua": {Data: []byte(`
+		"lua/commands.lua": {Data: []byte(`
 						local game = require("dragon.game")
 			return {
 				look = {
@@ -413,7 +413,7 @@ func TestGamePluginOverridesLook(t *testing.T) {
 
 func TestOverrideMustBeDeclared(t *testing.T) {
 	_, err := newGame(t, fstest.MapFS{
-		"commands.lua": {Data: []byte(`return { say = { execute = function() end } }`)},
+		"lua/commands.lua": {Data: []byte(`return { say = { execute = function() end } }`)},
 	})
 	if err == nil || !strings.Contains(err.Error(), "dragon:chat") {
 		t.Errorf("New error = %v, want a conflict with dragon:chat", err)
@@ -422,7 +422,7 @@ func TestOverrideMustBeDeclared(t *testing.T) {
 
 func TestScriptErrorsAreReported(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"commands.lua": {Data: []byte(`
+		"lua/commands.lua": {Data: []byte(`
 			return {
 				broken = { execute = function() error("oops") end },
 				spin = { execute = function() while true do end end },
@@ -446,7 +446,7 @@ func TestScriptErrorsAreReported(t *testing.T) {
 
 func TestReload(t *testing.T) {
 	files := fstest.MapFS{
-		"commands.lua": {Data: []byte(`
+		"lua/commands.lua": {Data: []byte(`
 			return { dance = { execute = function(actor) actor:send("You waltz.") end } }
 		`)},
 	}
@@ -459,7 +459,7 @@ func TestReload(t *testing.T) {
 
 	// Events are handled in order, so the reload finishes before the next
 	// command runs.
-	files["commands.lua"] = &fstest.MapFile{Data: []byte(`
+	files["lua/commands.lua"] = &fstest.MapFile{Data: []byte(`
 		return { dance = { execute = function(actor) actor:send("You tango.") end } }
 	`)}
 	g.Reload()
@@ -469,7 +469,7 @@ func TestReload(t *testing.T) {
 
 func TestFailedReloadKeepsScripts(t *testing.T) {
 	files := fstest.MapFS{
-		"commands.lua": {Data: []byte(`
+		"lua/commands.lua": {Data: []byte(`
 			return { dance = { execute = function(actor) actor:send("You waltz.") end } }
 		`)},
 	}
@@ -478,7 +478,7 @@ func TestFailedReloadKeepsScripts(t *testing.T) {
 	alice := connect(t, g)
 	alice.login("Alice")
 
-	files["commands.lua"] = &fstest.MapFile{Data: []byte(`return { dance = `)}
+	files["lua/commands.lua"] = &fstest.MapFile{Data: []byte(`return { dance = `)}
 	g.Reload()
 	alice.send("dance")
 	alice.expect("You waltz.")
@@ -523,7 +523,7 @@ func TestLoginUpgradesOldHashes(t *testing.T) {
 
 // builder is a game plugin that exercises objects from Lua.
 var builder = fstest.MapFS{
-	"commands.lua": {Data: []byte(`
+	"lua/commands.lua": {Data: []byte(`
 				local world = require("dragon.world")
 		local function title(o)
 			return o and o:get("title") or "nowhere"
@@ -627,7 +627,7 @@ func TestObjectsPersist(t *testing.T) {
 
 func TestCreateWithOptions(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"commands.lua": {Data: []byte(`
+		"lua/commands.lua": {Data: []byte(`
 						local world = require("dragon.world")
 			return {
 				forge = { execute = function(actor)
@@ -686,8 +686,8 @@ func TestCreateWithOptions(t *testing.T) {
 // oneRoom is a game where every player starts in the same room, for tests
 // of things players do to each other.
 var oneRoom = fstest.MapFS{
-	"handlers.lua": file(`return require("room")`),
-	"room.lua": file(`
+	"lua/handlers.lua": file(`return require("room")`),
+	"lua/room.lua": file(`
 		local world = require("dragon.world")
 		return {
 			["dragon:booted"] = function()
@@ -731,7 +731,7 @@ func TestSayTo(t *testing.T) {
 
 // doors is a game plugin with its own slot type.
 var doors = fstest.MapFS{
-	"slots.lua": {Data: []byte(`
+	"lua/slots.lua": {Data: []byte(`
 		local doors = { red = { open = true }, blue = { open = false } }
 		return {
 			door = {
@@ -756,7 +756,7 @@ var doors = fstest.MapFS{
 			},
 		}
 	`)},
-	"commands.lua": {Data: []byte(`
+	"lua/commands.lua": {Data: []byte(`
 				local world = require("dragon.world")
 		return {
 			enter = { forms = {
@@ -830,7 +830,7 @@ func TestObjectSlot(t *testing.T) {
 
 func TestBadCommandsFileIsExplained(t *testing.T) {
 	_, err := newGame(t, fstest.MapFS{
-		"commands.lua": {Data: []byte(`return { jump = { froms = {} } }`)},
+		"lua/commands.lua": {Data: []byte(`return { jump = { froms = {} } }`)},
 	})
 	want := `game: commands.jump has an unknown field "froms". Did you mean "forms"? Allowed fields: desc, forms, execute, replace.`
 	if err == nil || !strings.Contains(err.Error(), want) {
@@ -843,7 +843,7 @@ func TestObjectModifiersCombine(t *testing.T) {
 	for name, f := range oneRoom {
 		files[name] = f
 	}
-	files["commands.lua"] = file(`
+	files["lua/commands.lua"] = file(`
 		local world = require("dragon.world")
 		return {
 			setup = { execute = function(actor)
@@ -889,7 +889,7 @@ func TestScriptsRunCommands(t *testing.T) {
 	for name, f := range oneRoom {
 		files[name] = f
 	}
-	files["commands.lua"] = file(`
+	files["lua/commands.lua"] = file(`
 		local game = require("dragon.game")
 		local world = require("dragon.world")
 		return {
@@ -934,7 +934,7 @@ func TestBroadcastTo(t *testing.T) {
 	for name, f := range oneRoom {
 		files[name] = f
 	}
-	files["commands.lua"] = file(`
+	files["lua/commands.lua"] = file(`
 		local game = require("dragon.game")
 		local world = require("dragon.world")
 		return {
@@ -995,7 +995,7 @@ func TestChatAndPresenceStayInTheRoom(t *testing.T) {
 	for name, f := range oneRoom {
 		files[name] = f
 	}
-	files["commands.lua"] = file(`
+	files["lua/commands.lua"] = file(`
 		local world = require("dragon.world")
 		return {
 			down = { execute = function(actor)

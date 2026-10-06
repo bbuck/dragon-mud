@@ -14,7 +14,7 @@
 --   wiring = { ["dragon:player_connected"] = { disable = { "dragon:presence" } } }
 
 local world = require("dragon.world")
-local look = require("look") -- look.lua
+local look = require("look") -- lua/look.lua
 
 return {
 	-- A notification sent once when the server starts, before anyone can

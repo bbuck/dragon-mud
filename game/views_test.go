@@ -53,7 +53,7 @@ func file(source string) *fstest.MapFile {
 }
 
 var fighting = fstest.MapFS{
-	"commands.lua": file(`
+	"lua/commands.lua": file(`
 				local game = require("dragon.game")
 		local world = require("dragon.world")
 		return {
@@ -214,7 +214,7 @@ func TestMessageFileErrors(t *testing.T) {
 }
 
 var clickable = fstest.MapFS{
-	"commands.lua": file(`
+	"lua/commands.lua": file(`
 				local world = require("dragon.world")
 		return {
 			make = { forms = { { "make <what>", function(actor, args)
@@ -231,7 +231,7 @@ var clickable = fstest.MapFS{
 			} },
 		}
 	`),
-	"handlers.lua": file(`
+	"lua/handlers.lua": file(`
 		return {
 			["dragon:get_tooltip"] = function(event)
 				if event.entity:get("name") == "secret" then return false end
@@ -458,11 +458,11 @@ func TestNestedViews(t *testing.T) {
 		"views/chat/shout.html.tmpl":  file(`<b>{{entity .actor}}</b> shouts {{section "volume"}}!`),
 		"views/.hidden/junk.txt.tmpl": file(`ignored`),
 		"views/chat/loud.txt.tmpl":    file(`VERY`),
-		"handlers.lua": file(`return { ["section:chat/shout.volume"] = function(event)
+		"lua/handlers.lua": file(`return { ["section:chat/shout.volume"] = function(event)
 			table.insert(event.parts, { view = "chat/loud" })
 			return event
 		end }`),
-		"commands.lua": file(`return { shout = { execute = function(actor) actor:send("chat/shout", { actor = actor }) end } }`),
+		"lua/commands.lua": file(`return { shout = { execute = function(actor) actor:send("chat/shout", { actor = actor }) end } }`),
 	})
 
 	alice := connect(t, g)

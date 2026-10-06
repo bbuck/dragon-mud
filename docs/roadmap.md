@@ -71,8 +71,8 @@ over telnet and the web and talk to each other.
 - [x] `require` for a plugin's own modules.
 - [x] Manifests are `plugin.toml`, read without running the plugin; the
       game's settings are `dragon.toml`.
-- [x] `init.lua` returns everything a plugin provides, so file names are
-      the plugin's own business.
+- [x] `init.lua` returns everything a plugin provides, built from its
+      modules in `lua/`, so file names are the plugin's own business.
 - [x] "Event" names both kinds, hooks and notifications: `dragon.events`,
       `events.declare`, `events.handlers`, `dragon events`.
 - [ ] Full manifest: provides, depends, capabilities.

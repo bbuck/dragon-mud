@@ -18,6 +18,10 @@ import (
 	"bbuck.dev/dragon-mud/scripting"
 )
 
+// ModulesDir holds a plugin's Lua modules, which init.lua and the modules
+// themselves load with require, as Neovim's lua/ does.
+const ModulesDir = "lua"
+
 // InitFile is the plugin's entry point. It returns a table of what the
 // plugin provides, built from its other files with require.
 const InitFile = "init.lua"
@@ -110,17 +114,15 @@ func Open(ctx context.Context, engine scripting.Engine, src Source, own func(id 
 		}
 	}
 
-	// The game's local plugins are their own plugins, not its modules.
-	modules := fsys
-	if src.Game {
-		modules = hideDir{fsys, LocalDir}
+	modules, err := fs.Sub(fsys, ModulesDir)
+	if err != nil {
+		return nil, err
 	}
 	var mods []scripting.Module
 	if own != nil {
 		mods = own(p.ID)
 	}
-	var err error
-	if p.scope, err = engine.Scope(p.ID, modules, mods); err != nil {
+	if p.scope, err = engine.Scope(p.ID+"/"+ModulesDir, modules, mods); err != nil {
 		return nil, err
 	}
 
@@ -141,15 +143,24 @@ func Open(ctx context.Context, engine scripting.Engine, src Source, own func(id 
 //	  },
 //	}
 func (p *Plugin) Load(ctx context.Context) error {
+	if stray := p.rootScripts(); len(stray) > 0 {
+		moved := make([]string, len(stray))
+		for i, name := range stray {
+			moved[i] = ModulesDir + "/" + name
+		}
+		return fmt.Errorf("%s %s next to %s, where require doesn't look. Move %s to %s, and require %s from %s.",
+			andList(stray), isAre(stray), InitFile, them(stray), andList(moved), them(stray), InitFile)
+	}
+
 	source, err := p.read(InitFile)
 	if err != nil {
 		return err
 	}
 	if source == "" {
 		p.exports = map[string]any{}
-		if unloaded := p.rootScripts(); len(unloaded) > 0 {
-			return fmt.Errorf("there's no %s, so nothing loads %s. A plugin's %s returns what it provides, built from its other files, like return { commands = require(\"commands\") }.",
-				InitFile, andList(unloaded), InitFile)
+		if unloaded := p.modules(); len(unloaded) > 0 {
+			return fmt.Errorf("there's no %s, so nothing loads %s. A plugin's %s returns what it provides, built from its modules in %s/, like return { commands = require(\"commands\") } for %s/commands.lua.",
+				InitFile, andList(unloaded), InitFile, ModulesDir, ModulesDir)
 		}
 		return nil
 	}
@@ -220,15 +231,29 @@ func asTable(where string, value any, shape string) (map[string]any, error) {
 	}
 }
 
-// rootScripts lists the .lua files at the top of the plugin.
+// rootScripts lists the .lua files at the top of the plugin other than
+// init.lua, which require can't reach.
 func (p *Plugin) rootScripts() []string {
 	entries, _ := fs.ReadDir(p.files, ".")
 	var names []string
 	for _, e := range entries {
-		if !e.IsDir() && path.Ext(e.Name()) == ".lua" {
+		if !e.IsDir() && path.Ext(e.Name()) == ".lua" && e.Name() != InitFile {
 			names = append(names, e.Name())
 		}
 	}
+
+	return names
+}
+
+// modules lists the .lua files in the plugin's lua/ directory.
+func (p *Plugin) modules() []string {
+	var names []string
+	fs.WalkDir(p.files, ModulesDir, func(file string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() && path.Ext(file) == ".lua" {
+			names = append(names, file)
+		}
+		return nil
+	})
 
 	return names
 }
@@ -254,20 +279,6 @@ var (
 	exportKeys = []string{"commands", "slots", "modes", "events"}
 	eventsKeys = []string{"declare", "handlers", "wiring"}
 )
-
-// hideDir is fsys without the directory dir.
-type hideDir struct {
-	fsys fs.FS
-	dir  string
-}
-
-func (h hideDir) Open(name string) (fs.File, error) {
-	if name == h.dir || strings.HasPrefix(name, h.dir+"/") {
-		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
-	}
-
-	return h.fsys.Open(name)
-}
 
 func andList(items []string) string {
 	if len(items) == 1 {
@@ -330,3 +341,19 @@ func (p *Plugin) readManifest() (Manifest, error) {
 }
 
 var manifestKeys = []string{"name", "version"}
+
+func isAre(items []string) string {
+	if len(items) == 1 {
+		return "is"
+	}
+
+	return "are"
+}
+
+func them(items []string) string {
+	if len(items) == 1 {
+		return "it"
+	}
+
+	return "them"
+}

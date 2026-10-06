@@ -11,7 +11,7 @@ import (
 // and the game both add to.
 func sectioned(extra fstest.MapFS) fstest.MapFS {
 	files := fstest.MapFS{
-		"commands.lua": file(`
+		"lua/commands.lua": file(`
 			return { look = { replace = true, forms = { { "look", function(actor)
 				actor:send("room", { title = "The Dragon's Rest", here = actor })
 			end } } } }
@@ -19,7 +19,7 @@ func sectioned(extra fstest.MapFS) fstest.MapFS {
 		"views/room.txt.tmpl":    file("[Y]{{.title}}[x]\n{{section \"exits\"}}"),
 		"views/room.html.tmpl":   file(`<h2>{{.title}}</h2>{{section "exits"}}`),
 		"views/minimap.txt.tmpl": file(`[map of {{.place}} for {{entity .viewer}}]`),
-		"handlers.lua": file(`
+		"lua/handlers.lua": file(`
 			return {
 				["section:room.exits"] = {
 					before = { "dragon:chat" },
@@ -52,7 +52,7 @@ func TestSectionsAreWired(t *testing.T) {
 	// The game's own handler always comes from game/handlers.lua, so a second
 	// plugin's part is shown by the wiring disabling the game's.
 	g := startGame(t, sectioned(fstest.MapFS{
-		"wiring.lua": file(`return { ["section:room.exits"] = { disable = { "game" } } }`),
+		"lua/wiring.lua": file(`return { ["section:room.exits"] = { disable = { "game" } } }`),
 	}))
 
 	alice := connect(t, g)
@@ -72,13 +72,13 @@ func TestSectionErrors(t *testing.T) {
 	}{
 		{
 			"unknown kind",
-			fstest.MapFS{"handlers.lua": file(`return { ["section:rom.exits"] = function(event) end }`)},
-			`game/handlers.lua:1: section:rom.exits adds to the view "rom", which no plugin defines. Did you mean "room"?`,
+			fstest.MapFS{"lua/handlers.lua": file(`return { ["section:rom.exits"] = function(event) end }`)},
+			`game/lua/handlers.lua:1: section:rom.exits adds to the view "rom", which no plugin defines. Did you mean "room"?`,
 		},
 		{
 			"unknown section",
-			fstest.MapFS{"handlers.lua": file(`return { ["section:room.exist"] = function(event) end }`)},
-			`game/handlers.lua:1: section:room.exist adds to the "exist" section of "room", but the room template has no {{section "exist"}}. Did you mean "exits"? Its sections: exits.`,
+			fstest.MapFS{"lua/handlers.lua": file(`return { ["section:room.exist"] = function(event) end }`)},
+			`game/lua/handlers.lua:1: section:room.exist adds to the "exist" section of "room", but the room template has no {{section "exist"}}. Did you mean "exits"? Its sections: exits.`,
 		},
 		{
 			"HTML is missing a section",
@@ -87,7 +87,7 @@ func TestSectionErrors(t *testing.T) {
 		},
 		{
 			"bad hook name",
-			fstest.MapFS{"handlers.lua": file(`return { ["section:room"] = function(event) end }`)},
+			fstest.MapFS{"lua/handlers.lua": file(`return { ["section:room"] = function(event) end }`)},
 			`or section:<view>.<section> to add to a view's section, like section:room.exits or section:chat/say.badges.`,
 		},
 	}
@@ -104,7 +104,7 @@ func TestSectionErrors(t *testing.T) {
 
 func TestBadSectionPart(t *testing.T) {
 	g := startGame(t, sectioned(fstest.MapFS{
-		"handlers.lua": file(`
+		"lua/handlers.lua": file(`
 			return { ["section:room.exits"] = function(event)
 				table.insert(event.parts, { view = "minimpa" })
 				return event

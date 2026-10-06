@@ -40,8 +40,8 @@ func (c *client) expectWithout(want string, unwanted ...string) {
 
 func TestGameHooksChangeAndCancelSay(t *testing.T) {
 	files := fstest.MapFS{
-		"room.lua": oneRoom["room.lua"],
-		"handlers.lua": {Data: []byte(`
+		"lua/room.lua": oneRoom["lua/room.lua"],
+		"lua/handlers.lua": {Data: []byte(`
 			local handlers = require("room")
 			handlers["dragon:before_say"] = function(event)
 				if event.message:find("darn") then
@@ -71,7 +71,7 @@ func TestGameHooksChangeAndCancelSay(t *testing.T) {
 	alice.expect(`Bob says to you, "QUIETLY"`)
 
 	// Hooks reload with everything else.
-	files["handlers.lua"] = &fstest.MapFile{Data: []byte(`
+	files["lua/handlers.lua"] = &fstest.MapFile{Data: []byte(`
 		return {
 			["dragon:before_say"] = function(event)
 				if event.message == "anyone?" then return false end
@@ -86,7 +86,7 @@ func TestGameHooksChangeAndCancelSay(t *testing.T) {
 
 func TestWiringDisablesBasicsArrival(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"wiring.lua": {Data: []byte(`
+		"lua/wiring.lua": {Data: []byte(`
 			return { ["dragon:player_connected"] = { disable = { "dragon:presence" } } }
 		`)},
 	})
@@ -104,7 +104,7 @@ func TestWiringDisablesBasicsArrival(t *testing.T) {
 // characters somewhere has done so when presence says where they arrived.
 func TestArrivalWaitsForTheGame(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"handlers.lua": {Data: []byte(`
+		"lua/handlers.lua": {Data: []byte(`
 			local game = require("dragon.game")
 			return {
 				["dragon:player_connected"] = function(event)
@@ -126,7 +126,7 @@ func TestArrivalWaitsForTheGame(t *testing.T) {
 
 func TestFailingNotificationDoesntStopOthers(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"handlers.lua": {Data: []byte(`
+		"lua/handlers.lua": {Data: []byte(`
 			return {
 				["dragon:player_connected"] = {
 					before = { "dragon:presence" },
@@ -151,37 +151,37 @@ func TestHandlerErrors(t *testing.T) {
 	}{
 		{
 			"not a function",
-			fstest.MapFS{"handlers.lua": {Data: []byte(`return { before_say = "nope" }`)}},
+			fstest.MapFS{"lua/handlers.lua": {Data: []byte(`return { before_say = "nope" }`)}},
 			`game: events.handlers.before_say must be a function(event), or a table like { after = { "dragon:chat" }, handler = function(event) ... end }, not a string.`,
 		},
 		{
 			"unknown field",
-			fstest.MapFS{"handlers.lua": {Data: []byte(`return { before_say = { handler = function() end, afters = {} } }`)}},
+			fstest.MapFS{"lua/handlers.lua": {Data: []byte(`return { before_say = { handler = function() end, afters = {} } }`)}},
 			`game: events.handlers.before_say has an unknown field "afters". Did you mean "after"?`,
 		},
 		{
 			"string instead of list",
-			fstest.MapFS{"handlers.lua": {Data: []byte(`return { before_say = { handler = function() end, after = "dragon:chat" } }`)}},
+			fstest.MapFS{"lua/handlers.lua": {Data: []byte(`return { before_say = { handler = function() end, after = "dragon:chat" } }`)}},
 			`game: events.handlers.before_say: after must be a list of plugins. Write after = { "dragon:chat" }.`,
 		},
 		{
 			"bad name",
-			fstest.MapFS{"handlers.lua": {Data: []byte(`return { ["Before Say"] = function() end }`)}},
+			fstest.MapFS{"lua/handlers.lua": {Data: []byte(`return { ["Before Say"] = function() end }`)}},
 			`game: events.handlers["Before Say"] isn't a valid event name.`,
 		},
 		{
 			"wiring typo",
-			fstest.MapFS{"wiring.lua": {Data: []byte(`return { ["dragon:player_connected"] = { disable = { "dragon:presense" } } }`)}},
+			fstest.MapFS{"lua/wiring.lua": {Data: []byte(`return { ["dragon:player_connected"] = { disable = { "dragon:presense" } } }`)}},
 			`the game's events.wiring["dragon:player_connected"] disables "dragon:presense", which has no dragon:player_connected handler. Did you mean "dragon:presence"? Plugins with a dragon:player_connected handler: "dragon:presence".`,
 		},
 		{
 			"wiring unknown hook",
-			fstest.MapFS{"wiring.lua": {Data: []byte(`return { ["dragon:player_conected"] = { disable = { "dragon:chat" } } }`)}},
+			fstest.MapFS{"lua/wiring.lua": {Data: []byte(`return { ["dragon:player_conected"] = { disable = { "dragon:chat" } } }`)}},
 			`the game's events.wiring["dragon:player_conected"] is wired, but no plugin handles "dragon:player_conected". Did you mean "dragon:player_connected"?`,
 		},
 		{
 			"wiring unknown field",
-			fstest.MapFS{"wiring.lua": {Data: []byte(`return { ["dragon:player_connected"] = { disabled = { "dragon:presence" } } }`)}},
+			fstest.MapFS{"lua/wiring.lua": {Data: []byte(`return { ["dragon:player_connected"] = { disabled = { "dragon:presence" } } }`)}},
 			`game: events.wiring["dragon:player_connected"] has an unknown field "disabled". Did you mean "disable"?`,
 		},
 	}
@@ -200,8 +200,8 @@ func TestOnlyTheGameWires(t *testing.T) {
 	srcs := append(sources(t, nil), plugin.Source{
 		Origin: "plugins/extra",
 		Files: withInit(fstest.MapFS{
-			"plugin.toml": {Data: []byte(`name = "extra"`)},
-			"wiring.lua":  {Data: []byte(`return {}`)},
+			"plugin.toml":    {Data: []byte(`name = "extra"`)},
+			"lua/wiring.lua": {Data: []byte(`return {}`)},
 		}),
 	})
 
@@ -219,14 +219,14 @@ func TestOnlyTheGameWires(t *testing.T) {
 
 func TestEventsSentFromLua(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"events.lua": {Data: []byte(`
+		"lua/events.lua": {Data: []byte(`
 			return {
 				can_dance = { fields = { partner = "who with" } },
 				danced = { fields = { actor = "who danced" } },
 				nothing_handles_this = {},
 			}
 		`)},
-		"handlers.lua": {Data: []byte(`
+		"lua/handlers.lua": {Data: []byte(`
 			return {
 				can_dance = function(event)
 					if event.partner == "nobody" then return false, "Dance with whom?" end
@@ -234,7 +234,7 @@ func TestEventsSentFromLua(t *testing.T) {
 				danced = function(event) event.actor:send("The crowd cheers.") end,
 			}
 		`)},
-		"commands.lua": {Data: []byte(`
+		"lua/commands.lua": {Data: []byte(`
 						local events = require("dragon.events")
 			return {
 				dance = {
@@ -276,7 +276,7 @@ func TestEventsForTheCLI(t *testing.T) {
 	hooks, err := Events(context.Background(), Options{
 		NewEngine: func() scripting.Engine { return lua.New() },
 		Plugins: sources(t, fstest.MapFS{
-			"handlers.lua": {Data: []byte(`return { ["dragon:player_connected"] = { before = { "dragon:presence" }, handler = function() end } }`)},
+			"lua/handlers.lua": {Data: []byte(`return { ["dragon:player_connected"] = { before = { "dragon:presence" }, handler = function() end } }`)},
 		}),
 	})
 	if err != nil {
@@ -299,7 +299,7 @@ func TestEventsForTheCLI(t *testing.T) {
 
 func TestEventsAreChecked(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"events.lua": {Data: []byte(`
+		"lua/events.lua": {Data: []byte(`
 			return {
 				greeted = {
 					desc = "Someone was greeted.",
@@ -307,12 +307,12 @@ func TestEventsAreChecked(t *testing.T) {
 				},
 			}
 		`)},
-		"handlers.lua": {Data: []byte(`
+		"lua/handlers.lua": {Data: []byte(`
 			return {
 				greeted = function(event) event.actor:send("Greeted.") end,
 			}
 		`)},
-		"commands.lua": {Data: []byte(`
+		"lua/commands.lua": {Data: []byte(`
 			local events = require("dragon.events")
 			return {
 				greet = { execute = function(actor) events.notify("greeted", { actor = actor }) end },
@@ -379,7 +379,7 @@ func TestDeclarationErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := newGame(t, fstest.MapFS{
-				"events.lua": {Data: []byte(tt.events)},
+				"lua/events.lua": {Data: []byte(tt.events)},
 			})
 			if err == nil || !strings.Contains(err.Error(), tt.want) {
 				t.Errorf("error = %v\nwant it to contain %q", err, tt.want)
@@ -394,7 +394,7 @@ func TestUndeclaredHandlersAreLogged(t *testing.T) {
 		Name:      "Test Realm",
 		NewEngine: func() scripting.Engine { return lua.New() },
 		Plugins: sources(t, fstest.MapFS{
-			"handlers.lua": {Data: []byte(`return { ["dragon:player_conected"] = function() end }`)},
+			"lua/handlers.lua": {Data: []byte(`return { ["dragon:player_conected"] = function() end }`)},
 		}),
 		Store: openStore(t),
 		Log:   slog.New(slog.NewTextHandler(&log, nil)),
@@ -404,7 +404,7 @@ func TestUndeclaredHandlersAreLogged(t *testing.T) {
 	}
 
 	want := `no plugin declares dragon:player_conected, so its handlers never run; it may be misspelled, or from a plugin the game doesn't load. Did you mean \"dragon:player_connected\"?"`
-	if !strings.Contains(log.String(), want) || !strings.Contains(log.String(), "handlers=game/handlers.lua:1") {
+	if !strings.Contains(log.String(), want) || !strings.Contains(log.String(), "handlers=game/lua/handlers.lua:1") {
 		t.Errorf("log = %s\nwant it to contain %s", log.String(), want)
 	}
 }
@@ -412,8 +412,8 @@ func TestUndeclaredHandlersAreLogged(t *testing.T) {
 // A reaction to speech comes after the line it reacts to, for everyone.
 func TestReactionsComeAfterTheAction(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"room.lua": oneRoom["room.lua"],
-		"handlers.lua": {Data: []byte(`
+		"lua/room.lua": oneRoom["lua/room.lua"],
+		"lua/handlers.lua": {Data: []byte(`
 			local game = require("dragon.game")
 			local handlers = require("room")
 			for name, handler in pairs({

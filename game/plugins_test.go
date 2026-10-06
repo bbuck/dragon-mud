@@ -71,8 +71,8 @@ func TestManifestErrors(t *testing.T) {
 
 func TestPluginRequiresItsOwnModules(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"items.lua": file(`return { describe = function(name) return "a shiny " .. name end }`),
-		"commands.lua": file(`
+		"lua/items.lua": file(`return { describe = function(name) return "a shiny " .. name end }`),
+		"lua/commands.lua": file(`
 			local items = require("items")
 			return {
 				inspect = { forms = { { "inspect <thing>", function(actor, args)
@@ -80,7 +80,7 @@ func TestPluginRequiresItsOwnModules(t *testing.T) {
 				end } } },
 			}
 		`),
-		"modes.lua": file(`
+		"lua/modes.lua": file(`
 			local items = require("items")
 			return { browsing = { input = function(session, line) session:send(items.describe(line)) end } }
 		`),
@@ -95,7 +95,7 @@ func TestPluginRequiresItsOwnModules(t *testing.T) {
 
 func TestBootedRunsOnceBeforeInput(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"handlers.lua": file(`
+		"lua/handlers.lua": file(`
 						local world = require("dragon.world")
 			return {
 				["dragon:booted"] = function()
@@ -104,7 +104,7 @@ func TestBootedRunsOnceBeforeInput(t *testing.T) {
 				end,
 			}
 		`),
-		"commands.lua": file(`
+		"lua/commands.lua": file(`
 						local world = require("dragon.world")
 			return {
 				boots = { execute = function(actor)
@@ -129,8 +129,13 @@ func TestInitErrors(t *testing.T) {
 	}{
 		{
 			"no init.lua",
-			fstest.MapFS{"commands.lua": file(`return {}`), "look.lua": file(`return {}`)},
-			`game: there's no init.lua, so nothing loads commands.lua and look.lua. A plugin's init.lua returns what it provides, built from its other files, like return { commands = require("commands") }.`,
+			fstest.MapFS{"lua/commands.lua": file(`return {}`), "lua/look.lua": file(`return {}`)},
+			`game: there's no init.lua, so nothing loads lua/commands.lua and lua/look.lua. A plugin's init.lua returns what it provides, built from its modules in lua/, like return { commands = require("commands") } for lua/commands.lua.`,
+		},
+		{
+			"modules next to init.lua",
+			fstest.MapFS{"init.lua": file(`return {}`), "commands.lua": file(`return {}`), "look.lua": file(`return {}`)},
+			`game: commands.lua and look.lua are next to init.lua, where require doesn't look. Move them to lua/commands.lua and lua/look.lua, and require them from init.lua.`,
 		},
 		{
 			"returns nothing",
@@ -149,18 +154,13 @@ func TestInitErrors(t *testing.T) {
 		},
 		{
 			"module returns nothing",
-			fstest.MapFS{"init.lua": file(`return { commands = require("commands") }`), "commands.lua": file(`local x = 1`)},
+			fstest.MapFS{"init.lua": file(`return { commands = require("commands") }`), "lua/commands.lua": file(`local x = 1`)},
 			`game: commands is a boolean, but it must be a table keyed by name, like commands = { look = { forms = { ... } } }. A file loaded with require must return its table; one that returns nothing gives true.`,
 		},
 		{
 			"unknown events field",
 			fstest.MapFS{"init.lua": file(`return { events = { handler = {} } }`)},
 			`game: events has an unknown field "handler". Did you mean "handlers"?`,
-		},
-		{
-			"local plugins aren't modules",
-			fstest.MapFS{"init.lua": file(`return { commands = require("plugins.extras.commands") }`), "plugins/extras/commands.lua": file(`return {}`)},
-			`no module "plugins.extras.commands"`,
 		},
 	}
 
@@ -190,8 +190,8 @@ func TestInitNamesTheParts(t *testing.T) {
 				events = { handlers = require("reactions") },
 			}
 		`),
-		"verbs/all.lua": file(`return { wave = { execute = function(actor) actor:send("You wave.") end } }`),
-		"reactions.lua": file(`return { ["dragon:said"] = function(event) event.actor:send("Heard.") end }`),
+		"lua/verbs/all.lua": file(`return { wave = { execute = function(actor) actor:send("You wave.") end } }`),
+		"lua/reactions.lua": file(`return { ["dragon:said"] = function(event) event.actor:send("Heard.") end }`),
 	})
 
 	alice := connect(t, g)

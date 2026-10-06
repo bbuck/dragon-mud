@@ -86,7 +86,7 @@ one more part of the event declaration that already lists its fields
 (§4):
 
 ```lua
--- rooms/events.lua, exported as events.declare
+-- rooms/lua/events.lua, exported as events.declare
 ["rooms:entered"] = {
   fields = { actor = "who arrived", room = "where", from = { "where from", optional = true } },
   audience = { "room.contents", "actor" },
@@ -506,7 +506,7 @@ field is a description, or a table with the description first when it can
 be left out:
 
 ```lua
--- chat/events.lua, exported as events.declare
+-- chat/lua/events.lua, exported as events.declare
 return {
   ["dragon:before_say"] = {
     desc = "Someone is about to say something. Change event.message, or cancel with a reason they'll see.",
@@ -577,7 +577,7 @@ Input no command matches runs `dragon:unmatched_input` (`actor`, `line`,
    event).
 
 ```lua
--- game/wiring.lua, exported as events.wiring
+-- game/lua/wiring.lua, exported as events.wiring
 return {
   modify_damage = { order = { "game", "armor", "dragon:combat" } },
   ["dragon:player_connected"] = { disable = { "dragon:presence" } },
@@ -701,7 +701,7 @@ A template marks a place other plugins can add to with
 like any hook:
 
 ```lua
--- mapping/handlers.lua
+-- mapping/lua/handlers.lua
 return {
   ["section:room.exits"] = function(event)
     table.insert(event.parts, { view = "minimap", data = { room = event.data.room } })
@@ -1060,7 +1060,7 @@ else can be added without changing the engine or the modules.
 - **Modules are required, not globals:** `local world =
   require("dragon.world")`. The engine's are `dragon.game`, `dragon.world`,
   `dragon.events`, `dragon.forms` and `dragon.log`. Names starting `dragon.`
-  only ever reach engine modules, so a plugin's files can't shadow one,
+  only ever reach engine modules, so a plugin's `lua/` can't shadow one,
   and a misspelled one is an error listing them. Reading `world` without
   requiring it is an error that says which line to add. Lua's own
   libraries (`string`, `table`, `math`, `coroutine`) stay global.
@@ -1076,12 +1076,11 @@ else can be added without changing the engine or the modules.
 - **Each plugin has its own scope.** A plugin's files share globals of
   their own, falling back to Lua's libraries, so one plugin's globals never
   collide with another's. `require("items")` loads
-  `items.lua` (or `items/init.lua`) from the same plugin, once per
-  load; `require("items.find")` loads `items/find.lua`. The game can't
-  require its local plugins' files: they're plugins of their own. It works inside
+  `lua/items.lua` (or `lua/items/init.lua`) from the same plugin, once per
+  load; `require("items.find")` loads `lua/items/find.lua`. It works inside
   functions as well as at the top of a file. Another plugin's modules are
   out of reach; its public API comes through `plugin.require` (Milestone
-  3). Third-party Lua is copied into the plugin: pure Lua 5.1 that sticks to
+  3). Third-party Lua is copied into `lua/`: pure Lua 5.1 that sticks to
   the sandbox's libraries works, C modules don't.
 - **No game state in script globals.** State lives in objects and plugin data.
   This is what makes hot reload safe: the engine can throw away the script
