@@ -180,6 +180,13 @@ func FallbackColor(code string) string {
 	return code
 }
 
+// CodeSpans returns where text's color codes are, as [start, end) byte
+// offsets, so code that changes text, like capitalizing it, can leave the
+// codes alone.
+func CodeSpans(text string) [][]int {
+	return colorRx.FindAllStringIndex(text, -1)
+}
+
 // Purge will remove color codes from the given string.
 func Purge(text string) string {
 	final := colorRx.ReplaceAllStringFunc(text, func(s string) string {

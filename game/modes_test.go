@@ -514,3 +514,21 @@ func TestCreationRejectsAMisplacedProperty(t *testing.T) {
 	alice.send("secret pass")
 	alice.expect(`unknown option "class"`)
 }
+
+func TestCharactersAreProperNames(t *testing.T) {
+	g := startGame(t, fstest.MapFS{
+		"plugin.lua":          file(`return { name = "game" }`),
+		"views/wave.txt.tmpl": file(`{{The .actor}} waves at {{a .thing}}.`),
+		"commands.lua": file(`
+			local world = require("dragon.world")
+			return { wave = { execute = function(actor)
+				actor:send("wave", { actor = actor, thing = world.create({ properties = { name = "owl" } }) })
+			end } }
+		`),
+	})
+
+	alice := connect(t, g)
+	alice.login("Alice")
+	alice.send("wave")
+	alice.expect("Alice waves at an owl.")
+}

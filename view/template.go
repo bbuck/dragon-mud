@@ -129,6 +129,8 @@ func (t *Templates) textFuncs() texttemplate.FuncMap {
 	funcs := layoutFuncs(textLayout{width: t.Width}, func(s string) string { return s })
 	funcs["entity"] = textEntity
 	funcs["command"] = textCommand
+	maps.Copy(funcs, articleFuncs(textEntity))
+	maps.Copy(funcs, caseFuncs(false))
 	funcs["section"] = func(name string) (string, error) { return t.section(modeText, name) }
 	return funcs
 }
@@ -137,6 +139,8 @@ func (t *Templates) markedFuncs() texttemplate.FuncMap {
 	funcs := layoutFuncs(markedLayout{}, func(s string) string { return s })
 	funcs["entity"] = markedEntity
 	funcs["command"] = markedCommand
+	maps.Copy(funcs, articleFuncs(markedEntity))
+	maps.Copy(funcs, caseFuncs(false))
 	funcs["section"] = func(name string) (string, error) { return t.section(modeMarked, name) }
 	return funcs
 }
@@ -145,6 +149,8 @@ func (t *Templates) htmlFuncs() htmltemplate.FuncMap {
 	funcs := layoutFuncs(htmlLayout{}, func(s string) htmltemplate.HTML { return htmltemplate.HTML(s) })
 	funcs["entity"] = htmlEntity
 	funcs["command"] = htmlCommand
+	maps.Copy(funcs, articleFuncs(htmlEntity))
+	maps.Copy(funcs, caseFuncs(true))
 	funcs["section"] = t.sectionHTML
 	return funcs
 }

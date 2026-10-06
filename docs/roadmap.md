@@ -59,7 +59,7 @@ over telnet and the web and talk to each other.
       through the commands players use.
 - [x] `game.broadcast_to(location, ...)`: messages to what's directly
       inside an object.
-- [ ] Article and case helpers in templates (`{{the .x}}`, `{{A .x}}`,
+- [x] Article and case helpers in templates (`{{the .x}}`, `{{A .x}}`,
       `{{cap}}`).
 - [ ] Declared hook fields: one name per role (`actor` for whoever acts),
       fields documented by `dragon hooks <name>`, and events that error

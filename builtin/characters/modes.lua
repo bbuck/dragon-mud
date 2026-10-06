@@ -8,7 +8,7 @@
 --
 -- dragon:create_character makes a character from a draft: the options
 -- world.create takes. It starts as { properties = { name = the account's
--- name } }, and each step can add to it. When every step is done, the
+-- name, proper = true } }, and each step can add to it. When every step is done, the
 -- draft is passed to world.create, the dragon:character_created
 -- notification is sent (character, account), and dragon:create_character
 -- ends with session:pop_mode(character). With no steps, the character is
@@ -128,7 +128,8 @@ return {
       end
 
       state.steps = event.steps or {}
-      state.draft = { properties = { name = session.account.name } }
+      -- proper: a character's name is a name, so {{the .x}} writes "Alice".
+      state.draft = { properties = { name = session.account.name, proper = true } }
       state.next = 1
       return advance(session, state)
     end,

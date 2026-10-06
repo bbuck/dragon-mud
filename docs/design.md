@@ -373,6 +373,8 @@ The built-in `dragon:characters` plugin defines two modes:
   `dragon:character_created` (`character`, `account`) is sent before it's
   played: the place for setup that needs the character to exist, like
   starting equipment. With no steps, the character is made straight away.
+  The draft also sets `proper = true`, so templates never write "the
+  Alice".
 
 Most games change creation by adding steps. A game with its own select
 screen defines `characters`, which can still push
@@ -562,6 +564,18 @@ its key, else "something". In text that's all; in HTML it's a clickable
 text it's the label (`north`), which is what a telnet player reads and
 types; in HTML, including text shown on the web, it's a `<dragon-command>`
 (§6). With no label, the command is its own label: `{{command "up"}}`.
+
+**Articles.** Names are stored bare (`bartender`), and templates add the
+article a sentence needs: `{{the .x}}`, `{{a .x}}`, and `{{The .x}}`,
+`{{A .x}}` to start a sentence. The name is written like `{{entity}}`,
+clickable on the web. An object with `proper = true` never gets an
+article; characters get it when they're created. An `article` property
+replaces "a"/"an" (`some` water, or `""` for none); otherwise a name
+starting with a vowel gets "an".
+
+**Case.** `{{cap x}}` upper-cases the first letter, `{{upper x}}` and
+`{{lower x}}` every letter. They leave color codes, entity markup and HTML
+tags alone, so `{{cap (entity .x)}}` capitalizes the name, not the markup.
 
 ### Sections
 
