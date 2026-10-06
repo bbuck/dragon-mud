@@ -936,7 +936,11 @@ else can be added without changing the engine or the modules.
   `push_mode`, `pop_mode`, `replace_mode`, `play` and `close` (§4). An
   **account** handle has `name` and `characters`, and `add_character(o)`.
   `dragon.world` creates, finds and destroys objects, and `dragon.forms`
-  builds form sets (§2). `game.run(actor, line)` runs a line as if `actor`
+  builds form sets (§2). `game.broadcast_to(location, ...)` takes the
+  same arguments as `game.broadcast` after the location and reaches
+  everyone playing an object directly inside it; containment is the
+  engine's, so this needs no idea of rooms. Things inside those objects
+  aren't reached. `game.run(actor, line)` runs a line as if `actor`
   typed it, through the same commands and `dragon:unmatched_input`, so a
   command can be another by a different name (`hail` runs `say Hail`) and
   NPCs act through the commands players use. It shows nothing itself: it

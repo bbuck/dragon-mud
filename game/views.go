@@ -23,16 +23,22 @@ var viewNameRx = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 // (text) or (kind, data[, block]). It returns the message and how many
 // arguments it used.
 func (g *Game) outgoing(args scripting.Args) (message.Message, int, error) {
-	first, err := args.String(0)
+	return g.outgoingFrom(args, 0)
+}
+
+// outgoingFrom is outgoing for arguments starting at i, returning the
+// index of the first argument it didn't use.
+func (g *Game) outgoingFrom(args scripting.Args, i int) (message.Message, int, error) {
+	first, err := args.String(i)
 	if err != nil {
 		return message.Message{}, 0, err
 	}
-	if !isTable(args, 1) {
-		return message.Text(first), 1, nil
+	if !isTable(args, i+1) {
+		return message.Text(first), i + 1, nil
 	}
 
-	data, err := args.Map(1)
-	if list, ok := args[1].([]any); ok && len(list) == 0 {
+	data, err := args.Map(i + 1)
+	if list, ok := args[i+1].([]any); ok && len(list) == 0 {
 		data, err = map[string]any{}, nil
 	}
 	if err != nil {
@@ -40,15 +46,15 @@ func (g *Game) outgoing(args scripting.Args) (message.Message, int, error) {
 	}
 
 	var block string
-	if args.Len() > 2 && args[2] != nil {
-		if block, err = args.String(2); err != nil {
+	if args.Len() > i+2 && args[i+2] != nil {
+		if block, err = args.String(i + 2); err != nil {
 			return message.Message{}, 0, fmt.Errorf("%w (the block to render from the %s template, or nil for all of it)", err, first)
 		}
 	}
 
 	m, err := g.render(first, data, block)
 
-	return m, 3, err
+	return m, i + 3, err
 }
 
 // isTable reports whether argument i is a script table, as opposed to a

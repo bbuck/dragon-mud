@@ -901,3 +901,64 @@ func TestScriptsRunCommands(t *testing.T) {
 	alice.send("empty")
 	alice.expect(`dragon.game.run: argument #2: the line to run is empty; pass a command, like game.run(actor, "say Hail")`)
 }
+
+func TestBroadcastTo(t *testing.T) {
+	files := fstest.MapFS{}
+	for name, f := range oneRoom {
+		files[name] = f
+	}
+	files["commands.lua"] = file(`
+		local game = require("dragon.game")
+		local world = require("dragon.world")
+		return {
+			away = { execute = function(actor) actor:move_to(world.create({})) actor:send("Gone.") end },
+			wagon = { execute = function(actor)
+				actor:move_to(world.create({ location = actor.location }))
+				actor:send("In the wagon.")
+			end },
+			shout = { execute = function(actor)
+				game.broadcast_to(actor.location, "say", { actor = actor, message = "Hello, room" }, "others", actor)
+				game.broadcast_to(actor.location, "The lamps flicker.")
+			end },
+			bad = { execute = function(actor) game.broadcast_to("room", "hi") end },
+			badblock = { execute = function(actor) game.broadcast_to(actor.location, "say", {}, 7) end },
+		}
+	`)
+	g := startGame(t, files)
+
+	alice := connect(t, g)
+	alice.login("Alice")
+	bob := connect(t, g)
+	bob.login("Bob")
+	carol := connect(t, g)
+	carol.login("Carol")
+	dave := connect(t, g)
+	dave.login("Dave")
+	carol.send("away")
+	carol.expect("Gone.")
+	dave.send("wagon")
+	dave.expect("In the wagon.")
+
+	alice.send("shout")
+	bob.expect(`Alice says, "Hello, room"`)
+	bob.expect("The lamps flicker.")
+	alice.expect("The lamps flicker.") // the text form skips no one
+
+	// Carol is elsewhere and Dave is inside something in the room.
+	carol.send("say done")
+	carol.expect(`You say, "done"`)
+	dave.send("say done")
+	dave.expect(`You say, "done"`)
+	for _, c := range []*client{carol, dave} {
+		for len(c.conn.messages) > 0 {
+			if m := <-c.conn.messages; strings.Contains(m.Text, "Hello, room") || strings.Contains(m.Text, "lamps") {
+				t.Errorf("reached someone not directly in the room: %q", m.Text)
+			}
+		}
+	}
+
+	alice.send("bad")
+	alice.expect("dragon.game.broadcast_to: argument #1: expected object")
+	alice.send("badblock")
+	alice.expect("argument #4")
+}

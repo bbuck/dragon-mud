@@ -26,6 +26,10 @@ import (
 //	                               where forms is a list of { pattern, desc }
 //	game.disconnect(player[, text]) send an optional farewell and disconnect
 //	game.session(player)           the session playing player, or nil
+//	game.broadcast_to(location, text[, except])
+//	game.broadcast_to(location, kind, data[, block[, except]])
+//	                               the same for everyone playing an object
+//	                               directly inside location
 //	game.run(actor, line)          run line as if actor typed it; true, or
 //	                               false and what they'd have been told
 func (g *Game) module() scripting.Module {
@@ -33,12 +37,13 @@ func (g *Game) module() scripting.Module {
 		Name:   "dragon.game",
 		Values: map[string]any{"name": g.name},
 		Funcs: map[string]scripting.Func{
-			"broadcast":  g.mutatingFunc(g.scriptBroadcast),
-			"players":    g.scriptPlayers,
-			"commands":   g.scriptCommands,
-			"disconnect": g.mutatingFunc(g.scriptDisconnect),
-			"session":    g.scriptSession,
-			"run":        g.mutatingFunc(g.scriptRun),
+			"broadcast":    g.mutatingFunc(g.scriptBroadcast),
+			"broadcast_to": g.mutatingFunc(g.scriptBroadcastTo),
+			"players":      g.scriptPlayers,
+			"commands":     g.scriptCommands,
+			"disconnect":   g.mutatingFunc(g.scriptDisconnect),
+			"session":      g.scriptSession,
+			"run":          g.mutatingFunc(g.scriptRun),
 		},
 	}
 }
@@ -57,6 +62,38 @@ func (g *Game) scriptBroadcast(args scripting.Args) (any, error) {
 	for _, p := range g.players {
 		if p.character != nil && !slices.Contains(except, p.character) {
 			p.s.Send(m)
+		}
+	}
+
+	return nil, nil
+}
+
+// scriptBroadcastTo sends to everyone playing an object directly inside a
+// location: containment is the engine's, so this needs no idea of rooms.
+// Objects inside those objects (a player in a wagon in the room) aren't
+// reached; sending to them too is the caller's choice.
+func (g *Game) scriptBroadcastTo(args scripting.Args) (any, error) {
+	location, err := g.objectArg(args, 0)
+	if err != nil {
+		return nil, err
+	}
+	m, used, err := g.outgoingFrom(args, 1)
+	if err != nil {
+		return nil, err
+	}
+	except, err := g.objectsArg(args, used)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, o := range location.Contents() {
+		if slices.Contains(except, o) {
+			continue
+		}
+		for _, p := range g.players {
+			if p.character == o {
+				p.s.Send(m)
+			}
 		}
 	}
 
