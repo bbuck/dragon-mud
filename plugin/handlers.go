@@ -20,7 +20,7 @@ var (
 var handlerKeys = []string{"handler", "before", "after"}
 
 // wiringKeys are the fields wiring may set for each event.
-var wiringKeys = []string{"order", "disable"}
+var wiringKeys = []string{"order", "disable", "redirect"}
 
 // Handlers loads the handlers the plugin exports as events.handlers,
 // sorted by event name. Each is a function, or a table with the function
@@ -83,6 +83,7 @@ func (p *Plugin) Handlers() ([]event.Handler, error) {
 //	wiring = {
 //	  ["dragon:before_say"] = { order = { "game", "dragon:chat" } },
 //	  ["dragon:player_connected"] = { disable = { "dragon:presence" } },
+//	  ["dragon:player_disconnected"] = { redirect = { ["dragon:presence"] = "mygame:went_home" } },
 //	}
 func (p *Plugin) Wiring() (map[string]event.Wiring, error) {
 	table, err := p.export("events.wiring", `wiring = { ["dragon:player_connected"] = { disable = { "dragon:presence" } } }`)
@@ -95,7 +96,7 @@ func (p *Plugin) Wiring() (map[string]event.Wiring, error) {
 		where := field("events.wiring", name)
 		entry, ok := table[name].(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("%s must be a table like { order = { ... } } or { disable = { ... } }, not a %s.",
+			return nil, fmt.Errorf("%s must be a table like { order = { ... } }, { disable = { ... } } or { redirect = { ... } }, not a %s.",
 				where, scripting.TypeName(table[name]))
 		}
 		if err := checkKeys(where, entry, wiringKeys, nil); err != nil {
@@ -112,10 +113,43 @@ func (p *Plugin) Wiring() (map[string]event.Wiring, error) {
 		if w.Disable, err = pluginList(where, entry, "disable"); err != nil {
 			return nil, err
 		}
+		if w.Redirect, err = redirects(where, entry["redirect"]); err != nil {
+			return nil, err
+		}
 		wiring[name] = w
 	}
 
 	return wiring, nil
+}
+
+// redirects reads wiring's optional redirect table: plugin ids keyed to the
+// event each one's handler runs on instead.
+func redirects(where string, raw any) (map[string]string, error) {
+	if raw == nil {
+		return nil, nil
+	}
+	if list, ok := raw.([]any); ok && len(list) == 0 {
+		return nil, nil
+	}
+	table, ok := raw.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("%s: redirect must be a table of plugins and the events their handlers run on instead, like redirect = { [\"dragon:presence\"] = \"mygame:arrived\" }, not a %s.",
+			where, scripting.TypeName(raw))
+	}
+
+	redirect := make(map[string]string, len(table))
+	for _, id := range slices.Sorted(maps.Keys(table)) {
+		to, ok := table[id].(string)
+		if !ok {
+			return nil, fmt.Errorf("%s: redirect[%q] must be the name of the event its handler runs on instead, like \"mygame:arrived\", not a %s.", where, id, scripting.TypeName(table[id]))
+		}
+		if !eventNameRx.MatchString(to) {
+			return nil, fmt.Errorf("%s: redirect[%q] is %q, which isn't a valid event name. Event names are lowercase words joined by underscores, with an optional namespace, like mygame:arrived.", where, id, to)
+		}
+		redirect[id] = to
+	}
+
+	return redirect, nil
 }
 
 // pluginList reads an optional list of plugin ids.

@@ -240,6 +240,128 @@ func TestWiringErrors(t *testing.T) {
 	}
 }
 
+func TestWiringRedirect(t *testing.T) {
+	r, err := New(Config{
+		Plugins:  plugins,
+		Handlers: []Handler{handler("hit", "armor"), handler("hit", "game"), handler("died", "shields")},
+		Decls:    decls,
+		Wiring:   map[string]Wiring{"hit": {Redirect: map[string]string{"armor": "died"}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := order(t, r, "hit"); !reflect.DeepEqual(got, []string{"game"}) {
+		t.Errorf("hit runs %v", got)
+	}
+	if got := order(t, r, "died"); !reflect.DeepEqual(got, []string{"armor", "shields"}) {
+		t.Errorf("died runs %v", got)
+	}
+	moved := r.Redirected("hit")
+	if len(moved) != 1 || moved[0].Plugin != "armor" || moved[0].Event != "died" {
+		t.Errorf("Redirected = %v", moved)
+	}
+	c, _ := r.Chain("died")
+	if why := r.Explain(c, c.Handlers[0]); why != "redirected from hit" {
+		t.Errorf("Explain = %q", why)
+	}
+	if where := c.Handlers[0].Where(); !strings.Contains(where, `events.handlers["hit"] in armor`) {
+		t.Errorf("Where = %q", where)
+	}
+}
+
+// A redirected handler joins its new event's hand-made order like any
+// other, so the order must list it.
+func TestRedirectedHandlerMustBeOrdered(t *testing.T) {
+	_, err := New(Config{
+		Plugins:  plugins,
+		Handlers: []Handler{handler("hit", "armor"), handler("died", "shields")},
+		Decls:    decls,
+		Wiring: map[string]Wiring{
+			"hit":  {Redirect: map[string]string{"armor": "died"}},
+			"died": {Order: []string{"shields"}},
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), `leaves out "armor"`) {
+		t.Errorf("got %v", err)
+	}
+}
+
+func TestRedirectErrors(t *testing.T) {
+	handlers := []Handler{handler("hit", "armor"), handler("hit", "game"), handler("died", "armor")}
+
+	tests := []struct {
+		name   string
+		wiring map[string]Wiring
+		want   []string
+	}{
+		{
+			"unknown plugin",
+			map[string]Wiring{"hit": {Redirect: map[string]string{"amror": "died"}}},
+			[]string{`redirects "amror", which has no hit handler`, `Did you mean "armor"?`},
+		},
+		{
+			"undeclared target",
+			map[string]Wiring{"hit": {Redirect: map[string]string{"game": "dide"}}},
+			[]string{`redirects "game" to "dide", which no plugin declares`, `Did you mean "died"?`},
+		},
+		{
+			"already handles the target",
+			map[string]Wiring{"hit": {Redirect: map[string]string{"armor": "died"}}},
+			[]string{`armor has a died handler already`},
+		},
+		{
+			"redirected and disabled",
+			map[string]Wiring{"hit": {Redirect: map[string]string{"game": "died"}, Disable: []string{"game"}}},
+			[]string{`both redirects and disables "game"`},
+		},
+		{
+			"redirected and ordered",
+			map[string]Wiring{"hit": {Redirect: map[string]string{"game": "died"}, Order: []string{"armor", "game"}}},
+			[]string{`both redirects and orders "game"`, `order it in ["died"]`},
+		},
+		{
+			"to itself",
+			map[string]Wiring{"hit": {Redirect: map[string]string{"game": "hit"}}},
+			[]string{`the event it already handles`},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := New(Config{Plugins: plugins, Handlers: handlers, Decls: decls, Wiring: tt.wiring})
+			if err == nil {
+				t.Fatal("expected an error")
+			}
+			for _, want := range tt.want {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("error %q doesn't mention %q", err, want)
+				}
+			}
+		})
+	}
+}
+
+// Two events can trade a plugin's handlers.
+func TestRedirectSwap(t *testing.T) {
+	r, err := New(Config{
+		Plugins:  plugins,
+		Handlers: []Handler{handler("hit", "armor"), handler("died", "armor")},
+		Decls:    decls,
+		Wiring: map[string]Wiring{
+			"hit":  {Redirect: map[string]string{"armor": "died"}},
+			"died": {Redirect: map[string]string{"armor": "hit"}},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, _ := r.Chain("hit")
+	if len(c.Handlers) != 1 || c.Handlers[0].From != "died" {
+		t.Errorf("hit = %+v", c.Handlers)
+	}
+}
+
 func TestOneHandlerPerPlugin(t *testing.T) {
 	_, err := New(Config{Plugins: plugins, Handlers: []Handler{handler("hit", "armor"), handler("hit", "armor")}})
 	if err == nil || !strings.Contains(err.Error(), `events.handlers["hit"] in armor: two handlers`) {

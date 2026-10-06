@@ -575,8 +575,8 @@ Input no command matches runs `dragon:unmatched_input` (`actor`, `line`,
    aren't installed or have no handler for it are ignored, so a plugin can
    order itself against optional ones. Cycles are startup errors that name
    every step of the cycle. Directory order never matters.
-2. **Game wiring.** The game can reorder or disable any event's handlers in
-   one place, its `events.wiring`. Only the game's plugin may have one.
+2. **Game wiring.** The game can reorder, disable or redirect any event's
+   handlers in one place, its `events.wiring`. Only the game's plugin may have one.
    Wiring is data, so it's validated at startup and the resolved order can
    be printed (`dragon events modify_damage`; `dragon events` lists every
    event).
@@ -586,6 +586,7 @@ Input no command matches runs `dragon:unmatched_input` (`actor`, `line`,
 return {
   modify_damage = { order = { "game", "armor", "dragon:combat" } },
   ["dragon:player_connected"] = { disable = { "dragon:presence" } },
+  ["dragon:player_disconnected"] = { redirect = { ["dragon:presence"] = "mygame:went_home" } },
 }
 ```
 
@@ -593,7 +594,17 @@ return {
 settles a cycle) and must list every handler that isn't disabled, so a new
 plugin's handler can't slip into a hand-made order unnoticed. Naming a
 plugin with no handler for the event is an error with a suggestion.
-Redirecting an event to a different handler is not built yet.
+
+`redirect` moves a plugin's handler to another event: above, presence
+announces a departure when the game sends `mygame:went_home`, not when
+the player disconnects. The handler joins that event's handlers, ordered
+there by load order and its `before` and `after`, or by that event's
+`order`, which must then list it. The event it moves to must be declared,
+and its payload is what the handler gets, so it should have the fields the
+handler reads; a hook handler's returned event is checked against it like
+any other. A plugin still has one handler per event, so redirecting to an
+event the plugin already handles is an error, unless that handler is
+redirected too. `dragon events` shows where each redirected handler went.
 
 The same precedence applies everywhere: **the game, then plugins in
 dependency order, then built-ins**.

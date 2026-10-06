@@ -100,6 +100,35 @@ func TestWiringDisablesBasicsArrival(t *testing.T) {
 	alice.expectWithout(`Bob says, "hi"`, "has arrived")
 }
 
+// Redirecting presence's arrival handler announces arrivals when the game
+// says so, not when the player connects.
+func TestWiringRedirectsAHandler(t *testing.T) {
+	g := startGame(t, fstest.MapFS{
+		"lua/events.lua": {Data: []byte(`
+			return { placed = { fields = { actor = "who was placed", reconnected = { "unused", optional = true } } } }
+		`)},
+		"lua/wiring.lua": {Data: []byte(`
+			return { ["dragon:player_connected"] = { redirect = { ["dragon:presence"] = "placed" } } }
+		`)},
+		"lua/commands.lua": {Data: []byte(`
+			local events = require("dragon.events")
+			return {
+				land = { forms = { { "land", function(actor) events.notify("placed", { actor = actor }) end } } },
+			}
+		`)},
+	})
+
+	alice := connect(t, g)
+	alice.login("Alice")
+	bob := connect(t, g)
+	bob.login("Bob")
+	bob.send("say hi")
+	alice.expectWithout(`Bob says, "hi"`, "has arrived")
+
+	bob.send("land")
+	alice.expect("Bob has arrived.")
+}
+
 // Arrival is announced after the game's handler, so a game that puts new
 // characters somewhere has done so when presence says where they arrived.
 func TestArrivalWaitsForTheGame(t *testing.T) {
@@ -178,6 +207,16 @@ func TestHandlerErrors(t *testing.T) {
 			"wiring unknown hook",
 			fstest.MapFS{"lua/wiring.lua": {Data: []byte(`return { ["dragon:player_conected"] = { disable = { "dragon:chat" } } }`)}},
 			`the game's events.wiring["dragon:player_conected"] is wired, but no plugin handles "dragon:player_conected". Did you mean "dragon:player_connected"?`,
+		},
+		{
+			"redirect to an undeclared event",
+			fstest.MapFS{"lua/wiring.lua": {Data: []byte(`return { ["dragon:player_connected"] = { redirect = { ["dragon:presence"] = "dragon:player_conected" } } }`)}},
+			`the game's events.wiring["dragon:player_connected"] redirects "dragon:presence" to "dragon:player_conected", which no plugin declares, so it would never run. Did you mean "dragon:player_connected"?`,
+		},
+		{
+			"redirect not a string",
+			fstest.MapFS{"lua/wiring.lua": {Data: []byte(`return { ["dragon:player_connected"] = { redirect = { ["dragon:presence"] = true } } }`)}},
+			`game: events.wiring["dragon:player_connected"]: redirect["dragon:presence"] must be the name of the event its handler runs on instead, like "mygame:arrived", not a boolean.`,
 		},
 		{
 			"wiring unknown field",

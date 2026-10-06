@@ -6,7 +6,8 @@
 //
 // Handlers run in plugin load order (built-ins, then plugins, then the
 // game), adjusted by the before and after each handler declares. The game's
-// wiring can set an event's order outright or disable handlers.
+// wiring can set an event's order outright, disable handlers, or redirect a
+// plugin's handler to a different event.
 //
 // Every event is declared by the plugin that sends it, or by the engine:
 // the declaration says what it's for and which fields its payload has, and
@@ -41,6 +42,10 @@ type Handler struct {
 	// the payload, a new payload to change it, or false and a reason to
 	// cancel. What it returns for a notification is ignored.
 	Fn scripting.Function
+
+	// From is the event the plugin wrote the handler for, when the game's
+	// wiring redirected it to Event.
+	From string
 }
 
 // Where is where the handler is defined, for messages: its file and line
@@ -52,7 +57,12 @@ func (h Handler) Where() string {
 		}
 	}
 
-	return fmt.Sprintf("events.handlers[%q] in %s", h.Event, h.Plugin)
+	name := h.Event
+	if h.From != "" {
+		name = h.From
+	}
+
+	return fmt.Sprintf("events.handlers[%q] in %s", name, h.Plugin)
 }
 
 // Wiring is how the game rearranges one event's handlers.
@@ -63,6 +73,11 @@ type Wiring struct {
 
 	// Disable lists plugins whose handlers don't run.
 	Disable []string
+
+	// Redirect moves plugins' handlers to other events: each plugin's
+	// handler for this event runs when the event it maps to is sent
+	// instead, ordered there like that event's own handlers.
+	Redirect map[string]string
 }
 
 // Config is everything a Registry is built from.
@@ -98,6 +113,10 @@ type Registry struct {
 	decls    map[string]Decl
 	prefixes []Decl
 	plugins  []string
+
+	// redirected are the handlers the game's wiring moved away from each
+	// event, keyed by the event they were written for.
+	redirected map[string][]Handler
 }
 
 // Result is what running a hook decided.
@@ -133,7 +152,7 @@ func New(cfg Config) (*Registry, error) {
 		byEvent[h.Event] = append(byEvent[h.Event], h)
 	}
 
-	r := &Registry{chains: make(map[string]*Chain), decls: make(map[string]Decl), plugins: cfg.Plugins}
+	r := &Registry{chains: make(map[string]*Chain), decls: make(map[string]Decl), plugins: cfg.Plugins, redirected: make(map[string][]Handler)}
 	for _, d := range cfg.Decls {
 		if d.Prefix {
 			r.prefixes = append(r.prefixes, d)
@@ -153,6 +172,11 @@ func New(cfg Config) (*Registry, error) {
 				WiringWhere, name, name, command.DidYouMean(name, names))
 		}
 	}
+
+	if err := r.redirect(byEvent, cfg.Wiring); err != nil {
+		return nil, err
+	}
+	names = slices.Sorted(maps.Keys(byEvent))
 
 	for _, name := range names {
 		handlers := byEvent[name]
@@ -177,6 +201,77 @@ func New(cfg Config) (*Registry, error) {
 	}
 
 	return r, nil
+}
+
+// redirect moves the handlers the game's wiring redirects to the events
+// they're redirected to, in byEvent.
+func (r *Registry) redirect(byEvent map[string][]Handler, wiring map[string]Wiring) error {
+	type move struct {
+		from, plugin, to string
+	}
+	var moves []move
+	for _, from := range slices.Sorted(maps.Keys(wiring)) {
+		w := wiring[from]
+		where := fmt.Sprintf("%s[%q]", WiringWhere, from)
+		var plugins []string
+		for _, h := range byEvent[from] {
+			plugins = append(plugins, h.Plugin)
+		}
+
+		for _, id := range slices.Sorted(maps.Keys(w.Redirect)) {
+			to := w.Redirect[id]
+			switch {
+			case !slices.Contains(plugins, id):
+				return fmt.Errorf("%s redirects %q, which has no %s handler.%s Plugins with a %s handler: %s.",
+					where, id, from, command.DidYouMean(id, plugins), from, quoteAll(plugins))
+			case slices.Contains(w.Disable, id):
+				return fmt.Errorf("%s both redirects and disables %q. Remove it from one of them.", where, id)
+			case slices.Contains(w.Order, id):
+				return fmt.Errorf("%s both redirects and orders %q. Its handler runs on %s now, so remove it from order here, and order it in [%q] if it needs a place there.",
+					where, id, to, to)
+			case to == from:
+				return fmt.Errorf("%s redirects %q to %s, the event it already handles. Remove the redirect.", where, id, from)
+			}
+			if _, ok := r.Decl(to); !ok {
+				return fmt.Errorf("%s redirects %q to %q, which no plugin declares, so it would never run.%s Redirect it to a declared event; dragon events lists them.",
+					where, id, to, command.DidYouMean(to, r.Declared()))
+			}
+			for _, h := range byEvent[to] {
+				if h.Plugin == id && wiring[to].Redirect[id] == "" {
+					return fmt.Errorf("%s redirects %q to %s, but %s has a %s handler already, and a plugin has one handler per event. Disable one of them instead, or redirect %s's %s handler somewhere else too.",
+						where, id, to, id, to, id, to)
+				}
+			}
+			moves = append(moves, move{from, id, to})
+		}
+	}
+
+	// Take every redirected handler out before adding any back, so two
+	// events can trade a plugin's handlers.
+	var moved []Handler
+	for _, m := range moves {
+		i := slices.IndexFunc(byEvent[m.from], func(h Handler) bool { return h.Plugin == m.plugin })
+		h := byEvent[m.from][i]
+		byEvent[m.from] = slices.Delete(byEvent[m.from], i, i+1)
+		if len(byEvent[m.from]) == 0 {
+			delete(byEvent, m.from)
+		}
+
+		h.From, h.Event = m.from, m.to
+		r.redirected[m.from] = append(r.redirected[m.from], h)
+		moved = append(moved, h)
+	}
+	for _, h := range moved {
+		byEvent[h.Event] = append(byEvent[h.Event], h)
+	}
+
+	return nil
+}
+
+// Redirected returns the handlers the game's wiring moved away from the
+// event name, each with the event it runs on now.
+func (r *Registry) Redirected(name string) []Handler {
+	return r.redirected[name]
 }
 
 // wire applies the game's wiring to handlers, which are in load order.
@@ -516,8 +611,12 @@ func (r *Registry) Notify(ctx context.Context, name string, payload map[string]a
 // Explain describes why h runs where it does in c, such as
 // "after dragon:chat", for dragon events.
 func (r *Registry) Explain(c Chain, h Handler) string {
+	var parts []string
+	if h.From != "" {
+		parts = append(parts, "redirected from "+h.From)
+	}
 	if c.Wired {
-		return ""
+		return strings.Join(parts, "; ")
 	}
 
 	loaded := make(map[string]bool, len(r.plugins))
@@ -544,7 +643,6 @@ func (r *Registry) Explain(c Chain, h Handler) string {
 		return strings.Join(parts, ", ")
 	}
 
-	var parts []string
 	if len(h.After) > 0 {
 		parts = append(parts, "after "+describe(h.After))
 	}

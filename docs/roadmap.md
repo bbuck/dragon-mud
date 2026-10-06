@@ -40,7 +40,7 @@ over telnet and the web and talk to each other.
 - [x] Hooks and notifications with plugin ordering (`before`/`after`)
       and game wiring (`order`, `disable`).
 - [x] `dragon events [<name>]` (was `dragon hooks`).
-- [ ] Hook redirection in game wiring.
+- [x] Hook redirection in game wiring (`redirect`).
 - [x] Input parser: command forms, slot types (`slots.lua`), maximal
       munch, quoting, additive forms with `replace`.
 - [x] `builtins` in `dragon.toml`: which built-in plugins a game loads.

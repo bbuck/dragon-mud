@@ -345,7 +345,21 @@ func showEvent(out io.Writer, events *event.Registry, name string) error {
 	}
 
 	fmt.Fprintln(out)
+	redirected := events.Redirected(name)
+	if len(redirected) > 0 {
+		fmt.Fprintf(out, "Redirected in %s:\n", event.WiringWhere)
+		w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
+		for _, h := range redirected {
+			fmt.Fprintf(w, "  %s\truns on %s instead\n", h.Plugin, h.Event)
+		}
+		w.Flush()
+		fmt.Fprintln(out)
+	}
 	if !handled {
+		if len(redirected) > 0 {
+			fmt.Fprintln(out, "No other plugin handles it.")
+			return nil
+		}
 		fmt.Fprintln(out, "No plugin handles it yet. Add a handler in a plugin's events.handlers.")
 		return nil
 	}
