@@ -75,10 +75,16 @@ over telnet and the web and talk to each other.
       modules in `lua/`, so file names are the plugin's own business.
 - [x] "Event" names both kinds, hooks and notifications: `dragon.events`,
       `events.declare`, `events.handlers`, `dragon events`.
-- [ ] Full manifest: provides, depends, capabilities.
-- [ ] `plugin.require` for plugin APIs. First use: `dragon:chat` offers
-      `chat.say(actor, message, target)` so games stop reusing its `say`
-      view and coupling to its data shape (lesson 3 below).
+- [x] Manifest `[provides]` and `[depends]`: API versions and Cargo-style
+      constraints, checked at startup, one provider per API.
+- [ ] Manifest capabilities.
+- [x] `require("@name")` imports a plugin API by name, never by plugin;
+      `init.lua` names the API's module (`api = "api"`). API names are
+      namespaced by the contract's owner (`johns:skills`), and `dragon:`
+      APIs are the built-ins'. First use: `dragon:chat` provides
+      `dragon:chat` with `chat.say(actor, message, target)` and
+      `chat.emote`, so games stop reusing its `say` view and coupling to
+      its data shape (lesson 3 below).
 - [ ] Schema types and extensions; namespaced added fields. Open: can an
       object have several types (a bag is an item and a container)?
       Schemas are also how property typos (`descrition`) get caught
@@ -153,6 +159,9 @@ over telnet and the web and talk to each other.
 - Script limits a game can set for its builders' entity scripts (quotas,
   module sets), for games that open scripting widely.
 - Importers (`dragon:import-diku`, `dragon:import-circle`).
+- A `dragon` command that generates a docs site from doc comments
+  (LuaDoc or LuaLS annotations) in plugins' API modules, so `dragon:chat`'s
+  API can be read without opening `lua/api.lua`.
 - Dice notation: modifiers, keep highest, drop lowest; dice objects.
 - Fairness features: rate limits, cooldowns.
 - Engine upgrades: deprecations, `dragon upgrade`.

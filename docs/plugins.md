@@ -24,6 +24,7 @@ return {
     declare = require("events"),   -- the events it sends, and their fields
     handlers = require("handlers"), -- what it does when they run
   },
+  api = "api",                     -- the module others import, lua/api.lua
 }
 ```
 
@@ -69,6 +70,8 @@ mapping/
 `require("items")` loads `lua/items.lua` (or `lua/items/init.lua`), and
 `require("items.find")` loads `lua/items/find.lua`. A `.lua` file next to
 `init.lua` is an error, since `require` would never find it.
+`require("@dragon:rooms")` imports another plugin's API (see "APIs and
+provides" below).
 
 ### The game is a plugin
 
@@ -161,7 +164,7 @@ name = "grid-rooms"
 version = "0.4.0"
 
 [provides]
-rooms = "1.3"
+"dragon:rooms" = "1.3"
 ```
 
 ```toml
@@ -170,17 +173,80 @@ name = "mapping"
 version = "0.2.0"
 
 [depends]
-rooms = "^1.2"
-weather = { version = "^1.0", optional = true }
+"dragon:rooms" = "^1.2"
+"skywatch:weather" = { version = "^1.0", optional = true }
 ```
 
-- `dragon:rooms` is the reference implementation of the `rooms` API. Plugin
-  versions and API versions are independent.
-- One provider per API per game; if two are installed, the game config picks.
-- Code asks for the API: `plugin.require("rooms")` in Lua, `import ... from
-  "rooms/..."` in JavaScript.
+**An API is named for whoever owns its contract**, not for the plugin
+providing it: `johns:skills` is John's skills API, whether his plugin
+provides it or someone else's compatible one does. So a name says whose
+contract it is, and two authors' unrelated `skills` APIs don't collide.
+TOML needs quotes around a name with a namespace. As with events, names
+are used as written and nothing is added to them. A bare name (`rooms`)
+is allowed, for a game's own local plugins that nothing else will load.
+
+- `dragon:` is the engine's namespace. Its APIs are the ones built-in
+  plugins provide: `dragon:chat` provides `dragon:chat`, and a plugin
+  may provide a `dragon:` API in a built-in's place (`grid-rooms` above,
+  with the built-in dropped from `builtins`), but can't make up a new
+  one.
+- `dragon:rooms` is the reference implementation of the `dragon:rooms`
+  API. Plugin versions and API versions are independent.
+- A plugin provides as many APIs as it likes: a combat plugin might
+  provide `johns:combat` and `johns:damage-types`.
+- Versions are one to three numbers (`"1.3"` is 1.3.0). Constraints are
+  Cargo's: `"^1.2"` (or `"1.2"`) accepts 1.2 up to 2.0, `"~1.2"` 1.2 up to
+  1.3, and `"=1.2.3"` that version only. Below 1.0 each minor may break,
+  so `"^0.2"` accepts 0.2 up to 0.3.
+- One provider per API per game: two loaded plugins providing the same API
+  is an error at startup. (Later, the game config may pick.)
+- The game checks every manifest before running any plugin's Lua: each
+  dependency must have a provider whose version matches, unless it's
+  optional.
+- Code asks for the API by its name, never by the plugin providing it:
+  `require("@dragon:rooms")` in Lua, and the same name in JavaScript's
+  import map. So a game swaps `dragon:rooms` for `grid-rooms` without
+  touching the plugins that use rooms.
+
+A plugin's `init.lua` names the module that has each API it provides;
+the engine loads it and returns the same table to everyone who imports
+it.
+
+```lua
+-- grid-rooms/init.lua
+return {
+  commands = require("commands"),
+  api = "api",  -- lua/api.lua
+}
+
+-- a plugin providing several APIs names a module for each
+return {
+  api = { ["johns:combat"] = "combat", ["johns:damage-types"] = "damage" },
+}
+
+-- mapping/lua/commands.lua
+local rooms = require("@dragon:rooms")
+```
+
+The API is a module name rather than a table so that the engine can load
+just that module into another Lua state, such as the one builders'
+entity scripts run in (design.md §10), without running the rest of the
+plugin.
+
+- A plugin imports only what its `[depends]` lists, or its own APIs. The
+  game's own plugin has no manifest and imports any API a loaded plugin
+  provides, since the game chose what loads.
+- An optional dependency no plugin provides imports as `nil`:
+  `local weather = require("@skywatch:weather")`, then
+  `if weather then ... end`.
+- Plugins load in order, but importing an API whose plugin hasn't loaded
+  yet loads it first. Two plugins importing each other at the top of a
+  file is a loop, and an error; importing inside the function that uses
+  the API defers it until it's called.
+- Each API module is loaded when the game starts, so a broken one fails
+  then, not when something first imports it.
 - Each API has a written contract and a **conformance test suite**:
-  `dragon test --conformance rooms@1`.
+  `dragon test --conformance dragon:rooms@1`.
 
 Prefer extending to replacing. Replace a plugin only for a genuinely
 different model (rooms on a grid instead of a graph).

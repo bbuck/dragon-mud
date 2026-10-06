@@ -43,7 +43,7 @@ func TestManifestErrors(t *testing.T) {
 		{"no name", false, fstest.MapFS{"plugin.toml": file(`version = "1.0.0"`)}, `plugin.toml needs the plugin's name, like name = "mapping".`},
 		{"bad name", false, fstest.MapFS{"plugin.toml": file(`name = "Extra Things"`)}, `plugin.toml: name "Extra Things" isn't a valid plugin name.`},
 		{"named game", false, fstest.MapFS{"plugin.toml": file(`name = "game"`)}, `plugin.toml: name "game" is the game's own plugin.`},
-		{"unknown setting", false, fstest.MapFS{"plugin.toml": file("name = \"extra\"\nverison = \"1.0.0\"")}, `plugin.toml: unknown setting "verison". Did you mean "version"? A manifest has name and version.`},
+		{"unknown setting", false, fstest.MapFS{"plugin.toml": file("name = \"extra\"\nverison = \"1.0.0\"")}, `plugin.toml: unknown setting "verison". Did you mean "version"? A manifest has name, version, provides and depends.`},
 		{"not toml", false, fstest.MapFS{"plugin.toml": file(`name = extra`)}, `plugin.toml: toml: line 1`},
 		{"game manifest", true, fstest.MapFS{"plugin.toml": file(`name = "game"`)}, `game/plugin.toml: the game's own plugin has no manifest; its settings are in dragon.toml. Delete game/plugin.toml.`},
 		{"old game manifest", true, fstest.MapFS{"plugin.lua": file(`return { name = "game" }`)}, `Delete game/plugin.lua.`},
@@ -145,7 +145,7 @@ func TestInitErrors(t *testing.T) {
 		{
 			"unknown export",
 			fstest.MapFS{"init.lua": file(`return { comands = {} }`)},
-			`game: init.lua has an unknown field "comands". Did you mean "commands"? Allowed fields: commands, slots, modes, events.`,
+			`game: init.lua has an unknown field "comands". Did you mean "commands"? Allowed fields: commands, slots, modes, events, api.`,
 		},
 		{
 			"hooks moved",

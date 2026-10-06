@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"bbuck.dev/dragon-mud/auth"
+	"bbuck.dev/dragon-mud/builtin"
 	"bbuck.dev/dragon-mud/command"
 	"bbuck.dev/dragon-mud/event"
 	"bbuck.dev/dragon-mud/message"
@@ -173,6 +174,13 @@ type scripts struct {
 	// loading is the plugin being loaded, for errors in what it creates.
 	loading string
 
+	// apis finds the plugin that provides each API.
+	apis *plugin.APIs
+
+	// initializing is the chain of plugins whose init.lua is running, to
+	// catch plugins that import each other's APIs as they load.
+	initializing []*plugin.Plugin
+
 	// origins maps each loaded plugin's id to where it came from.
 	origins map[string]string
 }
@@ -276,10 +284,34 @@ func (g *Game) loadInto(ctx context.Context, s *scripts) error {
 		return err
 	}
 
-	events := event.Config{Decls: slices.Clone(engineEvents)}
+	imports := func(from *plugin.Plugin, api string) (*plugin.Plugin, error) {
+		return s.importAPI(ctx, from, api)
+	}
+	var plugins []*plugin.Plugin
 	for _, src := range g.sources {
-		if err := g.loadPlugin(ctx, s, src, &events); err != nil {
+		p, err := plugin.Open(ctx, s.engine, src, g.pluginModules, imports)
+		if err != nil {
 			return fmt.Errorf("%s: %w", src.Origin, err)
+		}
+		if other, ok := s.origins[p.ID]; ok {
+			return fmt.Errorf("%s: plugin.toml names the plugin %q, but %s already has that name. Plugin names must be unique; rename one of them in its plugin.toml.", src.Origin, p.ID, other)
+		}
+		s.origins[p.ID] = src.Origin
+		plugins = append(plugins, p)
+	}
+
+	engineAPIs, err := builtin.APIs()
+	if err != nil {
+		return err
+	}
+	if s.apis, err = plugin.ResolveAPIs(plugins, engineAPIs); err != nil {
+		return err
+	}
+
+	events := event.Config{Decls: slices.Clone(engineEvents)}
+	for _, p := range plugins {
+		if err := g.loadPlugin(ctx, s, p, &events); err != nil {
+			return fmt.Errorf("%s: %w", p.Origin, err)
 		}
 	}
 	s.loading = ""
@@ -291,7 +323,6 @@ func (g *Game) loadInto(ctx context.Context, s *scripts) error {
 		return err
 	}
 
-	var err error
 	if s.events, err = event.New(events); err != nil {
 		return err
 	}
@@ -309,25 +340,18 @@ func (g *Game) loadInto(ctx context.Context, s *scripts) error {
 	return s.checkSectionHooks()
 }
 
-// loadPlugin loads src's slots, commands and modes into s, and adds its
+// loadPlugin loads p's slots, commands and modes into s, and adds its
 // event declarations, handlers and wiring to events.
-func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, events *event.Config) error {
-	engine, commands := s.engine, s.commands
+func (g *Game) loadPlugin(ctx context.Context, s *scripts, p *plugin.Plugin, events *event.Config) error {
+	commands := s.commands
 
-	p, err := plugin.Open(ctx, engine, src, g.pluginModules)
-	if err != nil {
+	if err := s.initialize(ctx, p); err != nil {
 		return err
 	}
-
-	if other, ok := s.origins[p.ID]; ok {
-		return fmt.Errorf("plugin.toml names the plugin %q, but %s already has that name. Plugin names must be unique; rename one of them in its plugin.toml.", p.ID, other)
+	if err := p.CheckAPIs(ctx); err != nil {
+		return err
 	}
-	s.origins[p.ID] = src.Origin
 	s.loading = p.ID
-
-	if err := p.Load(ctx); err != nil {
-		return err
-	}
 
 	slots, err := p.Slots()
 	if err != nil {
@@ -372,7 +396,7 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ev
 	}
 	events.Decls = append(events.Decls, decls...)
 
-	if src.Game {
+	if p.ID == plugin.GameID {
 		if events.Wiring, err = p.Wiring(); err != nil {
 			return err
 		}
@@ -389,6 +413,51 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ev
 	g.log.Info("loaded plugin", "plugin", p.ID, "version", p.Manifest.Version, "commands", len(cmds), "modes", len(modes), "slots", len(slots), "handlers", len(handlers), "views", views)
 
 	return nil
+}
+
+// initialize runs p's init.lua, unless it has run already because another
+// plugin imported p's API first.
+func (s *scripts) initialize(ctx context.Context, p *plugin.Plugin) error {
+	if p.Loaded() {
+		return nil
+	}
+
+	outer := s.loading
+	s.loading = p.ID
+	s.initializing = append(s.initializing, p)
+	defer func() {
+		s.loading = outer
+		s.initializing = s.initializing[:len(s.initializing)-1]
+	}()
+
+	return p.Load(ctx)
+}
+
+// importAPI returns the plugin that provides api to from, running its
+// init.lua first if it hasn't run yet, for require("@api").
+func (s *scripts) importAPI(ctx context.Context, from *plugin.Plugin, api string) (*plugin.Plugin, error) {
+	provider, err := s.apis.Provider(from, api)
+	if err != nil || provider == nil {
+		return nil, err
+	}
+
+	if provider == from && !from.Loaded() {
+		return nil, fmt.Errorf("%s provides the %s API itself, and it isn't loaded yet. Require its module directly, like require(\"api\").", from.ID, api)
+	}
+	if i := slices.Index(s.initializing, provider); i >= 0 {
+		var chain []string
+		for _, p := range s.initializing[i:] {
+			chain = append(chain, p.ID)
+		}
+		chain = append(chain, provider.ID)
+		return nil, fmt.Errorf("plugins import each other's APIs as they load, in a loop: %s. Import the API inside the function that uses it, not at the top of the file, so it loads when it's called.",
+			strings.Join(chain, " → "))
+	}
+	if err := s.initialize(ctx, provider); err != nil {
+		return nil, fmt.Errorf("loading %s, which provides the %s API: %w", provider.Origin, api, err)
+	}
+
+	return provider, nil
 }
 
 // addTemplates adds the template files in the plugin's dir to templates and

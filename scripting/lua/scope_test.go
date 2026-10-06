@@ -126,7 +126,7 @@ func TestScopeRequireErrors(t *testing.T) {
 func newScope(t *testing.T, e *Engine, dir string, files fstest.MapFS, modules []scripting.Module) scripting.Scope {
 	t.Helper()
 
-	s, err := e.Scope(dir, files, modules)
+	s, err := e.Scope(dir, files, modules, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -36,12 +36,15 @@ type scope struct {
 
 	// loading is the chain of modules being loaded, to catch cycles.
 	loading []string
+
+	// imports resolves require("@name").
+	imports scripting.Imports
 }
 
 // Scope returns a scope whose require loads modules by name, then "a.b"
 // from a/b.lua or a/b/init.lua in files.
-func (e *Engine) Scope(dir string, files fs.FS, modules []scripting.Module) (scripting.Scope, error) {
-	s := &scope{e: e, dir: dir, files: files, modules: make(map[string]*glua.LTable), loaded: make(map[string]glua.LValue)}
+func (e *Engine) Scope(dir string, files fs.FS, modules []scripting.Module, imports scripting.Imports) (scripting.Scope, error) {
+	s := &scope{e: e, dir: dir, files: files, modules: make(map[string]*glua.LTable), loaded: make(map[string]glua.LValue), imports: imports}
 	for _, m := range modules {
 		if !moduleRx.MatchString(m.Name) {
 			return nil, fmt.Errorf("lua: scope %s: module name %q isn't valid", dir, m.Name)
@@ -79,20 +82,56 @@ func (s *scope) Eval(ctx context.Context, name, source string) (any, error) {
 }
 
 // require loads a module once and returns what it returned, or true if it
-// returned nothing, as Lua's require does.
+// returned nothing, as Lua's require does. require("@name") imports a
+// module from another scope.
 func (s *scope) require(state *glua.LState) int {
 	name := state.CheckString(1)
-	if v, ok := s.loaded[name]; ok {
-		state.Push(v)
+	if api, ok := strings.CutPrefix(name, "@"); ok {
+		state.Push(s.importModule(state, name, api))
 		return 1
+	}
+	state.Push(s.load(state, name))
+	return 1
+}
+
+// importModule returns the module imports resolves api to, loading it in
+// the scope it belongs to. name is what was required, for messages.
+func (s *scope) importModule(state *glua.LState, name, api string) glua.LValue {
+	if v, ok := s.loaded[name]; ok {
+		return v
+	}
+	if s.imports == nil {
+		state.RaiseError("require(%q): %s can't import modules from elsewhere.", name, s.dir)
+	}
+
+	from, module, err := s.imports(api)
+	if err != nil {
+		state.RaiseError("require(%q): %v", name, err)
+	}
+	if from == nil {
+		return glua.LNil
+	}
+	other, ok := from.(*scope)
+	if !ok || other.e != s.e {
+		state.RaiseError("require(%q): the module is in another engine, so it can't be imported here.", name)
+	}
+
+	value := other.load(state, module)
+	s.loaded[name] = value
+
+	return value
+}
+
+// load returns the module name, running its file the first time.
+func (s *scope) load(state *glua.LState, name string) glua.LValue {
+	if v, ok := s.loaded[name]; ok {
+		return v
 	}
 	if t, ok := s.modules[name]; ok {
-		state.Push(t)
-		return 1
+		return t
 	}
 	if t, ok := s.e.modules[name]; ok {
-		state.Push(t)
-		return 1
+		return t
 	}
 	if s.e.reserved(name, s.modules) {
 		state.RaiseError("require: there's no module %q. Modules: %s.", name, strings.Join(s.e.moduleNames(s.modules), ", "))
@@ -130,8 +169,7 @@ func (s *scope) require(state *glua.LState) int {
 	}
 	s.loaded[name] = value
 
-	state.Push(value)
-	return 1
+	return value
 }
 
 // find returns the file and source of the module name.

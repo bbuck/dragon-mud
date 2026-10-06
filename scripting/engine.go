@@ -47,8 +47,9 @@ type Engine interface {
 	// plugin's script modules in files. A module name's first part, such as
 	// "dragon" in "dragon.world", is reserved for modules: require never
 	// looks in files for it. dir describes where files are, such as
-	// "game", for script names and error messages.
-	Scope(dir string, files fs.FS, modules []Module) (Scope, error)
+	// "game", for script names and error messages. imports, if not nil,
+	// resolves require("@name"), which loads another scope's module.
+	Scope(dir string, files fs.FS, modules []Module, imports Imports) (Scope, error)
 
 	// Close releases the engine's resources.
 	Close()
@@ -61,6 +62,12 @@ type Scope interface {
 	// Eval executes source in the scope like Engine.Eval.
 	Eval(ctx context.Context, name, source string) (any, error)
 }
+
+// Imports resolves require("@name") in a scope to a module of another
+// scope, such as a plugin API's module in the plugin that provides it. It
+// returns a nil Scope for an import that's absent but allowed to be, which
+// require gives as nil. Its error is the whole message the script sees.
+type Imports func(name string) (Scope, string, error)
 
 // Module is a named group of functions and values exposed to scripts, such
 // as die.roll or room.get.

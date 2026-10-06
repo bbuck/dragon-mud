@@ -1,3 +1,9 @@
 # Talking to other players.
 name = "chat"
 version = "0.1.0"
+
+# What other plugins and the game use through require("@dragon:chat"):
+# chat.say and chat.emote. The API's version is its own, apart from the
+# plugin's.
+[provides]
+"dragon:chat" = "0.1"

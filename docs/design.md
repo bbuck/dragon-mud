@@ -1084,9 +1084,10 @@ else can be added without changing the engine or the modules.
   `lua/items.lua` (or `lua/items/init.lua`) from the same plugin, once per
   load; `require("items.find")` loads `lua/items/find.lua`. It works inside
   functions as well as at the top of a file. Another plugin's modules are
-  out of reach; its public API comes through `plugin.require` (Milestone
-  3). Third-party Lua is copied into `lua/`: pure Lua 5.1 that sticks to
-  the sandbox's libraries works, C modules don't.
+  out of reach; its public API comes through `require("@name")`
+  (plugins.md, "APIs and provides"). Third-party Lua is copied into
+  `lua/`: pure Lua 5.1 that sticks to the sandbox's libraries works, C
+  modules don't.
 - **No game state in script globals.** State lives in objects and plugin data.
   This is what makes hot reload safe: the engine can throw away the script
   state, reload files and re-register, and nothing is lost.
@@ -1187,8 +1188,8 @@ use it. So rather than keeping plugin code away from world scripts, the
 check sits where Lua can't reach it.
 
 - **World scripts run in a Lua state of their own.** A plugin API a world
-  script requires (`plugin.require`, Milestone 3) loads into that state,
-  as its own copy of the plugin's modules.
+  script imports (`require("@dragon:items")`) loads into that state, as
+  its own copy of the plugin's modules.
 - **Every system binding checks which state called it.** Each Go function
   receives the state it was called from, and Lua code can't hide or fake
   that. A system function called from a world state refuses, with an
