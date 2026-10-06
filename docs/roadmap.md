@@ -117,6 +117,12 @@ over telnet and the web and talk to each other.
 - [ ] State updates, slots, web panels, tooltips; telnet prompt and GMCP.
 - [ ] Game-defined vitals.
 - [ ] Fixtures in `#context`: scope, priority, fallback, dismissal.
+- [ ] Windows (design.md §6): sending a view to a window or slot, windows
+      updating in place, `<ui-window>`; settle whether fixtures are windows.
+- [ ] Forms that answer modes (`<dragon-form>`), and screens per mode, so
+      login and character select can be pages before the game view.
+- [ ] A rich text editor component that writes color codes, for
+      `describe` and anything else using the editor mode.
 - [ ] `game/web/layout.html` and `layout.css`: copied by `dragon new`,
       validated at startup, `{{.Head}}` injection, CSS theme properties.
 - [ ] The default layout (two sidebars, book-style feed) and its phone

@@ -853,6 +853,47 @@ Vitals are defined by the game, not assumed to be HP/mana: a list of
 `{ name, value, max?, text?, color }` (a "Warmth: low" bar is valid). Web
 draws bars; telnet puts them in the prompt.
 
+### Windows, screens and forms (not designed yet)
+
+Where the web client is headed: typing `inv` (or clicking an inventory
+button) opens a draggable window with a grid and equip/drop/use buttons;
+connecting shows a login page, then character select, then the game;
+`describe` opens a text box with formatting tools. Each is a richer web
+view of something that already works as text, so input parity holds: the
+window's buttons are `{{command}}`s, the login page answers the login
+mode, the text box answers the editor mode.
+
+- **One view, two templates.** `inventory.html.tmpl` wraps itself in a
+  `<ui-window>` and lays out a grid; `inventory.txt.tmpl` prints colored
+  columns. Closing a window is pure UI: the server never hears about it.
+- **Sending a view to a place.** A send needs a way to name its
+  destination, a window or a slot, not the feed:
+  `actor:send("inventory", data, nil, { window = "inventory" })`. Telnet
+  prints it in the feed as usual.
+- **Windows update in place.** Sending again to the same window id swaps
+  its contents if it's open; the client drops it if it isn't, so the
+  server never tracks what's open. Updates are web-only, since telnet
+  already printed the text. Whoever changes the data sends the update
+  (`dragon:items` sends `items:moved`; a handler refreshes the inventory of
+  whoever it concerns), the after-notification pattern again. Not polling:
+  rerunning a command repeats its hooks and side effects, lags, and costs
+  work when nothing changed. Later, the engine could record which objects
+  a view's data read and rerun it when they change (it already tracks
+  changes every event), but as an optimization, not the model.
+- **Forms answer modes.** A `<dragon-form>` whose submit sends its fields
+  as the mode's next input lines: username, then password, for login; the
+  text, then `.`, for the editor. Modes stay line-based, so telnet and the
+  web share one implementation.
+- **Screens per mode.** A login page and then the game view means the
+  layout depends on where the player is: a mode could name a layout, with
+  `game/web/layout.html` the default once the player is playing.
+- **Rich text is stored as color codes.** A formatting toolbar is a
+  plugin's JavaScript component that writes `[c]...[x]`, the way rich
+  editors keep markdown underneath, previewed with the same code-to-HTML
+  conversion the feed uses.
+- Open: whether windows and fixtures are one concept placed differently
+  (a fixture is a window the server opens in `#context` with a scope).
+
 ## 7. Transports
 
 Each transport is a listener that creates sessions. The game loop doesn't
