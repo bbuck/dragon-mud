@@ -817,21 +817,18 @@ The page layout belongs to the game, not the client.
 
 ### The default layout
 
-A book to read inside a richer game UI. Sketched from early mockups; not
-final.
+**A terminal in the web, with richer features.** The default is what a MUD
+player expects: one feed, an input line, and a status line, made better
+by the web, not replaced by it. Entities are clickable with tooltips,
+prompts offer their choices as buttons, and windows and panels open
+beside the feed when a game sends them. It's sufficient for any game,
+and it grows as the engine does.
 
-```
-┌──────────────┬─────────────────────────────────┬──────────────┐
-│ #context     │ #status: name · vitals · effects│ #side        │
-│ (fixtures)   ├─────────────────────────────────┤ (persistent) │
-│              │ #feed: one story, serif, book   │ map          │
-│ shop, NPC    │ typography; room descriptions,  │ thread       │
-│ dialogue,    │ dialogue and events together    │ party        │
-│ or weather   ├─────────────────────────────────┤ letters      │
-│ as fallback  │ #prompt: choices, actions       │              │
-│              │ #input                          │              │
-└──────────────┴─────────────────────────────────┴──────────────┘
-```
+A game that wants a different reading experience writes its own layout.
+For example, a book layout: serif typography for one narrative feed, a
+`#context` column for fixtures, and a `#side` column for a map and party.
+That's one game's design, done as a layout (or a layout plugin), not the
+engine's default.
 
 - **Feed structure** comes from views: `room` renders as a heading
   with prose, `say` and `emote` as dialogue and action, `ambient` in italics,
@@ -842,8 +839,8 @@ final.
   game's `views/` until `dragon:rooms` provides them; the engine sends
   `echo`, `system` and `prompt`.
 - **Entities in text are clickable** (see Entities below).
-- **Phones:** `#context` becomes a bottom sheet that slides up when a fixture
-  opens; `#side` becomes a drawer.
+- **Phones:** the feed and input fill the screen; panels and windows
+  open as sheets over it.
 
 ### Entities
 
@@ -939,10 +936,19 @@ mode, the text box answers the editor mode.
   work when nothing changed. Later, the engine could record which objects
   a view's data read and rerun it when they change (it already tracks
   changes every event), but as an optimization, not the model.
-- **Forms answer modes.** A `<dragon-form>` whose submit sends its fields
-  as the mode's next input lines: username, then password, for login; the
-  text, then `.`, for the editor. Modes stay line-based, so telnet and the
-  web share one implementation.
+- **Forms send an event.** A web form names the event it sends:
+  `<form action="mygame:register">`. Submitting it sends that event once,
+  with every named input as a field (`name="username"` becomes
+  `event.username`), plus `session`, and `actor` once someone is playing.
+  The plugin that serves the form declares the event, so a misnamed input
+  is an error like any other undeclared field, and handles it like any
+  other event. No command runs and nothing is split into lines, so a
+  login page takes the name and password in one submit. Telnet keeps its
+  own path, the command or mode that asks one line at a time; a game
+  offering both writes both, sharing whatever the handler and the mode
+  call. Open: how a handler answers the form (errors next to fields, a
+  new screen), and whether these events are hooks, notifications or a
+  kind of their own.
 - **Screens per mode.** A login page and then the game view means the
   layout depends on where the player is: a mode could name a layout, with
   `game/web/layout.html` the default once the player is playing.

@@ -124,14 +124,16 @@ over telnet and the web and talk to each other.
 - [ ] Fixtures in `#context`: scope, priority, fallback, dismissal.
 - [ ] Windows (design.md §6): sending a view to a window or slot, windows
       updating in place, `<ui-window>`; settle whether fixtures are windows.
-- [ ] Forms that answer modes (`<dragon-form>`), and screens per mode, so
-      login and character select can be pages before the game view.
+- [ ] Web forms that send an event (`<form action="mygame:register">`)
+      with their inputs as fields, and screens per mode, so login and
+      character select can be pages before the game view.
 - [ ] A rich text editor component that writes color codes, for
       `describe` and anything else using the editor mode.
 - [ ] `game/web/layout.html` and `layout.css`: copied by `dragon new`,
       validated at startup, `{{.Head}}` injection, CSS theme properties.
-- [ ] The default layout (two sidebars, book-style feed) and its phone
-      version.
+- [ ] The default layout: a terminal in the web with richer features
+      (clickable entities, prompts as buttons, windows), and its phone
+      version. Book-style layouts are games' own.
 - [ ] Layouts as plugins; `dragon layout:diff`.
 - [ ] Reconnect with resume.
 - [ ] `world:export` / `world:import` (JSONL).
