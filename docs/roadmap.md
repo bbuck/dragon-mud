@@ -94,6 +94,10 @@ over telnet and the web and talk to each other.
 - [ ] Entity scripts (design.md §2): stored on objects, edited in-game and
       in the admin editor, `o:handle` with parent inheritance, `o:send`
       calling the view's handler.
+- [ ] Event audiences (design.md §2): a hook's declaration names who hears
+      it (`audience = { "room.contents", "actor" }`), the engine calls
+      `o:handle` on each, and games adjust it in wiring with `deliver`.
+      Builds on declared hook fields and entity scripts.
 - [ ] `dragon:rooms`: rooms, exits, movement, `can_move`; rooms deliver
       views to their contents and offer unmatched input to them. Moving
       is `rooms:can_move` (hook), `rooms:left` in the old room, `move_to`,

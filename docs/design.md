@@ -75,6 +75,51 @@ A combat plugin would call `attacked` and `died`, `dragon:items` would call
 `given`. Event names are taken as written, like hook names, so a plugin's
 own events should carry its prefix (`combat:died`).
 
+**Audiences: who hears a hook or notification** (not built yet). Writing
+that loop for every event would mean glue code in every game before a new
+plugin's events reached anyone's scripts. But the engine can't deliver
+events by itself, because it can't know who an event is for: a room's
+contents for `rooms:entered`, the defender (and maybe bystanders) for
+`combat:attacked`, nobody for `dragon:booted`. So **the plugin that defines
+an event declares who hears it, and the engine does the delivery.** It's
+one more part of the hook declaration that already lists its fields:
+
+```lua
+-- dragon:rooms' declarations
+["rooms:entered"] = {
+  fields = { actor = "who arrived", room = "where", from = { "where from", optional = true } },
+  audience = { "room.contents", "actor" },
+},
+["combat:attacked"] = {
+  fields = { attacker = "...", defender = "..." },
+  audience = { "defender" },
+},
+```
+
+When the event is sent, the engine calls `o:handle(name, event)` for each
+object in the audience: the handler's name is the event's name, and
+parent inheritance and silent no-ops apply as above. Policy stays with the
+plugin that understands the event; the engine contributes only what it
+owns (reading fields, containment through `.contents`, calling
+handlers); and builders write no glue: an NPC script defines
+`["rooms:entered"] = function(self, event) ... end`, and it works whenever
+`dragon:rooms` is loaded.
+
+**The game adjusts audiences in wiring**, as it reorders and disables
+handlers, for events whose plugin didn't target entities or targeted them
+differently:
+
+```lua
+-- game/wiring.lua
+return { hooks = {
+  ["dragon:player_connected"] = { deliver = { "actor.location.contents" } },
+  ["combat:attacked"] = { deliver = { "defender.location.contents" } }, -- bystanders react too
+} }
+```
+
+A handler that calls `o:handle` itself stays possible for anything a
+declaration can't express; audiences make the common case free.
+
 Two kinds of event come from the engine's own primitives.
 
 **Views.** `o:send(view, data[, block])` reaches everyone playing `o`
@@ -158,6 +203,17 @@ Open:
   it, and what happens to the object until it's fixed.
 - Whether handlers run immediately or after the current event, so the
   player sees their own "You say" before the guard answers.
+- Whether entities hear hooks as well as notifications. A guard blocking
+  `rooms:can_move` is a veto, which is a hook; letting an audience cancel
+  is powerful, and also where in-game player scripts could block other
+  people's actions, so it depends on trust tiers (§11).
+- Audience ordering: entity handlers after the plugin and game handlers
+  for the event, so plugins finish updating state before scripts react,
+  or interleaved with them. After is the likely answer.
+- An object reached through two audience paths (as `actor` and in
+  `room.contents`) hears the event once.
+- Cost: delivering to a big room's contents on every event is a loop of
+  handler lookups; probably fine, but watch it once entities have scripts.
 
 ## 3. The game loop
 
