@@ -89,7 +89,8 @@ over telnet and the web and talk to each other.
       object have several types (a bag is an item and a container)?
       Schemas are also how property typos (`descrition`) get caught
       (lesson 6 below).
-- [ ] Tasks (`dragon <plugin>:<task>`, `dragon tasks`).
+- [x] Tasks (`dragon <plugin>:<task>`, `dragon tasks`), offline. Live tasks
+      wait for the admin API (Milestone 5).
 - [ ] `dragon add/update/remove/list`, `dragon.lock`, vendoring.
 - [ ] Import maps, plugin JS, the `dragon` client API, client events.
 - [ ] `dragon test` with scripted sessions.

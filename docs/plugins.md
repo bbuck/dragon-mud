@@ -25,13 +25,14 @@ return {
     handlers = require("handlers"), -- what it does when they run
   },
   api = "api",                     -- the module others import, lua/api.lua
+  tasks = require("tasks"),        -- run from the command line: dragon mapping:rebuild
 }
 ```
 
 Each part is a table keyed by name. Errors name the part they're in, such
 as `commands.look` or `events.handlers["dragon:said"]`, and a function's
-file and line. Parts to come: `schema`, `tasks`, `client` (handlers for
-what the web client sends) and `routes` (HTTP handlers).
+file and line. Parts to come: `schema`, `client` (handlers for what the
+web client sends) and `routes` (HTTP handlers).
 
 **Names defined in Lua are used exactly as written.** A mode, event or slot
 type is called what its key says; the engine never renames it, so the
@@ -285,15 +286,51 @@ dragon list
 
 ## Tasks
 
-Tasks, exported as `tasks` from `init.lua` (see Conventions).
+Tasks are what a plugin offers on the command line: seeding a world,
+rebuilding maps, importing areas. A plugin exports them as `tasks` from
+`init.lua`, each a function or a table:
 
-- Invoked as `dragon <plugin>:<task>`; listed with `dragon tasks`.
-- `depends` runs prerequisites once, in order.
-- **Offline** by default (own engine and the store); `live = true` runs inside
-  the running game through the admin API.
-- Also runnable from the admin UI's Tasks page and the console.
-- The engine's own operations are tasks too: `db:migrate`, `world:export`,
-  `world:import`.
+```lua
+-- mapping/lua/tasks.lua
+local world = require("dragon.world")
+
+return {
+  clear = function(args, out) ... end,
+  rebuild = {
+    desc = "Redraw every map.",
+    depends = { "clear", "rooms:check" },
+    run = function(args, out)
+      ...
+      out("Drew", count, "maps.")
+    end,
+  },
+}
+```
+
+- **Invoked as `dragon <plugin>:<task>`**, listed with `dragon tasks`. The
+  engine puts the plugin's manifest name in front of each task's name, so
+  `rebuild` in `mapping` is `mapping:rebuild`, the game's own are
+  `game:<task>`, and a built-in's drop `dragon:` (`chat:<task>`). Two
+  plugins whose tasks would share a name is a startup error.
+- **`run(args, out)`**: `args` is a list of the words after the task's name
+  (`dragon mapping:rebuild riverside` gives `{ "riverside" }`), and
+  `out(...)` prints a line, its arguments joined by spaces. dragon's own
+  flags (`-dir`) come before the task's words. A task that raises an error
+  fails, and `dragon` exits with it.
+- **`depends`** runs prerequisites first, each once, in the order listed:
+  a bare name is the same plugin's task, and another plugin's carries its
+  namespace. Prerequisites get no `args`. A missing task or a circle is a
+  startup error.
+- **Offline**: a task runs on the game loop of its own copy of the game,
+  against the game's database, with every module scripts normally get, but
+  no players and no transports. `dragon:booted` is sent first, as when the
+  server starts. A task has no deadline (Ctrl-C stops it), and what the
+  tasks of one run change is saved together when they finish. Don't run a
+  task that changes the world while the server is running: the server
+  wouldn't see the changes, and could save over them.
+- To come: `live = true`, running inside the running game through the
+  admin API (Milestone 5), the admin UI's Tasks page and the console, and
+  the engine's own operations as tasks (`world:export`, `world:import`).
 
 ### Importers
 

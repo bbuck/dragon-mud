@@ -49,6 +49,10 @@ Usage:
   dragon serve [-dir <directory>]              run the game in a directory
   dragon events [<name>] [-dir <directory>]    list events, or show one's fields
                                                and the order its handlers run in
+  dragon tasks [-dir <directory>]              list the tasks plugins provide
+  dragon <plugin>:<task> [-dir <directory>] [args...]
+                                               run a task, after the tasks it
+                                               depends on
   dragon version                               print the engine version
 `
 
@@ -70,7 +74,13 @@ func main() {
 		fmt.Println("dragon", version)
 	case "help", "-h", "--help":
 		fmt.Print(usage)
+	case "tasks":
+		err = runTasks(os.Args[2:], os.Stdout)
 	default:
+		if strings.Contains(os.Args[1], ":") {
+			err = runTask(os.Args[1], os.Args[2:], os.Stdout)
+			break
+		}
 		fmt.Fprintf(os.Stderr, "dragon: unknown command %q\n\n%s", os.Args[1], usage)
 		os.Exit(2)
 	}
@@ -141,40 +151,11 @@ func runServe(args []string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	sources, err := pluginSources(*dir, cfg.Builtins)
+	g, closeGame, err := openGame(ctx, *dir, cfg, log, func(objects int) { d.greet(cfg.Name, objects) })
 	if err != nil {
 		return err
 	}
-
-	db, err := store.Open(ctx, filepath.Join(*dir, "data", "world.db"))
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	records, err := db.Load(ctx)
-	if err != nil {
-		return err
-	}
-	w, err := world.Load(records)
-	if err != nil {
-		return fmt.Errorf("loading the world: %w", err)
-	}
-	log.Info("loaded world", termlog.PrefixKey, "store", "objects", w.Len())
-	d.greet(cfg.Name, w.Len())
-
-	g, err := game.New(ctx, game.Options{
-		Name:      cfg.Name,
-		NewEngine: func() scripting.Engine { return lua.New() },
-		Plugins:   sources,
-		TextWidth: cfg.TextWidth(),
-		World:     w,
-		Store:     db,
-		Log:       log.With(termlog.PrefixKey, "game"),
-	})
-	if err != nil {
-		return err
-	}
+	defer closeGame()
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -208,6 +189,54 @@ func runServe(args []string) error {
 	d.farewell()
 
 	return nil
+}
+
+// openGame opens the game in dir with its database and world, ready to
+// run. loaded, if not nil, is told how many objects the world has once
+// it's loaded. close closes the database.
+func openGame(ctx context.Context, dir string, cfg config.Config, log *slog.Logger, loaded func(objects int)) (g *game.Game, close func() error, err error) {
+	sources, err := pluginSources(dir, cfg.Builtins)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	db, err := store.Open(ctx, filepath.Join(dir, "data", "world.db"))
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() {
+		if err != nil {
+			db.Close()
+		}
+	}()
+
+	records, err := db.Load(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	w, err := world.Load(records)
+	if err != nil {
+		return nil, nil, fmt.Errorf("loading the world: %w", err)
+	}
+	log.Info("loaded world", termlog.PrefixKey, "store", "objects", w.Len())
+	if loaded != nil {
+		loaded(w.Len())
+	}
+
+	g, err = game.New(ctx, game.Options{
+		Name:      cfg.Name,
+		NewEngine: func() scripting.Engine { return lua.New() },
+		Plugins:   sources,
+		TextWidth: cfg.TextWidth(),
+		World:     w,
+		Store:     db,
+		Log:       log.With(termlog.PrefixKey, "game"),
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return g, db.Close, nil
 }
 
 func runEvents(args []string, out io.Writer) error {

@@ -183,6 +183,9 @@ type scripts struct {
 
 	// origins maps each loaded plugin's id to where it came from.
 	origins map[string]string
+
+	// tasks are every plugin's tasks, by full name.
+	tasks map[string]plugin.TaskDef
 }
 
 // New returns a game with its plugins loaded. The game closes its engine
@@ -263,6 +266,7 @@ func (g *Game) load(ctx context.Context) (*scripts, error) {
 		views:     view.NewTemplates(),
 		templates: view.NewTemplates(),
 		origins:   make(map[string]string),
+		tasks:     make(map[string]plugin.TaskDef),
 	}
 	s.views.SetWidth(g.textWidth)
 	s.templates.SetWidth(g.textWidth)
@@ -320,6 +324,9 @@ func (g *Game) loadInto(ctx context.Context, s *scripts) error {
 		return err
 	}
 	if err := s.checkModes(); err != nil {
+		return err
+	}
+	if err := s.checkTasks(); err != nil {
 		return err
 	}
 
@@ -400,6 +407,10 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, p *plugin.Plugin, eve
 		if events.Wiring, err = p.Wiring(); err != nil {
 			return err
 		}
+	}
+
+	if err := s.addTasks(p); err != nil {
+		return err
 	}
 
 	views, err := addTemplates(p, plugin.ViewsDir, s.views)
@@ -595,6 +606,9 @@ func (g *Game) handleEvent(ctx context.Context, e loopEvent) {
 
 	case reloadEvent:
 		g.reload(ctx)
+
+	case taskEvent:
+		g.runTask(e)
 	}
 }
 
