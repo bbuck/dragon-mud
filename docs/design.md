@@ -494,7 +494,10 @@ The engine sends `dragon:booted` once when the game starts, before any
 input is handled (not on reload); `dragon:player_connected` (`player`, and
 `reconnected` when the player took over their character from another
 connection); and `dragon:player_disconnected` (`player`). `dragon:presence` handles both to announce
-arrivals and departures. `dragon:chat` runs `dragon:before_say` (`actor`,
+arrivals and departures where the player is, or to everyone for a player
+who is nowhere; its arrival handler runs after the game's, which is where a
+game puts new characters somewhere. `say` and `emote` reach the actor's
+location the same way. `dragon:chat` runs `dragon:before_say` (`actor`,
 `message`, and `target` when saying something to someone). The web client
 runs `dragon:get_tooltip` and `dragon:get_default_action` (`viewer`, `entity`; §6).
 Input no command matches runs `dragon:unmatched_input` (`actor`, `line`,

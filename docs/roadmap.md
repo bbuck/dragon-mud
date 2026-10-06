@@ -107,7 +107,7 @@ over telnet and the web and talk to each other.
       and a notification after (react). `dragon:chat` gets `dragon:said`
       and `dragon:emoted`, so NPCs answer after the player's line, not
       inside `dragon:before_say` (lesson 2 below).
-- [ ] `dragon:chat` and `dragon:presence` reach the actor's location with
+- [x] `dragon:chat` and `dragon:presence` reach the actor's location with
       `game.broadcast_to`, falling back to the whole game for actors who
       are nowhere (lesson 4 below).
 - [ ] Speech triggers: a plugin helper for "react when someone says X"

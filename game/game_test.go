@@ -962,3 +962,46 @@ func TestBroadcastTo(t *testing.T) {
 	alice.send("badblock")
 	alice.expect("argument #4")
 }
+
+func TestChatAndPresenceStayInTheRoom(t *testing.T) {
+	files := fstest.MapFS{}
+	for name, f := range oneRoom {
+		files[name] = f
+	}
+	files["commands.lua"] = file(`
+		local world = require("dragon.world")
+		return {
+			down = { execute = function(actor)
+				local cellar = world.keyed("cellar") or world.create({ key = "cellar" })
+				actor:move_to(cellar)
+				actor:send("In the cellar.")
+			end },
+		}
+	`)
+	g := startGame(t, files)
+
+	alice := connect(t, g)
+	alice.login("Alice")
+	bob := connect(t, g)
+	bob.login("Bob")
+	alice.expect("Bob has arrived.")
+	bob.send("down")
+	bob.expect("In the cellar.")
+
+	alice.send("say hello")
+	alice.expect(`You say, "hello"`)
+	alice.send("emote waves.")
+	alice.expect("Alice waves.")
+
+	carol := connect(t, g)
+	carol.login("Carol")
+	alice.expect("Carol has arrived.")
+	carol.send("quit")
+	alice.expect("Carol has left.")
+
+	// Everything above reached Bob, if it did, before his own line.
+	bob.send("say down here")
+	bob.expectWithout(`You say, "down here"`, "hello", "waves", "Carol")
+	alice.send("say quiet")
+	alice.expectWithout(`You say, "quiet"`, "down here")
+}

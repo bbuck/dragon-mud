@@ -16,16 +16,18 @@ import (
 )
 
 // expectWithout waits for a message containing want, failing if a message
-// containing unwanted arrives first.
-func (c *client) expectWithout(want, unwanted string) {
+// containing any of unwanted arrives first.
+func (c *client) expectWithout(want string, unwanted ...string) {
 	c.t.Helper()
 
 	timeout := time.After(2 * time.Second)
 	for {
 		select {
 		case m := <-c.conn.messages:
-			if strings.Contains(m.Text, unwanted) {
-				c.t.Fatalf("received %q before %q", m.Text, want)
+			for _, u := range unwanted {
+				if strings.Contains(m.Text, u) {
+					c.t.Fatalf("received %q before %q", m.Text, want)
+				}
 			}
 			if strings.Contains(m.Text, want) {
 				return
@@ -100,11 +102,13 @@ func TestWiringDisablesBasicsArrival(t *testing.T) {
 	alice.expectWithout(`Bob says, "hi"`, "has arrived")
 }
 
-func TestGameHandlerRunsAfterBasics(t *testing.T) {
+// Arrival is announced after the game's handler, so a game that puts new
+// characters somewhere has done so when presence says where they arrived.
+func TestArrivalWaitsForTheGame(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
 		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
 		"hooks.lua": {Data: []byte(`
-						local game = require("dragon.game")
+			local game = require("dragon.game")
 			return {
 				["dragon:player_connected"] = function(event)
 					game.broadcast("Trumpets sound for " .. event.player:get("name") .. ".")
@@ -119,8 +123,8 @@ func TestGameHandlerRunsAfterBasics(t *testing.T) {
 	bob := connect(t, g)
 	bob.login("Bob")
 
-	alice.expectWithout("Bob has arrived.", "Trumpets")
-	alice.expect("Trumpets sound for Bob.")
+	alice.expectWithout("Trumpets sound for Bob.", "Bob has arrived.")
+	alice.expect("Bob has arrived.")
 }
 
 func TestFailingNotificationDoesntStopOthers(t *testing.T) {

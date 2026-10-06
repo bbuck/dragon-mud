@@ -53,14 +53,15 @@ return {
 			{ "dance", function(actor)
 					local data = { actor = actor }
 					actor:send("dance", data, "actor")
-					-- Everyone else sees the "others" block; skip the dancer.
-					game.broadcast("dance", data, "others", actor)
+					-- Everyone else in the room sees the "others" block; skip
+					-- the dancer.
+					game.broadcast_to(actor.location, "dance", data, "others", actor)
 				end },
 			{ "dance with <partner:object:here,online>", function(actor, args)
 					local data = { actor = actor, partner = args.partner }
 					actor:send("dance_with", data, "actor")
 					args.partner:send("dance_with", data, "partner")
-					game.broadcast("dance_with", data, "others", { actor, args.partner })
+					game.broadcast_to(actor.location, "dance_with", data, "others", { actor, args.partner })
 				end },
 		},
 	},

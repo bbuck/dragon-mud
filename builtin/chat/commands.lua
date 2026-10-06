@@ -27,6 +27,16 @@ local function before_say(actor, message, target)
   return event.message
 end
 
+-- around sends to everyone where actor is, or to the whole game if actor
+-- is nowhere.
+local function around(actor, kind, data, block, except)
+  if actor.location then
+    game.broadcast_to(actor.location, kind, data, block, except)
+  else
+    game.broadcast(kind, data, block, except)
+  end
+end
+
 local function say(actor, args)
   local message = before_say(actor, args.message)
   if not message then
@@ -35,11 +45,11 @@ local function say(actor, args)
 
   local data = { actor = actor, message = message }
   actor:send("say", data, "actor")
-  game.broadcast("say", data, "others", actor)
+  around(actor, "say", data, "others", actor)
 end
 
 local function emote(actor, args)
-  game.broadcast("emote", { actor = actor, action = args.action })
+  around(actor, "emote", { actor = actor, action = args.action })
 end
 
 return {
