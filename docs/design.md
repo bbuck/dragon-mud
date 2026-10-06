@@ -207,8 +207,8 @@ can use the slot types of its own plugin and those loaded before it.
 
 Open:
 
-- What a world script can reach: which modules, and whether the game
-  chooses what it exposes to the world.
+- Which game features, if any, a game can withhold from world scripts.
+  World scripts get game features and never system features (§11).
 - How a script that fails to compile is reported to the builder editing
   it, and what happens to the object until it's fixed.
 - Whether handlers run immediately or after the current event, so the
@@ -1159,12 +1159,26 @@ A MUD is developed in two tiers, and the engine serves both.
 
 **Who may write entity scripts is the game's decision**, like any other
 permission. A game might allow its builders only; a MOO-style game might
-let every player script their own objects. The engine provides the
-mechanism: limits every script runs under (the deadline in §10, and
-quotas where a game wants them), which modules world scripts can reach
-(an open question in §2), and output that's always text and color markup,
-never JavaScript. It doesn't assume scripters are hostile, and it doesn't
-assume they're all trusted; the game sets that.
+let every player script their own objects.
+
+**Where code comes from sets what it can reach.** The line is between
+game features and system features.
+
+- **Game features are on both tiers**: the world, events, sending
+  messages, running commands, forms, logging. Builders have to be able to
+  build a game, so most or all of what a plugin can do to the game, a
+  world script can do too.
+- **System features stay with code loaded from disk**, plugins and the
+  game's own Lua, and only with the capabilities they declare: the file
+  system, the database directly, the network, HTTP routes, tasks, the
+  server's configuration. A script stored in a database field and written
+  through the game's UI is something someone can talk their way into
+  editing, so it never reaches anything that could damage the machine or
+  the data underneath the game.
+
+Every script also runs under limits: the deadline in §10, quotas where a
+game wants them, and output that's always text and color markup, never
+JavaScript.
 
 ## Package layout
 
