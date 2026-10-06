@@ -21,8 +21,8 @@ import (
 	"bbuck.dev/dragon-mud/builtin"
 	"bbuck.dev/dragon-mud/command"
 	"bbuck.dev/dragon-mud/config"
+	"bbuck.dev/dragon-mud/event"
 	"bbuck.dev/dragon-mud/game"
-	"bbuck.dev/dragon-mud/hook"
 	"bbuck.dev/dragon-mud/plugin"
 	"bbuck.dev/dragon-mud/random"
 	"bbuck.dev/dragon-mud/scaffold"
@@ -47,7 +47,7 @@ const usage = `dragon creates and runs DragonMUD games.
 Usage:
   dragon new <directory> [-name "Game Name"]   create a new game
   dragon serve [-dir <directory>]              run the game in a directory
-  dragon hooks [<name>] [-dir <directory>]     list hooks, or show one's fields
+  dragon events [<name>] [-dir <directory>]    list events, or show one's fields
                                                and the order its handlers run in
   dragon version                               print the engine version
 `
@@ -64,8 +64,8 @@ func main() {
 		err = runNew(os.Args[2:])
 	case "serve":
 		err = runServe(os.Args[2:])
-	case "hooks":
-		err = runHooks(os.Args[2:], os.Stdout)
+	case "events":
+		err = runEvents(os.Args[2:], os.Stdout)
 	case "version":
 		fmt.Println("dragon", version)
 	case "help", "-h", "--help":
@@ -210,11 +210,11 @@ func runServe(args []string) error {
 	return nil
 }
 
-func runHooks(args []string, out io.Writer) error {
-	flags := flag.NewFlagSet("hooks", flag.ContinueOnError)
+func runEvents(args []string, out io.Writer) error {
+	flags := flag.NewFlagSet("events", flag.ContinueOnError)
 	dir := flags.String("dir", ".", "the game directory")
 
-	// Allow the hook name before or after flags.
+	// Allow the event name before or after flags.
 	var name string
 	if len(args) > 0 && args[0] != "" && args[0][0] != '-' {
 		name, args = args[0], args[1:]
@@ -235,7 +235,7 @@ func runHooks(args []string, out io.Writer) error {
 		return err
 	}
 
-	hooks, err := game.Hooks(context.Background(), game.Options{
+	events, err := game.Events(context.Background(), game.Options{
 		Name:      cfg.Name,
 		NewEngine: func() scripting.Engine { return lua.New() },
 		Plugins:   sources,
@@ -245,34 +245,34 @@ func runHooks(args []string, out io.Writer) error {
 	}
 
 	if name == "" {
-		return listHooks(out, hooks)
+		return listEvents(out, events)
 	}
 
-	return showHook(out, hooks, name)
+	return showEvent(out, events, name)
 }
 
-// hookNames returns every hook that's declared or has handlers, sorted.
-func hookNames(hooks *hook.Registry) []string {
-	names := append(hooks.Declared(), hooks.Names()...)
+// eventNames returns every event that's declared or has handlers, sorted.
+func eventNames(events *event.Registry) []string {
+	names := append(events.Declared(), events.Names()...)
 	slices.Sort(names)
 
 	return slices.Compact(names)
 }
 
-// listHooks prints every hook and who handles it.
-func listHooks(out io.Writer, hooks *hook.Registry) error {
-	names := hookNames(hooks)
+// listEvents prints every event and who handles it.
+func listEvents(out io.Writer, events *event.Registry) error {
+	names := eventNames(events)
 	if len(names) == 0 {
-		fmt.Fprintln(out, "No plugin declares or handles any hooks yet. Declare the ones a plugin runs in its events.declare, and add handlers in events.handlers.")
+		fmt.Fprintln(out, "No plugin declares or handles any events yet. Declare the ones a plugin sends in its events.declare, and add handlers in events.handlers.")
 		return nil
 	}
 
-	fmt.Fprintln(out, "Hooks and notifications, with their handlers in the order they run:")
+	fmt.Fprintln(out, "Events, with their handlers in the order they run:")
 	fmt.Fprintln(out)
 
 	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 	for _, name := range names {
-		c, _ := hooks.Chain(name)
+		c, _ := events.Chain(name)
 		plugins := make([]string, len(c.Handlers))
 		for i, h := range c.Handlers {
 			plugins[i] = h.Plugin
@@ -284,7 +284,7 @@ func listHooks(out io.Writer, hooks *hook.Registry) error {
 		if len(c.Disabled) > 0 {
 			line += fmt.Sprintf(" (%d disabled)", len(c.Disabled))
 		}
-		if _, ok := hooks.Decl(name); !ok {
+		if _, ok := events.Decl(name); !ok {
 			line += " (not declared, so never run)"
 		}
 		fmt.Fprintf(w, "  %s\t%s\n", name, line)
@@ -292,22 +292,22 @@ func listHooks(out io.Writer, hooks *hook.Registry) error {
 	w.Flush()
 
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Run dragon hooks <name> to see a hook's fields, and why its handlers run in that order.")
+	fmt.Fprintln(out, "Run dragon events <name> to see an event's fields, and why its handlers run in that order.")
 
 	return nil
 }
 
-// showHook prints one hook's declaration, and its handlers in order and
+// showEvent prints one event's declaration, and its handlers in order and
 // why they're in it.
-func showHook(out io.Writer, hooks *hook.Registry, name string) error {
-	d, declared := hooks.Decl(name)
-	c, handled := hooks.Chain(name)
+func showEvent(out io.Writer, events *event.Registry, name string) error {
+	d, declared := events.Decl(name)
+	c, handled := events.Chain(name)
 	if !declared && !handled {
-		names := hookNames(hooks)
+		names := eventNames(events)
 		if len(names) == 0 {
-			return fmt.Errorf("no plugin declares or handles %q; no plugin declares or handles any hooks yet", name)
+			return fmt.Errorf("no plugin declares or handles %q; no plugin declares or handles any events yet", name)
 		}
-		return fmt.Errorf("no plugin declares or handles %q.%s Hooks: %s.",
+		return fmt.Errorf("no plugin declares or handles %q.%s Events: %s.",
 			name, command.DidYouMean(name, names), strings.Join(names, ", "))
 	}
 
@@ -341,7 +341,7 @@ func showHook(out io.Writer, hooks *hook.Registry, name string) error {
 		}
 	} else {
 		fmt.Fprintf(out, "No plugin declares %s, so nothing runs it and its handlers never run. It may be misspelled, or from a plugin the game doesn't load.%s\n",
-			name, command.DidYouMean(name, hooks.Declared()))
+			name, command.DidYouMean(name, events.Declared()))
 	}
 
 	fmt.Fprintln(out)
@@ -353,7 +353,7 @@ func showHook(out io.Writer, hooks *hook.Registry, name string) error {
 	fmt.Fprintln(out, "Handlers, in the order they run:")
 	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 	for i, h := range c.Handlers {
-		why := hooks.Explain(c, h)
+		why := events.Explain(c, h)
 		if why == "" && !c.Wired {
 			why = "load order"
 		}
@@ -362,14 +362,14 @@ func showHook(out io.Writer, hooks *hook.Registry, name string) error {
 	w.Flush()
 
 	if c.Wired {
-		fmt.Fprintf(out, "\nThe order is set in %s.\n", hook.WiringWhere)
+		fmt.Fprintf(out, "\nThe order is set in %s.\n", event.WiringWhere)
 	}
 	if len(c.Disabled) > 0 {
 		plugins := make([]string, len(c.Disabled))
 		for i, h := range c.Disabled {
 			plugins[i] = h.Plugin
 		}
-		fmt.Fprintf(out, "\nDisabled in %s: %s\n", hook.WiringWhere, strings.Join(plugins, ", "))
+		fmt.Fprintf(out, "\nDisabled in %s: %s\n", event.WiringWhere, strings.Join(plugins, ", "))
 	}
 
 	return nil

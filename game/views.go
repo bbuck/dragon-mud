@@ -75,7 +75,7 @@ func isTable(args scripting.Args, i int) bool {
 // isn't empty, in every format the kind has.
 func (g *Game) render(name string, data map[string]any, block string) (message.Message, error) {
 	if g.scripts == nil {
-		return message.Message{}, errors.New("views can't be sent while plugins are loading; send them from a command or a hook handler")
+		return message.Message{}, errors.New("views can't be sent while plugins are loading; send them from a command or a handler")
 	}
 	if !g.views.Has(name) {
 		if !viewNameRx.MatchString(name) {
@@ -130,13 +130,13 @@ func (g *Game) sectionParts(name, section string) ([]view.Part, error) {
 	}
 
 	hook := sectionHook(name, section)
-	if _, ok := g.hooks.Chain(hook); !ok {
+	if _, ok := g.events.Chain(hook); !ok {
 		r.parts[section] = nil
 		return nil, nil
 	}
 
 	// Called from a running script, whose deadline applies.
-	result, err := g.hooks.Run(context.Background(), hook, map[string]any{"data": r.data, "parts": []any{}})
+	result, err := g.events.Run(context.Background(), hook, map[string]any{"data": r.data, "parts": []any{}})
 	if err != nil || result.Cancelled {
 		return nil, err
 	}
@@ -188,14 +188,14 @@ func (g *Game) sectionPart(item any) (view.Part, error) {
 // checkSectionHooks checks that every section hook names a view and a
 // section its template has.
 func (s *scripts) checkSectionHooks() error {
-	for _, hook := range s.hooks.Names() {
+	for _, hook := range s.events.Names() {
 		target, ok := strings.CutPrefix(hook, "section:")
 		if !ok {
 			continue
 		}
 		name, section, _ := strings.Cut(target, ".")
 
-		chain, _ := s.hooks.Chain(hook)
+		chain, _ := s.events.Chain(hook)
 		var files []string
 		for _, h := range append(chain.Handlers, chain.Disabled...) {
 			files = append(files, h.Where())

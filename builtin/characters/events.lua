@@ -1,5 +1,5 @@
--- The hooks and notifications character select and creation run, and the
--- fields of their events. Run `dragon hooks <name>` to see one, with its
+-- The events character select and creation send, and the fields of
+-- each. Run `dragon events <name>` to see one, with its
 -- handlers.
 return {
   ["dragon:character_steps"] = {

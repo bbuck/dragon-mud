@@ -8,7 +8,7 @@ extended with Lua.
   feed, tooltips, health bars and action bars, or any telnet MUD client. Both
   play the same game.
 - **Plugins in Lua.** Game rules come from plugins. Each plugin declares
-  where its hook handlers run, and the game author can rewire them, so
+  where its event handlers run, and the game author can rewire them, so
   unrelated plugins layer predictably.
 
 DragonMUD is being rebuilt from scratch. It's early: there's one room and a
@@ -31,7 +31,7 @@ Then open http://localhost:8080, or `telnet localhost 4000`. Edit
 
 - [Vision](docs/vision.md): who it's for and what "the directory is the
   game" means.
-- [Design](docs/design.md): the core (game loop, objects, hooks, messages,
+- [Design](docs/design.md): the core (game loop, objects, events, messages,
   transports, scripting).
 - [Plugins](docs/plugins.md): packages, extension, distribution, the web
   client API.

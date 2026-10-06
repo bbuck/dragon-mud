@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"bbuck.dev/dragon-mud/hook"
+	"bbuck.dev/dragon-mud/event"
 )
 
 func TestPluginSourcesLoadsListedBuiltinsInEngineOrder(t *testing.T) {
@@ -58,26 +58,26 @@ func TestPluginSourcesLoadsLocalPluginsBeforeTheGame(t *testing.T) {
 	}
 }
 
-func TestShowHook(t *testing.T) {
-	r, err := hook.New(hook.Config{
+func TestShowEvent(t *testing.T) {
+	r, err := event.New(event.Config{
 		Plugins: []string{"dragon:chat", "game"},
-		Decls: []hook.Decl{{
+		Decls: []event.Decl{{
 			Name:   "dragon:before_say",
 			Plugin: "dragon:chat",
 			Desc:   "Someone is about to say something.",
-			Fields: []hook.Field{
+			Fields: []event.Field{
 				{Name: "actor", Desc: "who's speaking"},
 				{Name: "target", Desc: "who to", Optional: true},
 			},
 		}},
-		Handlers: []hook.Handler{{Hook: "dragon:before_say", Plugin: "game"}, {Hook: "dragon:befor_say", Plugin: "game"}},
+		Handlers: []event.Handler{{Event: "dragon:before_say", Plugin: "game"}, {Event: "dragon:befor_say", Plugin: "game"}},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var out strings.Builder
-	if err := showHook(&out, r, "dragon:before_say"); err != nil {
+	if err := showEvent(&out, r, "dragon:before_say"); err != nil {
 		t.Fatal(err)
 	}
 	want := `dragon:before_say, declared by dragon:chat.
@@ -95,7 +95,7 @@ Handlers, in the order they run:
 	}
 
 	out.Reset()
-	if err := showHook(&out, r, "dragon:befor_say"); err != nil {
+	if err := showEvent(&out, r, "dragon:befor_say"); err != nil {
 		t.Fatal(err)
 	}
 	if want := `No plugin declares dragon:befor_say, so nothing runs it and its handlers never run. It may be misspelled, or from a plugin the game doesn't load. Did you mean "dragon:before_say"?`; !strings.Contains(out.String(), want) {
@@ -103,7 +103,7 @@ Handlers, in the order they run:
 	}
 
 	out.Reset()
-	if err := listHooks(&out, r); err != nil {
+	if err := listEvents(&out, r); err != nil {
 		t.Fatal(err)
 	}
 	if want := "dragon:befor_say   game (not declared, so never run)"; !strings.Contains(out.String(), want) {

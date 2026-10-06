@@ -16,7 +16,7 @@ import (
 
 	"bbuck.dev/dragon-mud/auth"
 	"bbuck.dev/dragon-mud/command"
-	"bbuck.dev/dragon-mud/hook"
+	"bbuck.dev/dragon-mud/event"
 	"bbuck.dev/dragon-mud/message"
 	"bbuck.dev/dragon-mud/plugin"
 	"bbuck.dev/dragon-mud/scripting"
@@ -42,8 +42,8 @@ const hashConcurrency = 4
 
 var playerNameRx = regexp.MustCompile(`^[A-Za-z]{2,20}$`)
 
-// event is something for the game loop to handle.
-type event interface{}
+// loopEvent is something for the game loop to handle.
+type loopEvent interface{}
 
 type connectEvent struct{ s *session.Session }
 
@@ -151,18 +151,18 @@ type Game struct {
 
 	*scripts
 
-	events  chan event
+	inbox   chan loopEvent
 	stopped chan struct{}
 	players map[session.ID]*player
 }
 
 // scripts is everything loaded from plugins. Its parts are replaced
-// together on reload: commands and hooks hold functions that belong to
+// together on reload: commands and handlers hold functions that belong to
 // engine.
 type scripts struct {
 	engine   scripting.Engine
 	commands *command.Registry
-	hooks    *hook.Registry
+	events   *event.Registry
 	modes    map[string]*mode
 
 	// views are what scripts send, and templates the other templates
@@ -194,10 +194,10 @@ func New(ctx context.Context, opts Options) (*Game, error) {
 	return g, nil
 }
 
-// Hooks loads the plugins in opts without starting a game and returns their
-// hooks, as dragon hooks shows them. Only Name, NewEngine, Plugins and Log
+// Events loads the plugins in opts without starting a game and returns
+// their events, as dragon events shows them. Only Name, NewEngine, Plugins and Log
 // are used. The handlers' engine is closed, so they can't be run.
-func Hooks(ctx context.Context, opts Options) (*hook.Registry, error) {
+func Events(ctx context.Context, opts Options) (*event.Registry, error) {
 	if opts.Log == nil {
 		opts.Log = slog.New(slog.DiscardHandler)
 	}
@@ -208,7 +208,7 @@ func Hooks(ctx context.Context, opts Options) (*hook.Registry, error) {
 	}
 	s.engine.Close()
 
-	return s.hooks, nil
+	return s.events, nil
 }
 
 func fromOptions(opts Options) *Game {
@@ -222,7 +222,7 @@ func fromOptions(opts Options) *Game {
 
 		hasher:  opts.Hasher,
 		world:   opts.World,
-		events:  make(chan event, 1024),
+		inbox:   make(chan loopEvent, 1024),
 		stopped: make(chan struct{}),
 		players: make(map[session.ID]*player),
 	}
@@ -241,7 +241,7 @@ func fromOptions(opts Options) *Game {
 	return g
 }
 
-// load loads every plugin into a new engine, command registry and hook
+// load loads every plugin into a new engine, command registry and event
 // registry. On error the new engine is closed and the game is left as it
 // was.
 func (g *Game) load(ctx context.Context) (*scripts, error) {
@@ -267,7 +267,7 @@ func (g *Game) load(ctx context.Context) (*scripts, error) {
 }
 
 func (g *Game) loadInto(ctx context.Context, s *scripts) error {
-	for _, m := range []scripting.Module{g.module(), g.worldModule(), g.hooksModule(s), g.formsModule(s)} {
+	for _, m := range []scripting.Module{g.module(), g.worldModule(), g.eventsModule(s), g.formsModule(s)} {
 		if err := s.engine.Load(m); err != nil {
 			return err
 		}
@@ -276,9 +276,9 @@ func (g *Game) loadInto(ctx context.Context, s *scripts) error {
 		return err
 	}
 
-	hooks := hook.Config{Decls: slices.Clone(engineEvents)}
+	events := event.Config{Decls: slices.Clone(engineEvents)}
 	for _, src := range g.sources {
-		if err := g.loadPlugin(ctx, s, src, &hooks); err != nil {
+		if err := g.loadPlugin(ctx, s, src, &events); err != nil {
 			return fmt.Errorf("%s: %w", src.Origin, err)
 		}
 	}
@@ -292,26 +292,26 @@ func (g *Game) loadInto(ctx context.Context, s *scripts) error {
 	}
 
 	var err error
-	if s.hooks, err = hook.New(hooks); err != nil {
+	if s.events, err = event.New(events); err != nil {
 		return err
 	}
-	for _, name := range s.hooks.Undeclared() {
-		chain, _ := s.hooks.Chain(name)
+	for _, name := range s.events.Undeclared() {
+		chain, _ := s.events.Chain(name)
 		var files []string
 		for _, h := range chain.Handlers {
 			files = append(files, h.Where())
 		}
-		g.log.Warn("no plugin declares "+name+", so its handlers never run; it may be misspelled, or from a plugin the game doesn't load."+command.DidYouMean(name, s.hooks.Declared()),
-			"hook", name, "handlers", strings.Join(files, ", "))
+		g.log.Warn("no plugin declares "+name+", so its handlers never run; it may be misspelled, or from a plugin the game doesn't load."+command.DidYouMean(name, s.events.Declared()),
+			"event", name, "handlers", strings.Join(files, ", "))
 	}
 	s.views.SetSections(g.sectionParts)
 
 	return s.checkSectionHooks()
 }
 
-// loadPlugin loads src's slots and commands into s, and adds its hook
-// handlers and wiring to hooks.
-func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, hooks *hook.Config) error {
+// loadPlugin loads src's slots, commands and modes into s, and adds its
+// event declarations, handlers and wiring to events.
+func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, events *event.Config) error {
 	engine, commands := s.engine, s.commands
 
 	p, err := plugin.Open(ctx, engine, src, g.pluginModules)
@@ -363,17 +363,17 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ho
 	if err != nil {
 		return err
 	}
-	hooks.Plugins = append(hooks.Plugins, p.ID)
-	hooks.Handlers = append(hooks.Handlers, handlers...)
+	events.Plugins = append(events.Plugins, p.ID)
+	events.Handlers = append(events.Handlers, handlers...)
 
 	decls, err := p.Declarations()
 	if err != nil {
 		return err
 	}
-	hooks.Decls = append(hooks.Decls, decls...)
+	events.Decls = append(events.Decls, decls...)
 
 	if src.Game {
-		if hooks.Wiring, err = p.Wiring(); err != nil {
+		if events.Wiring, err = p.Wiring(); err != nil {
 			return err
 		}
 	}
@@ -386,7 +386,7 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ho
 		return err
 	}
 
-	g.log.Info("loaded plugin", "plugin", p.ID, "version", p.Manifest.Version, "commands", len(cmds), "modes", len(modes), "slots", len(slots), "hooks", len(handlers), "views", views)
+	g.log.Info("loaded plugin", "plugin", p.ID, "version", p.Manifest.Version, "commands", len(cmds), "modes", len(modes), "slots", len(slots), "handlers", len(handlers), "views", views)
 
 	return nil
 }
@@ -428,9 +428,9 @@ func (g *Game) Disconnect(s *session.Session) {
 	g.post(disconnectEvent{s: s})
 }
 
-func (g *Game) post(e event) {
+func (g *Game) post(e loopEvent) {
 	select {
-	case g.events <- e:
+	case g.inbox <- e:
 	case <-g.stopped:
 	}
 }
@@ -457,7 +457,7 @@ func (g *Game) Run(ctx context.Context) error {
 			}
 			g.save(ctx)
 			return nil
-		case e := <-g.events:
+		case e := <-g.inbox:
 			g.handleEvent(ctx, e)
 			g.save(ctx)
 		}
@@ -482,7 +482,7 @@ func (g *Game) save(ctx context.Context) {
 	}
 }
 
-func (g *Game) handleEvent(ctx context.Context, e event) {
+func (g *Game) handleEvent(ctx context.Context, e loopEvent) {
 	switch e := e.(type) {
 	case connectEvent:
 		p := &player{s: e.s}

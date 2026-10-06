@@ -143,7 +143,7 @@ func TestFailingNotificationDoesntStopOthers(t *testing.T) {
 	alice.expect("Bob has arrived.")
 }
 
-func TestHooksFileErrors(t *testing.T) {
+func TestHandlerErrors(t *testing.T) {
 	tests := []struct {
 		name  string
 		files fstest.MapFS
@@ -167,7 +167,7 @@ func TestHooksFileErrors(t *testing.T) {
 		{
 			"bad name",
 			fstest.MapFS{"handlers.lua": {Data: []byte(`return { ["Before Say"] = function() end }`)}},
-			`game: events.handlers["Before Say"] isn't a valid hook name.`,
+			`game: events.handlers["Before Say"] isn't a valid event name.`,
 		},
 		{
 			"wiring typo",
@@ -217,7 +217,7 @@ func TestOnlyTheGameWires(t *testing.T) {
 	}
 }
 
-func TestHooksRunFromLua(t *testing.T) {
+func TestEventsSentFromLua(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
 		"events.lua": {Data: []byte(`
 			return {
@@ -235,21 +235,21 @@ func TestHooksRunFromLua(t *testing.T) {
 			}
 		`)},
 		"commands.lua": {Data: []byte(`
-						local hooks = require("dragon.hooks")
+						local events = require("dragon.events")
 			return {
 				dance = {
 					forms = {
 						{ "dance with <partner>", function(actor, args)
-							local event, reason = hooks.run("can_dance", { partner = args.partner })
+							local event, reason = events.run("can_dance", { partner = args.partner })
 							if not event then
 								actor:send(reason)
 								return
 							end
 							actor:send("You dance with " .. event.partner .. ".")
-							hooks.notify("danced", { actor = actor })
+							events.notify("danced", { actor = actor })
 						end },
 						{ "dance", function(actor)
-							local event, reason = hooks.run("nothing_handles_this")
+							local event, reason = events.run("nothing_handles_this")
 							actor:send(event and "Unchanged." or "Cancelled?")
 						end },
 					},
@@ -272,8 +272,8 @@ func TestHooksRunFromLua(t *testing.T) {
 	alice.expect("Unchanged.")
 }
 
-func TestHooksForTheCLI(t *testing.T) {
-	hooks, err := Hooks(context.Background(), Options{
+func TestEventsForTheCLI(t *testing.T) {
+	hooks, err := Events(context.Background(), Options{
 		NewEngine: func() scripting.Engine { return lua.New() },
 		Plugins: sources(t, fstest.MapFS{
 			"handlers.lua": {Data: []byte(`return { ["dragon:player_connected"] = { before = { "dragon:presence" }, handler = function() end } }`)},
@@ -313,11 +313,11 @@ func TestEventsAreChecked(t *testing.T) {
 			}
 		`)},
 		"commands.lua": {Data: []byte(`
-			local hooks = require("dragon.hooks")
+			local events = require("dragon.events")
 			return {
-				greet = { execute = function(actor) hooks.notify("greeted", { actor = actor }) end },
-				typo = { execute = function(actor) hooks.notify("greeted", { speaker = actor }) end },
-				misspelled = { execute = function(actor) hooks.run("greted", { actor = actor }) end },
+				greet = { execute = function(actor) events.notify("greeted", { actor = actor }) end },
+				typo = { execute = function(actor) events.notify("greeted", { speaker = actor }) end },
+				misspelled = { execute = function(actor) events.run("greted", { actor = actor }) end },
 			}
 		`)},
 	})
@@ -328,12 +328,12 @@ func TestEventsAreChecked(t *testing.T) {
 	alice.send("greet")
 	alice.expect("Greeted.")
 	alice.send("typo")
-	alice.expect(`dragon.hooks.notify: greeted: the event has a field "speaker", which greeted doesn't have. Its fields are actor and target.`)
+	alice.expect(`dragon.events.notify: greeted: the event has a field "speaker", which greeted doesn't have. Its fields are actor and target.`)
 	alice.send("misspelled")
-	alice.expect(`dragon.hooks.run: no plugin declares the hook "greted". Did you mean "greeted"?`)
+	alice.expect(`dragon.events.run: no plugin declares the event "greted". Did you mean "greeted"?`)
 }
 
-func TestEventsFileErrors(t *testing.T) {
+func TestDeclarationErrors(t *testing.T) {
 	tests := []struct {
 		name   string
 		events string

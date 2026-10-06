@@ -20,7 +20,7 @@ return {
   slots = require("slots"),        -- slot types for command patterns
   modes = require("modes"),        -- input modes: prompts, menus, editors
   events = {
-    declare = require("events"),   -- the hooks and notifications it runs
+    declare = require("events"),   -- the events it sends, and their fields
     handlers = require("handlers"), -- what it does when they run
   },
 }
@@ -31,10 +31,10 @@ as `commands.look` or `events.handlers["dragon:said"]`, and a function's
 file and line. Parts to come: `schema`, `tasks`, `client` (handlers for
 what the web client sends) and `routes` (HTTP handlers).
 
-**Names defined in Lua are used exactly as written.** A mode, hook or slot
+**Names defined in Lua are used exactly as written.** A mode, event or slot
 type is called what its key says; the engine never renames it, so the
 name in a plugin's code is the name everything else uses. Plugins should
-namespace their modes and hooks (`mapping:edit_map`, `mapping:map_drawn`)
+namespace their modes and events (`mapping:edit_map`, `mapping:map_drawn`)
 so they don't collide with other plugins'; the game's own plugin doesn't
 need to. (Slot types can't hold a `:`, which separates a slot's parts in
 patterns, so they stay plain.)
@@ -55,8 +55,8 @@ mapping/
   init.lua          everything the plugin provides, from its other files
   commands.lua      player commands and their forms
   modes.lua         input modes (see design.md §4)
-  events.lua        the hooks and notifications it runs, and their fields
-  handlers.lua      hook and notification handlers (see design.md §4)
+  events.lua        the events it sends, and their fields
+  handlers.lua      handlers for events (see design.md §4)
   views/            views: templates scripts send (*.txt.tmpl, *.html.tmpl)
   templates/        other templates, such as entity_tooltip.html.tmpl
   web/              ES modules, CSS, assets for the game client
@@ -77,7 +77,7 @@ A game directory has the same layout under `game/`, without a manifest:
 the game's settings are in `dragon.toml`. It's the top-level
 plugin and always wins: its wiring, overrides and templates take precedence
 over every installed plugin. Only the game has `events.wiring`, which
-reorders or disables other plugins' hook handlers.
+reorders or disables other plugins' event handlers.
 
 **Local plugins** live in `game/plugins/<name>/`. They're the game's own
 code, split out the way a game would split out combat or crafting: edited
@@ -124,7 +124,7 @@ builtins = [
 diku|mush|moo`.
 
 `dragon:mapping` is the plugin that validates this design: it uses commands,
-hooks, per-player data, messages, both renderers, a web component, an admin
+events, per-player data, messages, both renderers, a web component, an admin
 component, HTTP routes, another plugin's API, and extensions to another
 plugin's types and messages.
 
@@ -134,7 +134,7 @@ Only through extension points a plugin offers. **No monkeypatching**: another
 plugin's module is read-only. If a plugin isn't extensible enough, it needs a
 new extension point.
 
-1. **Behavior**: hooks, notifications, command forms (additive; replacing
+1. **Behavior**: events (hooks and notifications), command forms (additive; replacing
    is declared).
 2. **Data**: add fields to another plugin's types. Added fields are namespaced
    by the adding plugin (`room.mapping.coords`), appear in their own admin

@@ -7,20 +7,20 @@ import (
 	"slices"
 	"strings"
 
-	"bbuck.dev/dragon-mud/hook"
+	"bbuck.dev/dragon-mud/event"
 	"bbuck.dev/dragon-mud/scripting"
 )
 
 var (
-	hookNameRx    = regexp.MustCompile(`^[a-z][a-z0-9_]*(:[a-z][a-z0-9_]*)?$`)
-	sectionHookRx = regexp.MustCompile(`^section:[a-z][a-z0-9_]*(/[a-z][a-z0-9_]*)*\.[a-z][a-z0-9_]*$`)
+	eventNameRx    = regexp.MustCompile(`^[a-z][a-z0-9_]*(:[a-z][a-z0-9_]*)?$`)
+	sectionEventRx = regexp.MustCompile(`^section:[a-z][a-z0-9_]*(/[a-z][a-z0-9_]*)*\.[a-z][a-z0-9_]*$`)
 )
 
-// hookKeys are the fields a handler entry may have.
-var hookKeys = []string{"handler", "before", "after"}
+// handlerKeys are the fields a handler entry may have.
+var handlerKeys = []string{"handler", "before", "after"}
 
-// wiredHookKeys are the fields wiring may set for each event.
-var wiredHookKeys = []string{"order", "disable"}
+// wiringKeys are the fields wiring may set for each event.
+var wiringKeys = []string{"order", "disable"}
 
 // Handlers loads the handlers the plugin exports as events.handlers,
 // sorted by event name. Each is a function, or a table with the function
@@ -33,25 +33,25 @@ var wiredHookKeys = []string{"order", "disable"}
 //	    handler = function(event) ... end,
 //	  },
 //	}
-func (p *Plugin) Handlers() ([]hook.Handler, error) {
+func (p *Plugin) Handlers() ([]event.Handler, error) {
 	table, err := p.export("events.handlers", `handlers = { ["dragon:said"] = function(event) ... end }`)
 	if err != nil || table == nil {
 		return nil, err
 	}
 
-	var handlers []hook.Handler
+	var handlers []event.Handler
 	for _, name := range slices.Sorted(maps.Keys(table)) {
 		where := field("events.handlers", name)
-		if strings.HasPrefix(name, "section:") && !sectionHookRx.MatchString(name) || !strings.HasPrefix(name, "section:") && !hookNameRx.MatchString(name) {
-			return nil, fmt.Errorf("%s isn't a valid hook name. Hook names are lowercase words joined by underscores, with an optional namespace, like can_move or mapping:map_changed, or section:<view>.<section> to add to a view's section, like section:room.exits or section:chat/say.badges.", where)
+		if strings.HasPrefix(name, "section:") && !sectionEventRx.MatchString(name) || !strings.HasPrefix(name, "section:") && !eventNameRx.MatchString(name) {
+			return nil, fmt.Errorf("%s isn't a valid event name. Event names are lowercase words joined by underscores, with an optional namespace, like can_move or mapping:map_changed, or section:<view>.<section> to add to a view's section, like section:room.exits or section:chat/say.badges.", where)
 		}
 
-		h := hook.Handler{Hook: name, Plugin: p.ID}
+		h := event.Handler{Event: name, Plugin: p.ID}
 		switch v := table[name].(type) {
 		case scripting.Function:
 			h.Fn = v
 		case map[string]any:
-			if err := checkKeys(where, v, hookKeys, nil); err != nil {
+			if err := checkKeys(where, v, handlerKeys, nil); err != nil {
 				return nil, err
 			}
 			fn, ok := v["handler"].(scripting.Function)
@@ -84,25 +84,25 @@ func (p *Plugin) Handlers() ([]hook.Handler, error) {
 //	  ["dragon:before_say"] = { order = { "game", "dragon:chat" } },
 //	  ["dragon:player_connected"] = { disable = { "dragon:presence" } },
 //	}
-func (p *Plugin) Wiring() (map[string]hook.Wiring, error) {
-	hooks, err := p.export("events.wiring", `wiring = { ["dragon:player_connected"] = { disable = { "dragon:presence" } } }`)
-	if err != nil || hooks == nil {
+func (p *Plugin) Wiring() (map[string]event.Wiring, error) {
+	table, err := p.export("events.wiring", `wiring = { ["dragon:player_connected"] = { disable = { "dragon:presence" } } }`)
+	if err != nil || table == nil {
 		return nil, err
 	}
 
-	wiring := make(map[string]hook.Wiring, len(hooks))
-	for _, name := range slices.Sorted(maps.Keys(hooks)) {
+	wiring := make(map[string]event.Wiring, len(table))
+	for _, name := range slices.Sorted(maps.Keys(table)) {
 		where := field("events.wiring", name)
-		entry, ok := hooks[name].(map[string]any)
+		entry, ok := table[name].(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("%s must be a table like { order = { ... } } or { disable = { ... } }, not a %s.",
-				where, scripting.TypeName(hooks[name]))
+				where, scripting.TypeName(table[name]))
 		}
-		if err := checkKeys(where, entry, wiredHookKeys, nil); err != nil {
+		if err := checkKeys(where, entry, wiringKeys, nil); err != nil {
 			return nil, err
 		}
 
-		var w hook.Wiring
+		var w event.Wiring
 		if w.Order, err = pluginList(where, entry, "order"); err != nil {
 			return nil, err
 		}

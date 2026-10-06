@@ -11,17 +11,18 @@
 -- with its own game/views/say.txt.tmpl, or say.html.tmpl for the web.
 
 local game = require("dragon.game")
-local hooks = require("dragon.hooks")
+local events = require("dragon.events")
 
 -- Each action runs a hook before it, which other plugins use to change it
 -- or stop it, and a notification after it, for reacting to it: an NPC
 -- answers dragon:said, so its reply comes after the line it answers. The
--- hooks are declared in events.lua, which init.lua exports as events.declare.
+-- events are declared in events.lua, which init.lua exports as
+-- events.declare.
 
 -- before runs the hook, telling the actor why if a handler cancelled. It
 -- returns the event as the handlers left it, or nil if one cancelled.
 local function before(hook, event)
-  local result, reason = hooks.run(hook, event)
+  local result, reason = events.run(hook, event)
   if not result and reason then
     event.actor:send(reason)
   end
@@ -48,7 +49,7 @@ local function say(actor, args)
   local data = { actor = actor, message = event.message }
   actor:send("say", data, "actor")
   around(actor, "say", data, "others", actor)
-  hooks.notify("dragon:said", data)
+  events.notify("dragon:said", data)
 end
 
 local function say_to(actor, args)
@@ -60,7 +61,7 @@ local function say_to(actor, args)
   local data = { actor = actor, message = event.message, target = args.target }
   actor:send("say", data, "actor")
   args.target:send("say", data, "target")
-  hooks.notify("dragon:said", data)
+  events.notify("dragon:said", data)
 end
 
 local function emote(actor, args)
@@ -71,7 +72,7 @@ local function emote(actor, args)
 
   local data = { actor = actor, action = event.action }
   around(actor, "emote", data)
-  hooks.notify("dragon:emoted", data)
+  events.notify("dragon:emoted", data)
 end
 
 return {

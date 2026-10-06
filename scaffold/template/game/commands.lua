@@ -13,7 +13,7 @@
 -- filled in with data. See views/dance.txt.tmpl.
 --
 -- The engine's modules are loaded with require, like your own files here:
--- dragon.game, dragon.world, dragon.hooks, dragon.forms and
+-- dragon.game, dragon.world, dragon.events, dragon.forms and
 -- dragon.log. With local log = require("dragon.log"),
 -- log.info("message", { player = actor }) writes to the server log, for
 -- seeing what your code is doing; log.debug lines show when dragon.toml's

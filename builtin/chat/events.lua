@@ -1,6 +1,6 @@
--- The hooks and notifications chat runs, and the fields of their events.
+-- The events chat sends, and the fields of each.
 -- Each action has a hook before it, to change or stop it, and a
--- notification after it, to react to it. Run `dragon hooks <name>` to see
+-- notification after it, to react to it. Run `dragon events <name>` to see
 -- one, with its handlers.
 return {
   ["dragon:before_say"] = {

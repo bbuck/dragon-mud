@@ -12,7 +12,8 @@ return {
 	modes = require("modes"),
 
 	events = {
-		-- What the game does when hooks and notifications run.
+		-- What the game does when events happen: hooks, which can change or
+		-- stop what's about to happen, and notifications of what has.
 		handlers = require("handlers"),
 	},
 }

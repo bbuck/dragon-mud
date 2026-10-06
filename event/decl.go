@@ -1,4 +1,4 @@
-package hook
+package event
 
 import (
 	"fmt"
@@ -9,19 +9,19 @@ import (
 	"bbuck.dev/dragon-mud/command"
 )
 
-// Field is one field of a hook's event.
+// Field is one field of an event's payload.
 type Field struct {
 	Name string
 	Desc string
 
-	// Optional fields can be left out by whoever runs the hook: they're
+	// Optional fields can be left out by whoever sends the event: they're
 	// only sometimes there, or handlers set them.
 	Optional bool
 }
 
-// Decl declares a hook or notification: what it's for and the fields its
-// event has. The plugin that runs a hook declares it, in events.declare;
-// the engine declares its own.
+// Decl declares an event, a hook or a notification: what it's for and the
+// fields its payload has. The plugin that sends an event declares it in
+// events.declare; the engine declares its own.
 type Decl struct {
 	Name string
 
@@ -35,12 +35,12 @@ type Decl struct {
 	// event have fields beyond those declared.
 	Extra string
 
-	// Prefix makes the declaration cover every hook whose name starts
+	// Prefix makes the declaration cover every event whose name starts
 	// with Name, such as section: for every view section.
 	Prefix bool
 }
 
-// Where is who declares the hook, for messages: the engine or a plugin.
+// Where is who declares the event, for messages: the engine or a plugin.
 func (d Decl) Where() string {
 	if d.Plugin == "" {
 		return "the engine"
@@ -60,7 +60,7 @@ func (d Decl) Field(name string) (Field, bool) {
 	return Field{}, false
 }
 
-// problem describes what's wrong with event for the hook name, as the end
+// problem describes what's wrong with event for the event name, as the end
 // of a sentence starting "the event", or returns "" when nothing is.
 func (d Decl) problem(name string, event map[string]any) string {
 	names := make([]string, len(d.Fields))
@@ -77,7 +77,7 @@ func (d Decl) problem(name string, event map[string]any) string {
 			if len(names) > 0 {
 				fields = "Its fields are " + andList(names) + "."
 			}
-			return fmt.Sprintf("has a field %q, which %s doesn't have.%s %s Run dragon hooks %s to see what each is for.",
+			return fmt.Sprintf("has a field %q, which %s doesn't have.%s %s Run dragon events %s to see what each is for.",
 				key, name, command.DidYouMean(key, names), fields, name)
 		}
 	}
@@ -94,9 +94,9 @@ func (d Decl) problem(name string, event map[string]any) string {
 	return ""
 }
 
-// undeclared describes running a hook that nothing declares.
+// undeclared describes sending an event that nothing declares.
 func undeclared(name string, declared []string) error {
-	return fmt.Errorf("no plugin declares the hook %q.%s The plugin that runs a hook or notification declares it in its events.declare, like declare = { [%q] = { desc = \"...\", fields = { actor = \"who did it\" } } }.",
+	return fmt.Errorf("no plugin declares the event %q.%s The plugin that sends an event declares it in its events.declare, like declare = { [%q] = { desc = \"...\", fields = { actor = \"who did it\" } } }.",
 		name, command.DidYouMean(name, declared), name)
 }
 

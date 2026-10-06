@@ -1,4 +1,4 @@
-package hook
+package event
 
 import (
 	"context"
@@ -42,7 +42,7 @@ func tag(name string) fn {
 }
 
 func handler(hook, plugin string) Handler {
-	return Handler{Hook: hook, Plugin: plugin, Fn: tag(plugin)}
+	return Handler{Event: hook, Plugin: plugin, Fn: tag(plugin)}
 }
 
 func order(t *testing.T, r *Registry, name string) []string {
@@ -63,7 +63,7 @@ func order(t *testing.T, r *Registry, name string) []string {
 
 var plugins = []string{"dragon:chat", "armor", "shields", "game"}
 
-// decls declares the hooks these tests run.
+// decls declares the events these tests send.
 var decls = []Decl{
 	{Name: "hit", Plugin: "dragon:chat", Fields: []Field{
 		{Name: "damage", Desc: "how much", Optional: true},
@@ -135,7 +135,7 @@ func TestCycleIsExplained(t *testing.T) {
 	}
 
 	for _, want := range []string{
-		`hook "hit"`,
+		`event "hit"`,
 		"go in a circle",
 		"armor says after shields",
 		"shields says after armor",
@@ -258,7 +258,7 @@ func TestSelfOrderingIsAnError(t *testing.T) {
 }
 
 func TestRunPassesThePayloadAlong(t *testing.T) {
-	keep := Handler{Hook: "hit", Plugin: "shields", Fn: fn(func(...any) ([]any, error) { return nil, nil })}
+	keep := Handler{Event: "hit", Plugin: "shields", Fn: fn(func(...any) ([]any, error) { return nil, nil })}
 
 	r, err := New(Config{
 		Plugins:  plugins,
@@ -285,10 +285,10 @@ func TestRunPassesThePayloadAlong(t *testing.T) {
 }
 
 func TestRunCancels(t *testing.T) {
-	cancel := Handler{Hook: "hit", Plugin: "armor", Fn: fn(func(...any) ([]any, error) {
+	cancel := Handler{Event: "hit", Plugin: "armor", Fn: fn(func(...any) ([]any, error) {
 		return []any{false, "Your armor holds."}, nil
 	})}
-	never := Handler{Hook: "hit", Plugin: "game", Fn: fn(func(...any) ([]any, error) {
+	never := Handler{Event: "hit", Plugin: "game", Fn: fn(func(...any) ([]any, error) {
 		t.Error("ran after a cancel")
 		return nil, nil
 	})}
@@ -320,7 +320,7 @@ func TestRunRejectsBadReturns(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := Handler{Hook: "hit", Plugin: "armor", Fn: fn(func(...any) ([]any, error) { return tt.returns, nil })}
+			h := Handler{Event: "hit", Plugin: "armor", Fn: fn(func(...any) ([]any, error) { return tt.returns, nil })}
 			r, err := New(Config{Plugins: plugins, Handlers: []Handler{h}, Decls: decls})
 			if err != nil {
 				t.Fatal(err)
@@ -349,11 +349,11 @@ func TestRunWithoutHandlers(t *testing.T) {
 
 func TestNotifyKeepsGoingAfterFailures(t *testing.T) {
 	var called []string
-	failing := Handler{Hook: "died", Plugin: "armor", Fn: fn(func(...any) ([]any, error) {
+	failing := Handler{Event: "died", Plugin: "armor", Fn: fn(func(...any) ([]any, error) {
 		called = append(called, "armor")
 		return nil, errors.New("boom")
 	})}
-	ok := Handler{Hook: "died", Plugin: "game", Fn: fn(func(...any) ([]any, error) {
+	ok := Handler{Event: "died", Plugin: "game", Fn: fn(func(...any) ([]any, error) {
 		called = append(called, "game")
 		return []any{false, "ignored"}, nil
 	})}
@@ -394,7 +394,7 @@ func TestEventsMatchTheirDeclaration(t *testing.T) {
 		{"fits", "dragon:before_say", map[string]any{"actor": 1, "message": "hi"}, ""},
 		{"optional given", "dragon:before_say", map[string]any{"actor": 1, "message": "hi", "target": 2}, ""},
 		{"unknown field", "dragon:before_say", map[string]any{"actor": 1, "message": "hi", "mesage": "hi"},
-			`dragon:before_say: the event has a field "mesage", which dragon:before_say doesn't have. Did you mean "message"? Its fields are actor, message and target. Run dragon hooks dragon:before_say to see what each is for.`},
+			`dragon:before_say: the event has a field "mesage", which dragon:before_say doesn't have. Did you mean "message"? Its fields are actor, message and target. Run dragon events dragon:before_say to see what each is for.`},
 		{"missing field", "dragon:before_say", map[string]any{"speaker": 1, "message": "hi"},
 			`the event has a field "speaker"`},
 		{"missing required", "dragon:before_say", map[string]any{"message": "hi"},
@@ -404,7 +404,7 @@ func TestEventsMatchTheirDeclaration(t *testing.T) {
 		{"prefix", "section:room.exits", map[string]any{"data": 1}, ""},
 		{"prefix checks", "section:room.exits", map[string]any{"data": 1, "parts": 2}, `has a field "parts"`},
 		{"undeclared", "dragon:before_sya", nil,
-			`no plugin declares the hook "dragon:before_sya". Did you mean "dragon:before_say"? The plugin that runs a hook or notification declares it in its events.declare`},
+			`no plugin declares the event "dragon:before_sya". Did you mean "dragon:before_say"? The plugin that sends an event declares it in its events.declare`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -423,7 +423,7 @@ func TestEventsMatchTheirDeclaration(t *testing.T) {
 }
 
 func TestHandlersReturnDeclaredFields(t *testing.T) {
-	typo := Handler{Hook: "hit", Plugin: "armor", Fn: fn(func(...any) ([]any, error) {
+	typo := Handler{Event: "hit", Plugin: "armor", Fn: fn(func(...any) ([]any, error) {
 		return []any{map[string]any{"damage": 1, "damge": 2}}, nil
 	})}
 	r, err := New(Config{Plugins: plugins, Handlers: []Handler{typo}, Decls: decls})
@@ -443,7 +443,7 @@ func TestOneDeclarationPerHook(t *testing.T) {
 		{Name: "hit", Plugin: "armor"},
 		{Name: "hit", Plugin: "shields"},
 	}})
-	want := `armor and shields both declare "hit". A hook has one declaration, from the plugin that runs it; rename one of them, with its plugin's name in front, like "shields:hit".`
+	want := `armor and shields both declare "hit". An event has one declaration, from the plugin that sends it; rename one of them, with its plugin's name in front, like "shields:hit".`
 	if err == nil || err.Error() != want {
 		t.Errorf("got %v\nwant %q", err, want)
 	}

@@ -1,14 +1,14 @@
--- Hook handlers for your game.
+-- Event handlers for your game.
 --
--- Hooks let you change or stop what other code is about to do; a handler
--- returns nothing to leave the event alone, the event to change it, or
--- false and a reason to cancel it. Notifications say something already
--- happened, so their handlers just react.
+-- Events come in two kinds. Hooks let you change or stop what other code
+-- is about to do; a handler returns nothing to leave the event alone, the
+-- event to change it, or false and a reason to cancel it. Notifications
+-- say something already happened, so their handlers just react.
 --
 -- Handlers run in load order: built-in plugins, then installed plugins,
--- then this file, so your game has the last word. Run `dragon hooks` to see
--- every hook, and `dragon hooks dragon:before_say` to see one hook's fields
--- and the order its handlers run in. To turn another plugin's handler off or
+-- then this file, so your game has the last word. Run `dragon events` to
+-- see every event, and `dragon events dragon:before_say` to see one's
+-- fields and the order its handlers run in. To turn another plugin's handler off or
 -- reorder them, add wiring to events in init.lua:
 --
 --   wiring = { ["dragon:player_connected"] = { disable = { "dragon:presence" } } }

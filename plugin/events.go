@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"bbuck.dev/dragon-mud/hook"
+	"bbuck.dev/dragon-mud/event"
 	"bbuck.dev/dragon-mud/scripting"
 )
 
@@ -21,7 +21,7 @@ var (
 )
 
 // Declarations loads what the plugin exports as events.declare, sorted by
-// event name: the hooks and notifications the plugin runs, and the fields
+// event name: the events the plugin sends, and the fields
 // their events have.
 //
 //	declare = {
@@ -33,20 +33,20 @@ var (
 //	    },
 //	  },
 //	}
-func (p *Plugin) Declarations() ([]hook.Decl, error) {
+func (p *Plugin) Declarations() ([]event.Decl, error) {
 	table, err := p.export("events.declare", `declare = { ["mapping:map_drawn"] = { fields = { actor = "who it was drawn for" } } }`)
 	if err != nil || table == nil {
 		return nil, err
 	}
 
-	var decls []hook.Decl
+	var decls []event.Decl
 	for _, name := range slices.Sorted(maps.Keys(table)) {
 		where := field("events.declare", name)
 		switch {
 		case strings.HasPrefix(name, "section:"):
 			return nil, fmt.Errorf("%s: the engine declares section hooks, so plugins don't. Remove it, and add to the section with a handler.", where)
-		case !hookNameRx.MatchString(name):
-			return nil, fmt.Errorf("%s isn't a valid hook name. Hook names are lowercase words joined by underscores, with your plugin's name in front, like mapping:map_drawn.", where)
+		case !eventNameRx.MatchString(name):
+			return nil, fmt.Errorf("%s isn't a valid event name. Event names are lowercase words joined by underscores, with your plugin's name in front, like mapping:map_drawn.", where)
 		case strings.HasPrefix(name, BuiltinPrefix) && !strings.HasPrefix(p.ID, BuiltinPrefix):
 			return nil, fmt.Errorf("%s uses the %q namespace, which is reserved for the engine's built-in plugins. Use your plugin's name instead, like %q.",
 				where, BuiltinPrefix, p.Manifest.Name+":"+strings.TrimPrefix(name, BuiltinPrefix))
@@ -64,7 +64,7 @@ func (p *Plugin) Declarations() ([]hook.Decl, error) {
 			return nil, err
 		}
 
-		d := hook.Decl{Name: name, Plugin: p.ID}
+		d := event.Decl{Name: name, Plugin: p.ID}
 		if d.Desc, err = optional[string](where, entry, "desc", "a string"); err != nil {
 			return nil, err
 		}
@@ -82,7 +82,7 @@ func (p *Plugin) Declarations() ([]hook.Decl, error) {
 
 // eventFields reads a declaration's fields: each a description, or a table
 // with the description first and optional = true.
-func eventFields(where string, raw any) ([]hook.Field, error) {
+func eventFields(where string, raw any) ([]event.Field, error) {
 	if raw == nil {
 		return nil, nil
 	}
@@ -95,14 +95,14 @@ func eventFields(where string, raw any) ([]hook.Field, error) {
 			where, scripting.TypeName(raw))
 	}
 
-	var fields []hook.Field
+	var fields []event.Field
 	for _, name := range slices.Sorted(maps.Keys(table)) {
 		at := fmt.Sprintf("%s: field %s", where, name)
 		if !fieldNameRx.MatchString(name) {
 			return nil, fmt.Errorf("%s isn't a valid field name. Field names are lowercase letters, digits and underscores, starting with a letter, like actor or target_room.", at)
 		}
 
-		f := hook.Field{Name: name}
+		f := event.Field{Name: name}
 		switch v := table[name].(type) {
 		case string:
 			f.Desc = v

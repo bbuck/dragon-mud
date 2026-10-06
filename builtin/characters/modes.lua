@@ -24,7 +24,7 @@
 --
 -- Order steps against other plugins' with before and after, and rearrange
 -- or disable them in the game's wiring, like any hook. Run
--- `dragon hooks dragon:character_steps` to see the order.
+-- `dragon events dragon:character_steps` to see the order.
 --
 -- A step mode gets the draft as state.draft and ends with
 -- session:pop_mode(changes), where changes look like world.create's
@@ -42,7 +42,7 @@
 -- "characters" out of builtins in dragon.toml.
 
 local world = require("dragon.world")
-local hooks = require("dragon.hooks")
+local events = require("dragon.events")
 
 local function name(o)
   return o:get("name") or "someone"
@@ -66,7 +66,7 @@ local function advance(session, state)
 
   local character = world.create(state.draft)
   session.account:add_character(character)
-  hooks.notify("dragon:character_created", { character = character, account = session.account })
+  events.notify("dragon:character_created", { character = character, account = session.account })
   session:pop_mode(character)
 end
 
@@ -118,7 +118,7 @@ return {
     desc = "Create a new character.",
 
     enter = function(session, state)
-      local event, reason = hooks.run("dragon:character_steps", { account = session.account, steps = {} })
+      local event, reason = events.run("dragon:character_steps", { account = session.account, steps = {} })
       if not event then
         if reason then
           session:send(reason)

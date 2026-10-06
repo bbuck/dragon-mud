@@ -1,13 +1,17 @@
-// Package hook implements the engine's hooks and notifications: named
-// chains of plugin handlers. A hook runs its handlers in order, and each can
-// change the payload the next one sees or cancel it with a reason. A
-// notification tells every handler something already happened.
+// Package event implements the engine's events: named chains of plugin
+// handlers. An event is one of two kinds. A hook runs its handlers in
+// order, and each can change the payload the next one sees or cancel it
+// with a reason. A notification tells every handler something already
+// happened.
 //
 // Handlers run in plugin load order (built-ins, then plugins, then the
 // game), adjusted by the before and after each handler declares. The game's
-// wiring can set a hook's order outright or disable handlers.
-// See docs/design.md §3.
-package hook
+// wiring can set an event's order outright or disable handlers.
+//
+// Every event is declared by the plugin that sends it, or by the engine:
+// the declaration says what it's for and which fields its payload has, and
+// payloads are checked against it. See docs/design.md §4.
+package event
 
 import (
 	"cmp"
@@ -22,14 +26,14 @@ import (
 	"bbuck.dev/dragon-mud/scripting"
 )
 
-// Handler is one plugin's handler for a hook.
+// Handler is one plugin's handler for an event.
 type Handler struct {
-	Hook   string
+	Event  string
 	Plugin string
 
-	// Before and After name plugins whose handlers for the same hook this
+	// Before and After name plugins whose handlers for the same event this
 	// one runs before or after. Plugins that aren't installed, or have no
-	// handler for the hook, are ignored.
+	// handler for the event, are ignored.
 	Before []string
 	After  []string
 
@@ -48,10 +52,10 @@ func (h Handler) Where() string {
 		}
 	}
 
-	return fmt.Sprintf("events.handlers[%q] in %s", h.Hook, h.Plugin)
+	return fmt.Sprintf("events.handlers[%q] in %s", h.Event, h.Plugin)
 }
 
-// Wiring is how the game rearranges one hook's handlers.
+// Wiring is how the game rearranges one event's handlers.
 type Wiring struct {
 	// Order lists, by plugin, every handler that isn't disabled in the
 	// order they run. Nil keeps the default order.
@@ -69,14 +73,14 @@ type Config struct {
 	// Handlers are every plugin's handlers, in any order.
 	Handlers []Handler
 
-	// Decls are every hook's declaration, the engine's and the plugins'.
+	// Decls are every event's declaration, the engine's and the plugins'.
 	Decls []Decl
 
-	// Wiring is keyed by hook name.
+	// Wiring is keyed by event name.
 	Wiring map[string]Wiring
 }
 
-// Chain is a hook's handlers in the order they run.
+// Chain is an event's handlers in the order they run.
 type Chain struct {
 	Name     string
 	Handlers []Handler
@@ -88,7 +92,7 @@ type Chain struct {
 	Wired bool
 }
 
-// Registry holds every hook's chain and declaration.
+// Registry holds every event's chain and declaration.
 type Registry struct {
 	chains   map[string]*Chain
 	decls    map[string]Decl
@@ -108,7 +112,7 @@ type Result struct {
 	By        string
 }
 
-// New orders every hook's handlers. A cycle in before and after, or wiring
+// New orders every event's handlers. A cycle in before and after, or wiring
 // that doesn't match the handlers, is an error that says how to fix it.
 func New(cfg Config) (*Registry, error) {
 	loadIndex := make(map[string]int, len(cfg.Plugins))
@@ -116,17 +120,17 @@ func New(cfg Config) (*Registry, error) {
 		loadIndex[id] = i
 	}
 
-	byHook := make(map[string][]Handler)
+	byEvent := make(map[string][]Handler)
 	for _, h := range cfg.Handlers {
 		if _, ok := loadIndex[h.Plugin]; !ok {
-			return nil, fmt.Errorf("hook %q: handler from plugin %q, which isn't loaded", h.Hook, h.Plugin)
+			return nil, fmt.Errorf("event %q: handler from plugin %q, which isn't loaded", h.Event, h.Plugin)
 		}
-		for _, other := range byHook[h.Hook] {
+		for _, other := range byEvent[h.Event] {
 			if other.Plugin == h.Plugin {
-				return nil, fmt.Errorf("%s: two handlers for %q; a plugin has one handler per hook", h.Where(), h.Hook)
+				return nil, fmt.Errorf("%s: two handlers for %q; a plugin has one handler per event", h.Where(), h.Event)
 			}
 		}
-		byHook[h.Hook] = append(byHook[h.Hook], h)
+		byEvent[h.Event] = append(byEvent[h.Event], h)
 	}
 
 	r := &Registry{chains: make(map[string]*Chain), decls: make(map[string]Decl), plugins: cfg.Plugins}
@@ -136,22 +140,22 @@ func New(cfg Config) (*Registry, error) {
 			continue
 		}
 		if other, ok := r.decls[d.Name]; ok {
-			return nil, fmt.Errorf("%s and %s both declare %q. A hook has one declaration, from the plugin that runs it; rename one of them, with its plugin's name in front, like %q.",
+			return nil, fmt.Errorf("%s and %s both declare %q. An event has one declaration, from the plugin that sends it; rename one of them, with its plugin's name in front, like %q.",
 				other.Where(), d.Where(), d.Name, d.Plugin+":"+localName(d.Name))
 		}
 		r.decls[d.Name] = d
 	}
-	names := slices.Sorted(maps.Keys(byHook))
+	names := slices.Sorted(maps.Keys(byEvent))
 
 	for _, name := range slices.Sorted(maps.Keys(cfg.Wiring)) {
-		if _, ok := byHook[name]; !ok {
+		if _, ok := byEvent[name]; !ok {
 			return nil, fmt.Errorf("%s[%q] is wired, but no plugin handles %q.%s Remove it, or add a handler to a plugin's events.handlers.",
 				WiringWhere, name, name, command.DidYouMean(name, names))
 		}
 	}
 
 	for _, name := range names {
-		handlers := byHook[name]
+		handlers := byEvent[name]
 		slices.SortFunc(handlers, func(a, b Handler) int {
 			return cmp.Compare(loadIndex[a.Plugin], loadIndex[b.Plugin])
 		})
@@ -349,11 +353,11 @@ func cycleError(name string, handlers []Handler, edges [][]int, done []bool, why
 		plugins[i] = fmt.Sprintf("%q", handlers[from].Plugin)
 	}
 
-	return fmt.Errorf("hook %q: handlers can't be ordered because they go in a circle: %s. Remove one of those before/after entries, or set the order yourself in %s: [%q] = { order = { %s } }.",
+	return fmt.Errorf("event %q: handlers can't be ordered because they go in a circle: %s. Remove one of those before/after entries, or set the order yourself in %s: [%q] = { order = { %s } }.",
 		name, strings.Join(reasons, ", "), WiringWhere, name, strings.Join(plugins, ", "))
 }
 
-// Chain returns the chain for the hook name.
+// Chain returns the chain for the event name.
 func (r *Registry) Chain(name string) (Chain, bool) {
 	c, ok := r.chains[name]
 	if !ok {
@@ -363,7 +367,7 @@ func (r *Registry) Chain(name string) (Chain, bool) {
 	return *c, true
 }
 
-// Decl returns the declaration of the hook name.
+// Decl returns the declaration of the event name.
 func (r *Registry) Decl(name string) (Decl, bool) {
 	if d, ok := r.decls[name]; ok {
 		return d, true
@@ -377,13 +381,13 @@ func (r *Registry) Decl(name string) (Decl, bool) {
 	return Decl{}, false
 }
 
-// Declared returns every declared hook, sorted. Prefix declarations aren't
+// Declared returns every declared event, sorted. Prefix declarations aren't
 // included.
 func (r *Registry) Declared() []string {
 	return slices.Sorted(maps.Keys(r.decls))
 }
 
-// Undeclared returns the hooks that have handlers but no declaration,
+// Undeclared returns the events that have handlers but no declaration,
 // sorted: handlers for a plugin that isn't loaded, or for a misspelled
 // hook.
 func (r *Registry) Undeclared() []string {
@@ -397,7 +401,7 @@ func (r *Registry) Undeclared() []string {
 	return names
 }
 
-// Check returns an error if the hook name isn't declared or event doesn't
+// Check returns an error if the event name isn't declared or payload doesn't
 // match its declaration. Run and Notify check their events with it.
 func (r *Registry) Check(name string, event map[string]any) error {
 	d, ok := r.Decl(name)
@@ -414,7 +418,7 @@ func (r *Registry) Check(name string, event map[string]any) error {
 // WiringWhere is where the game's wiring is, for messages.
 const WiringWhere = "the game's events.wiring"
 
-// Names returns every hook with handlers, sorted.
+// Names returns every event with handlers, sorted.
 func (r *Registry) Names() []string {
 	return slices.Sorted(maps.Keys(r.chains))
 }
@@ -510,7 +514,7 @@ func (r *Registry) Notify(ctx context.Context, name string, payload map[string]a
 }
 
 // Explain describes why h runs where it does in c, such as
-// "after dragon:chat", for dragon hooks.
+// "after dragon:chat", for dragon events.
 func (r *Registry) Explain(c Chain, h Handler) string {
 	if c.Wired {
 		return ""

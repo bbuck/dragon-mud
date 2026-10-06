@@ -138,7 +138,7 @@ func (g *Game) entityHook(ctx context.Context, name string, p *player, o *world.
 	ctx, cancel := context.WithTimeout(ctx, scriptTimeout)
 	defer cancel()
 
-	result, err := g.hooks.Run(ctx, name, map[string]any{
+	result, err := g.events.Run(ctx, name, map[string]any{
 		"viewer": g.handle(p.character),
 		"entity": g.handle(o),
 	})

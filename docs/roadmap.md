@@ -39,7 +39,7 @@ over telnet and the web and talk to each other.
       filled by the `section:room.exits` hook).
 - [x] Hooks and notifications with plugin ordering (`before`/`after`)
       and game wiring (`order`, `disable`).
-- [x] `dragon hooks [<name>]`.
+- [x] `dragon events [<name>]` (was `dragon hooks`).
 - [ ] Hook redirection in game wiring.
 - [x] Input parser: command forms, slot types (`slots.lua`), maximal
       munch, quoting, additive forms with `replace`.
@@ -62,7 +62,7 @@ over telnet and the web and talk to each other.
 - [x] Article and case helpers in templates (`{{the .x}}`, `{{A .x}}`,
       `{{cap}}`).
 - [x] Declared hook fields: one name per role (`actor` for whoever acts),
-      fields documented by `dragon hooks <name>`, and events that error
+      fields documented by `dragon events <name>`, and events that error
       on a field the hook doesn't have.
 
 ## Milestone 3: Plugins for real
@@ -73,6 +73,8 @@ over telnet and the web and talk to each other.
       game's settings are `dragon.toml`.
 - [x] `init.lua` returns everything a plugin provides, so file names are
       the plugin's own business.
+- [x] "Event" names both kinds, hooks and notifications: `dragon.events`,
+      `events.declare`, `events.handlers`, `dragon events`.
 - [ ] Full manifest: provides, depends, capabilities.
 - [ ] `plugin.require` for plugin APIs. First use: `dragon:chat` offers
       `chat.say(actor, message, target)` so games stop reusing its `say`
@@ -201,7 +203,8 @@ plus guides for the common paths.
 - **Manifest reference:** fields, provides, depends, capabilities.
 - **Views:** sections, telnet and HTML templates, layout helpers,
   color codes.
-- **Hooks and wiring:** hook kinds, ordering, `dragon hooks`.
+- **Events and wiring:** hooks and notifications, declarations, ordering,
+  `dragon events`.
 - **Web client:** slots, the `dragon` JS API, import maps, custom elements,
   client events.
 - **Layouts and themes:** editing `layout.html`, required and optional slots,

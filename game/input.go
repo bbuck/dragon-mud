@@ -100,7 +100,7 @@ func (g *Game) unmatched(ctx context.Context, actor any, line string, miss *comm
 		event["reason"] = miss.Reason
 	}
 
-	result, err := g.hooks.Run(ctx, hookUnmatched, event)
+	result, err := g.events.Run(ctx, hookUnmatched, event)
 	if err != nil {
 		g.log.Error("hook failed", "hook", hookUnmatched, "input", line, "error", err)
 		return false

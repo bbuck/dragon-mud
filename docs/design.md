@@ -16,7 +16,7 @@ Very little. The core provides:
   that contains it), properties and an optional script (§2)
 - permissions
 - scripting, including scripts on objects (§2)
-- hooks, notifications and a replaceable command dispatcher
+- events (hooks and notifications) and a replaceable command dispatcher
 - messages and rendering
 - storage, export and import
 
@@ -82,7 +82,7 @@ events by itself, because it can't know who an event is for: a room's
 contents for `rooms:entered`, the defender (and maybe bystanders) for
 `combat:attacked`, nobody for `dragon:booted`. So **the plugin that defines
 an event declares who hears it, and the engine does the delivery.** It's
-one more part of the hook declaration that already lists its fields
+one more part of the event declaration that already lists its fields
 (§4):
 
 ```lua
@@ -439,7 +439,7 @@ screen defines `characters`, which can still push
 leaves `characters` out of `builtins`.
 
 A plugin that changes another plugin's behavior does it through that
-plugin's hooks, not by checking whether it's installed: `dragon:classes`
+plugin's events, not by checking whether it's installed: `dragon:classes`
 would run `available_classes` (`draft`, `classes`), and `dragon:races`
 would filter the list. Optional dependencies (`weather = { version =
 "^1.0", optional = true }` under `[depends]`, Milestone 3) are for *using* another plugin's
@@ -449,16 +449,31 @@ Input no command matches can still reach the entities around the player,
 which parse it with their own forms (§2). That's how a shopkeeper handles
 `buy` and how a MOO kit finds verbs on the objects involved.
 
-### Hooks (can veto or modify)
+### Events
 
-`can_move`, `modify_damage`, `dragon:before_say`. Synchronous and ordered. Each hook
-can modify the payload the next one sees, or cancel with a reason. The caller
-gets back the final payload and whether it was cancelled.
+Plugins extend each other through **events**: named moments other plugins'
+handlers attach to. An event is one of two kinds.
 
-A plugin exports its handlers as `events.handlers`, keyed by hook name. Hooks
-the engine runs are named `dragon:...`, so in Lua their keys need brackets:
-`["dragon:player_connected"] = function(event) ... end`. Each is a
-function, or a table with the function and its ordering:
+- **Hooks** ask before something happens: `can_move`, `modify_damage`,
+  `dragon:before_say`. They're synchronous and ordered. Each handler can
+  change the payload the next one sees, or cancel with a reason, and the
+  sender gets back the final payload and whether it was cancelled.
+- **Notifications** say something already happened: `rooms:entered`,
+  `combat:died`, `dragon:said`. Handlers react; what they return is
+  ignored, and a failing handler is logged while the rest still run. Order
+  is deterministic, but plugins shouldn't depend on it.
+
+Code sends them with `dragon.events`: `events.run(name, event)` runs a
+hook and returns the event as the handlers left it, or `nil` and the
+reason one cancelled; `events.notify(name, event)` sends a notification.
+The table handlers get is the event's payload, called `event` in code.
+
+### Handlers
+
+A plugin exports its handlers as `events.handlers`, keyed by event name.
+Events the engine sends are named `dragon:...`, so in Lua their keys need
+brackets: `["dragon:player_connected"] = function(event) ... end`. Each is
+a function, or a table with the function and its ordering:
 
 ```lua
 return {
@@ -478,18 +493,17 @@ return {
   change it, or `false` and a reason to cancel. Payloads cross the
   scripting boundary as copies, so changing the event without returning it
   changes nothing.
-- A handler that fails stops the hook with an error naming the handler.
-- Code runs a hook with `hooks.run(name, event)`, which returns the event as
-  the handlers left it, or `nil` and the reason one cancelled.
-- A plugin has one handler per hook.
+- A hook handler that fails stops the hook with an error naming the
+  handler's file and line.
+- A plugin has one handler per event.
 
-### Declaring hooks
+### Declaring events
 
-**The plugin that runs a hook or notification declares it** in
-`events.declare`: what it's for, and the fields its event has. The engine
-declares its own (`dragon:booted`, `dragon:player_connected`, ...,
-and `section:*`). A field is a description, or a table with the
-description first when it can be left out:
+**The plugin that sends an event declares it** in `events.declare`: what
+it's for, and the fields its payload has. The engine declares its own
+(`dragon:booted`, `dragon:player_connected`, ..., and `section:*`). A
+field is a description, or a table with the description first when it can
+be left out:
 
 ```lua
 -- chat/events.lua, exported as events.declare
@@ -505,34 +519,29 @@ return {
 }
 ```
 
-- Running a hook nothing declares is an error, with the nearest declared
-  name, so a misspelled `hooks.run` fails instead of reaching no one.
-- An event with a field its hook doesn't have, or without a field it
-  needs, is an error naming both, whether it comes from `hooks.run`,
-  `hooks.notify` or a handler's returned event. Fields handlers set
-  (`handled`, `command`) are declared optional. `extra = "..."` lets an
-  event carry other fields too, and says what they're for, as
+- Sending an event nothing declares is an error, with the nearest declared
+  name, so a misspelled `events.run` fails instead of reaching no one.
+- A payload with a field its event doesn't have, or without a field it
+  needs, is an error naming both, whether it comes from `events.run`,
+  `events.notify` or a hook handler's returned event. Fields handlers set
+  (`handled`, `command`) are declared optional. `extra = "..."` lets a
+  payload carry other fields too, and says what they're for, as
   `dragon:get_tooltip` does for its template's data.
 - **One name per role.** Whoever acts is `actor`, in every event:
   speaking, moving, connecting. Other roles are named for what they are
   (`target`, `entity`, `viewer` for whoever a client request is for), so a
   handler can guess a field without looking it up.
-- A hook has one declaration; two plugins declaring one name is a startup
-  error. Plugin hooks carry their plugin's name (`mapping:map_drawn`).
-- Handlers for a hook nothing declares are logged at startup, since they
-  can never run: a misspelling, or a hook from a plugin the game leaves
+- An event has one declaration; two plugins declaring one name is a
+  startup error. Plugin events carry their plugin's name
+  (`mapping:map_drawn`).
+- Handlers for an event nothing declares are logged at startup, since they
+  can never run: a misspelling, or an event from a plugin the game leaves
   out. That's not an error, so dropping a built-in doesn't break a game
-  that handles its hooks.
-- `dragon hooks <name>` prints the declaration and its fields with the
-  handlers; `dragon hooks` lists every declared or handled hook.
+  that handles its events.
+- `dragon events <name>` prints the declaration and its fields with the
+  handlers; `dragon events` lists every declared or handled event.
 
-### Notifications (after the fact)
-
-`player_entered_room`, `mob_died`. Can't modify or cancel. Order is
-deterministic but plugins shouldn't depend on it. Handlers are in
-`events.handlers` like hook handlers; what they return is ignored. A failing
-handler is logged and the rest still run. Code sends one with
-`hooks.notify(name, event)`.
+### Events the engine and built-ins send
 
 The engine sends `dragon:booted` once when the game starts, before any
 input is handled (not on reload); `dragon:player_connected` (`actor`, and
@@ -557,15 +566,15 @@ Input no command matches runs `dragon:unmatched_input` (`actor`, `line`,
 1. **Plugin defaults.** Handlers run in load order: built-ins, then
    plugins in dependency order, then the game, so the game sees the payload
    last and has the final say. A handler's `before` and `after` move it
-   relative to other plugins' handlers for the same hook; plugins that
+   relative to other plugins' handlers for the same event; plugins that
    aren't installed or have no handler for it are ignored, so a plugin can
    order itself against optional ones. Cycles are startup errors that name
    every step of the cycle. Directory order never matters.
-2. **Game wiring.** The game can reorder or disable any hook's handlers in
+2. **Game wiring.** The game can reorder or disable any event's handlers in
    one place, its `events.wiring`. Only the game's plugin may have one.
    Wiring is data, so it's validated at startup and the resolved order can
-   be printed (`dragon hooks modify_damage`; `dragon hooks` lists every
-   hook).
+   be printed (`dragon events modify_damage`; `dragon events` lists every
+   event).
 
 ```lua
 -- game/wiring.lua, exported as events.wiring
@@ -575,11 +584,11 @@ return {
 }
 ```
 
-`order` replaces the plugins' `before` and `after` for that hook (which also
+`order` replaces the plugins' `before` and `after` for that event (which also
 settles a cycle) and must list every handler that isn't disabled, so a new
 plugin's handler can't slip into a hand-made order unnoticed. Naming a
-plugin with no handler for the hook is an error with a suggestion.
-Redirecting a hook to a different handler is not built yet.
+plugin with no handler for the event is an error with a suggestion.
+Redirecting an event to a different handler is not built yet.
 
 The same precedence applies everywhere: **the game, then plugins in
 dependency order, then built-ins**.
@@ -688,7 +697,7 @@ tags alone, so `{{cap (entity .x)}}` capitalizes the name, not the markup.
 A template marks a place other plugins can add to with
 `{{section "exits"}}`. Plugins fill it by handling the hook
 `section:<view>.<section>`, so sections are ordered with `before` and
-`after`, rearranged in the game's wiring, and listed by `dragon hooks`,
+`after`, rearranged in the game's wiring, and listed by `dragon events`,
 like any hook:
 
 ```lua
@@ -1044,7 +1053,7 @@ else can be added without changing the engine or the modules.
   types are never exposed directly.
 - **Modules are required, not globals:** `local world =
   require("dragon.world")`. The engine's are `dragon.game`, `dragon.world`,
-  `dragon.hooks`, `dragon.forms` and `dragon.log`. Names starting `dragon.`
+  `dragon.events`, `dragon.forms` and `dragon.log`. Names starting `dragon.`
   only ever reach engine modules, so a plugin's files can't shadow one,
   and a misspelled one is an error listing them. Reading `world` without
   requiring it is an error that says which line to add. Lua's own
@@ -1052,7 +1061,7 @@ else can be added without changing the engine or the modules.
 - **Boundary values** are nil, bool, number, string, list, map, script
   function and handle. `scripting.Args` gives uniform argument errors in
   every language.
-- **Script functions held by Go** (hook handlers) are `scripting.Function`
+- **Script functions held by Go** (event handlers) are `scripting.Function`
   values tied to the engine that created them.
 - **Every call takes a context.** A script that exceeds its deadline is
   interrupted. Any future language must support this.
