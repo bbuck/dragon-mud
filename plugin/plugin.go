@@ -12,6 +12,7 @@ import (
 	"path"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -52,6 +53,60 @@ type Manifest struct {
 
 	// Depends lists the APIs the plugin uses, and which versions.
 	Depends map[string]Dependency `toml:"-"`
+
+	// Capabilities are the system features the plugin may use, such as
+	// tasks. Game features (the world, events, messages) need none.
+	Capabilities []string `toml:"-"`
+}
+
+// Capabilities a plugin can declare. Each grants a system feature: one
+// that reaches past the game, into the command line, the database, the
+// network or the web server. Code loaded from disk gets only what its
+// manifest declares, and world scripts never get any (docs/design.md
+// §11). The game's own plugin has every capability, since the game's
+// owner wrote it.
+const (
+	CapTasks        = "tasks"         // export tasks run from the command line
+	CapLiveTasks    = "live_tasks"    // tasks that run inside the running game
+	CapStore        = "store"         // plugin-scoped storage
+	CapSQL          = "sql"           // the database directly
+	CapWebClient    = "web_client"    // JavaScript and CSS in the game client
+	CapClientEvents = "client_events" // handle what the web client sends
+	CapWebRoutes    = "web_routes"    // HTTP routes
+	CapAdminUI      = "admin_ui"      // builder UI extensions
+)
+
+// AllCapabilities lists every capability, in the order docs give them.
+var AllCapabilities = []string{CapTasks, CapLiveTasks, CapStore, CapSQL, CapWebClient, CapClientEvents, CapWebRoutes, CapAdminUI}
+
+// Can reports whether the plugin may use the capability: its manifest
+// declares it, or it's the game's own plugin.
+func (p *Plugin) Can(capability string) bool {
+	return p.game || slices.Contains(p.Manifest.Capabilities, capability)
+}
+
+// need returns an error unless the plugin has capability, saying where it
+// was needed and what using it is, like "exporting tasks".
+func (p *Plugin) need(where, capability, using string) error {
+	if p.Can(capability) {
+		return nil
+	}
+
+	have := "It declares no capabilities yet."
+	if len(p.Manifest.Capabilities) > 0 {
+		have = "It declares " + andList(p.Manifest.Capabilities) + "."
+	}
+	return fmt.Errorf("%s: %s needs the %s capability, which %s doesn't declare. %s Add it to %s:\n\ncapabilities = [%s]",
+		where, using, capability, ManifestFile, have, ManifestFile, quoteList(append(slices.Clone(p.Manifest.Capabilities), capability)))
+}
+
+func quoteList(items []string) string {
+	quoted := make([]string, len(items))
+	for i, item := range items {
+		quoted[i] = strconv.Quote(item)
+	}
+
+	return strings.Join(quoted, ", ")
 }
 
 // Dependency is an API a plugin uses: rooms = "^1.2", or
@@ -450,10 +505,11 @@ func ReadManifest(fsys fs.FS) (Manifest, error) {
 	}
 
 	var raw struct {
-		Name     string            `toml:"name"`
-		Version  string            `toml:"version"`
-		Provides map[string]string `toml:"provides"`
-		Depends  map[string]any    `toml:"depends"`
+		Name         string            `toml:"name"`
+		Version      string            `toml:"version"`
+		Provides     map[string]string `toml:"provides"`
+		Depends      map[string]any    `toml:"depends"`
+		Capabilities []any             `toml:"capabilities"`
 	}
 	meta, err := toml.Decode(source, &raw)
 	if err != nil {
@@ -482,11 +538,35 @@ func ReadManifest(fsys fs.FS) (Manifest, error) {
 	if m.Depends, err = readDepends(raw.Depends); err != nil {
 		return Manifest{}, fmt.Errorf("%s: %w", ManifestFile, err)
 	}
+	if m.Capabilities, err = readCapabilities(raw.Capabilities); err != nil {
+		return Manifest{}, fmt.Errorf("%s: %w", ManifestFile, err)
+	}
 
 	return m, nil
 }
 
-var manifestKeys = []string{"name", "version", "provides", "depends"}
+var manifestKeys = []string{"name", "version", "provides", "depends", "capabilities"}
+
+// readCapabilities checks capabilities: a list of known capability names,
+// each once.
+func readCapabilities(raw []any) ([]string, error) {
+	var caps []string
+	for _, v := range raw {
+		name, ok := v.(string)
+		if !ok {
+			return nil, fmt.Errorf("capabilities lists capability names, like capabilities = [%q], not %v.", CapTasks, v)
+		}
+		if !slices.Contains(AllCapabilities, name) {
+			return nil, fmt.Errorf("capabilities: there's no capability %q.%s Capabilities: %s.", name, command.DidYouMean(name, AllCapabilities), andList(AllCapabilities))
+		}
+		if slices.Contains(caps, name) {
+			return nil, fmt.Errorf("capabilities lists %q twice. Remove one.", name)
+		}
+		caps = append(caps, name)
+	}
+
+	return caps, nil
+}
 
 // readProvides checks [provides]: API names and their versions.
 func readProvides(raw map[string]string) (map[string]Version, error) {

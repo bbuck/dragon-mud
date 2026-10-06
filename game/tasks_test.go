@@ -168,3 +168,28 @@ func TestTasksAreListed(t *testing.T) {
 		t.Errorf("tasks = %q, want %q", names, want)
 	}
 }
+
+// A plugin's tasks need the tasks capability; the game's own don't.
+func TestTasksNeedTheCapability(t *testing.T) {
+	files := fstest.MapFS{
+		"init.lua":      file(`return { tasks = require("tasks") }`),
+		"lua/tasks.lua": file(`return { rebuild = function() end }`),
+	}
+
+	_, err := newGameWithPlugins(t, nil, localPlugin("mapping", `capabilities = ["sql"]`, files))
+	want := `game/plugins/mapping: tasks: exporting tasks needs the tasks capability, which plugin.toml doesn't declare. It declares sql. Add it to plugin.toml:
+
+capabilities = ["sql", "tasks"]`
+	if err == nil || !strings.Contains(err.Error(), want) {
+		t.Errorf("error = %v\nwant it to contain %q", err, want)
+	}
+
+	g, err := newGameWithPlugins(t, nil, localPlugin("mapping", `capabilities = ["tasks"]`, files))
+	if err != nil {
+		t.Fatal(err)
+	}
+	runGame(t, g)
+	if _, err := runTaskLines(t, g, "mapping:rebuild"); err != nil {
+		t.Error(err)
+	}
+}

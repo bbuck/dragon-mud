@@ -77,7 +77,9 @@ over telnet and the web and talk to each other.
       `events.declare`, `events.handlers`, `dragon events`.
 - [x] Manifest `[provides]` and `[depends]`: API versions and Cargo-style
       constraints, checked at startup, one provider per API.
-- [ ] Manifest capabilities.
+- [x] Manifest capabilities, checked where a system feature is used
+      (tasks first). The world-state check in bindings comes with entity
+      scripts.
 - [x] `require("@name")` imports a plugin API by name, never by plugin;
       `init.lua` names the API's module (`api = "api"`). API names are
       namespaced by the contract's owner (`johns:skills`), and `dragon:`

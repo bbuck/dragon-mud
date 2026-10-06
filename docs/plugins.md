@@ -254,16 +254,37 @@ different model (rooms on a grid instead of a graph).
 
 ## Capabilities
 
-Plugins declare what they need, and the engine only grants that:
+Plugins declare the system features they need in `plugin.toml`, and the
+engine grants only those:
 
 ```toml
-capabilities = ["game", "store", "sql", "tasks", "live_tasks",
-                "web_client", "client_events", "web_routes", "admin_ui"]
+capabilities = ["tasks", "web_client"]
 ```
 
-`dragon add` shows capabilities before installing, and `dragon update`
-points out new ones. `admin_ui` gets an extra warning: its JavaScript runs
-with a builder's privileges.
+Game features (the world, events, messages, commands, forms, logging)
+need no capability: every plugin has them, and so do world scripts
+(design.md §11). Capabilities are for what reaches past the game:
+
+| Capability      | Grants                                              |
+| --------------- | --------------------------------------------------- |
+| `tasks`         | `tasks` in `init.lua`, run from the command line    |
+| `live_tasks`    | tasks that run inside the running game (to come)    |
+| `store`         | plugin-scoped storage (to come)                     |
+| `sql`           | the database directly (to come)                     |
+| `web_client`    | JavaScript and CSS in the game client, from `web/`  |
+| `client_events` | `client` in `init.lua`: what the web client sends   |
+| `web_routes`    | HTTP routes (to come)                               |
+| `admin_ui`      | builder UI extensions (to come)                     |
+
+- Using a feature the manifest doesn't declare is a startup error that
+  names the capability and shows the line to add.
+- An unknown capability is an error, with a suggestion.
+- The game's own plugin has no manifest and every capability: it's the
+  game owner's code. Local plugins declare theirs like any other, so
+  moving one to its own repository changes nothing.
+- `dragon add` shows capabilities before installing, and `dragon update`
+  points out new ones. `admin_ui` gets an extra warning: its JavaScript
+  runs with a builder's privileges.
 
 ## Distribution
 
@@ -328,6 +349,7 @@ return {
   tasks of one run change is saved together when they finish. Don't run a
   task that changes the world while the server is running: the server
   wouldn't see the changes, and could save over them.
+- Exporting tasks needs the `tasks` capability (see Capabilities).
 - To come: `live = true`, running inside the running game through the
   admin API (Milestone 5), the admin UI's Tasks page and the console, and
   the engine's own operations as tasks (`world:export`, `world:import`).

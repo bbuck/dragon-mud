@@ -65,6 +65,9 @@ func (p *Plugin) Tasks() ([]TaskDef, error) {
 	if err != nil || table == nil {
 		return nil, err
 	}
+	if err := p.need("tasks", CapTasks, "exporting tasks"); err != nil {
+		return nil, err
+	}
 
 	var defs []TaskDef
 	for _, name := range slices.Sorted(maps.Keys(table)) {
