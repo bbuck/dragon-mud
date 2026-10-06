@@ -150,8 +150,8 @@ over telnet and the web and talk to each other.
 - Kits (`--kit diku|mush|moo`) and `dragon eject`. The MOO kit finds verbs
   on the objects a line names; the MUSH kit has `$`-commands and exits
   matched by name.
-- Trust tiers: in-game player code with quotas, through the entity script
-  interface.
+- Script limits a game can set for its builders' entity scripts (quotas,
+  module sets), for games that open scripting widely.
 - Importers (`dragon:import-diku`, `dragon:import-circle`).
 - Dice notation: modifiers, keep highest, drop lowest; dice objects.
 - Fairness features: rate limits, cooldowns.

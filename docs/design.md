@@ -191,10 +191,19 @@ can use the slot types of its own plugin and those loaded before it.
   `player_entered`"). The record of what's been logged is cleared when
   the script changes or the game reloads. A thousand wolves
   made with `world.create{ parent = mega_wolf }` log once between them.
-- **One interface at every trust level.** A handler a builder writes in the
-  game directory and one a player writes inside the game (§11) are called
-  the same way. Trust changes where the code is stored, which modules it
-  gets and its limits, never how it's called.
+- **One interface, however it's written.** A handler written in the game
+  directory and one a builder writes inside the game (§11) are called the
+  same way. Where the code is stored, which modules it gets and its limits
+  can differ, never how it's called.
+- **Entities hear notifications, never hooks.** Blocking and vetoing are
+  data on the world, such as a lock on an exit or a room, which the plugin
+  that owns the hook evaluates (`dragon:rooms` in its `rooms:can_move`
+  handler). Scripts change that data in response to notifications: a
+  guard locks the door when he arrives and unlocks it when he leaves or
+  dies, and the door's message says he's the one in the way. That keeps
+  a guard reusable anywhere, and it's how a MUSH's exit locks work too.
+  Builders absolutely build exits that block people; they do it with the
+  exit's data, or with a script that changes it.
 
 Open:
 
@@ -204,10 +213,6 @@ Open:
   it, and what happens to the object until it's fixed.
 - Whether handlers run immediately or after the current event, so the
   player sees their own "You say" before the guard answers.
-- Whether entities hear hooks as well as notifications. A guard blocking
-  `rooms:can_move` is a veto, which is a hook; letting an audience cancel
-  is powerful, and also where in-game player scripts could block other
-  people's actions, so it depends on trust tiers (§11).
 - Audience ordering: entity handlers after the plugin and game handlers
   for the event, so plugins finish updating state before scripts react,
   or interleaved with them. After is the likely answer.
@@ -1137,15 +1142,29 @@ Gopher-lua was chosen because Lua 5.1 is what MUD players already know
 (Mudlet; WoW addons and Luau descend from 5.1), it's maintained, and it
 supports interruption and coroutines.
 
-## 11. Trust tiers
+## 11. Who writes code
 
-- **Plugins** are installed by the game owner and trusted, within the
-  capabilities they declare (see [plugins.md](plugins.md#capabilities)).
-- **In-game code** written by players (MUSH softcode, MOO verbs) is untrusted:
-  a restricted module set, per-player CPU and memory limits, stored in the
-  object store, and output limited to text and color markup, never
-  JavaScript. It's called through the same entity script interface as
-  trusted code (§2).
+A MUD is developed in two tiers, and the engine serves both.
+
+- **The game** is what other MUDs write as engine code: rules, commands,
+  combat, rooms. Here it's plugins and the game's own Lua, written by the
+  game's developers and installed by its owner. Plugins are trusted
+  within the capabilities they declare (see
+  [plugins.md](plugins.md#capabilities)).
+- **The world** is what builders make inside the game: rooms, exits,
+  NPCs, items, and the entity scripts on them (§2). Builders are players
+  the game has given permission to build, and they're expected to do
+  real work with scripts, including exits that block people and NPCs
+  that change the world around them.
+
+**Who may write entity scripts is the game's decision**, like any other
+permission. A game might allow its builders only; a MOO-style game might
+let every player script their own objects. The engine provides the
+mechanism: limits every script runs under (the deadline in §10, and
+quotas where a game wants them), which modules world scripts can reach
+(an open question in §2), and output that's always text and color markup,
+never JavaScript. It doesn't assume scripters are hostile, and it doesn't
+assume they're all trusted; the game sets that.
 
 ## Package layout
 
