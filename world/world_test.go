@@ -2,6 +2,7 @@ package world
 
 import (
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -254,5 +255,39 @@ func TestRefs(t *testing.T) {
 	w.Destroy(room)
 	if v, _ := exit.Get("to"); v != (Ref{ID: room.ID()}) {
 		t.Errorf("after destroy, to = %#v", v)
+	}
+}
+
+func TestTypes(t *testing.T) {
+	w := New()
+	wolf, pup := w.Create(), w.Create()
+	if err := pup.SetParent(wolf); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"mobs:mob", "mobs:animal", "mobs:mob"} {
+		if err := wolf.AddType(name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := pup.AddType("mobs:young"); err != nil {
+		t.Fatal(err)
+	}
+
+	if got, want := pup.AllTypes(), []string{"mobs:young", "mobs:mob", "mobs:animal"}; !slices.Equal(got, want) {
+		t.Errorf("AllTypes = %q, want %q", got, want)
+	}
+	if got := pup.Types(); !slices.Equal(got, []string{"mobs:young"}) {
+		t.Errorf("Types = %q", got)
+	}
+
+	// Removing a type the object inherits leaves it.
+	if err := pup.RemoveType("mobs:mob"); err != nil {
+		t.Fatal(err)
+	}
+	if err := wolf.RemoveType("mobs:mob"); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := pup.AllTypes(), []string{"mobs:young", "mobs:animal"}; !slices.Equal(got, want) {
+		t.Errorf("after removing, AllTypes = %q, want %q", got, want)
 	}
 }

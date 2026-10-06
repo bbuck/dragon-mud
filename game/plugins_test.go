@@ -147,7 +147,7 @@ func TestInitErrors(t *testing.T) {
 		{
 			"unknown export",
 			fstest.MapFS{"init.lua": file(`return { comands = {} }`)},
-			`game: init.lua has an unknown field "comands". Did you mean "commands"? Allowed fields: commands, slots, modes, events, api, tasks.`,
+			`game: init.lua has an unknown field "comands". Did you mean "commands"? Allowed fields: commands, slots, modes, events, api, tasks, schema.`,
 		},
 		{
 			"hooks moved",

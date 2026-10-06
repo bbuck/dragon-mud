@@ -43,11 +43,12 @@ type TaskDef struct {
 	Run scripting.Function
 }
 
-// TaskNamespace is the namespace the engine puts in front of the plugin's
-// task names: its manifest name, such as mapping for mapping:rebuild, or
-// game for the game's own tasks. Built-ins use their name without
-// dragon:, so the chat plugin's tasks are chat:<task>.
-func (p *Plugin) TaskNamespace() string {
+// Namespace is the namespace the engine puts in front of names it makes
+// up for the plugin: its manifest name, such as mapping for the task
+// mapping:rebuild and the added field mapping.coords, or game for the
+// game's own. Built-ins use their name without dragon:, so the chat
+// plugin's tasks are chat:<task>.
+func (p *Plugin) Namespace() string {
 	return p.Manifest.Name
 }
 
@@ -73,13 +74,13 @@ func (p *Plugin) Tasks() ([]TaskDef, error) {
 	for _, name := range slices.Sorted(maps.Keys(table)) {
 		where := field("tasks", name)
 		if strings.Contains(name, ":") {
-			return nil, fmt.Errorf("%s: the engine puts %s: in front of the plugin's task names itself, so name it %q.", where, p.TaskNamespace(), name[strings.LastIndex(name, ":")+1:])
+			return nil, fmt.Errorf("%s: the engine puts %s: in front of the plugin's task names itself, so name it %q.", where, p.Namespace(), name[strings.LastIndex(name, ":")+1:])
 		}
 		if !taskNameRx.MatchString(name) {
 			return nil, fmt.Errorf("%s isn't a valid task name. Task names are lowercase letters, digits, - and _, starting with a letter, like rebuild or import-areas.", where)
 		}
 
-		def := TaskDef{Name: p.TaskNamespace() + ":" + name, Plugin: p.ID, Path: where}
+		def := TaskDef{Name: p.Namespace() + ":" + name, Plugin: p.ID, Path: where}
 		switch v := table[name].(type) {
 		case scripting.Function:
 			def.Run = v
@@ -136,7 +137,7 @@ func (p *Plugin) taskDepends(where string, raw any) ([]string, error) {
 			return nil, fmt.Errorf("%s: depends #%d isn't a task name. Name a task of this plugin, like \"clear\", or another plugin's, like \"rooms:check\".", where, i+1)
 		}
 		if !strings.Contains(name, ":") {
-			name = p.TaskNamespace() + ":" + name
+			name = p.Namespace() + ":" + name
 		}
 		full[i] = name
 	}

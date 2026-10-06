@@ -121,7 +121,7 @@ func TestObjectFieldErrors(t *testing.T) {
 	alice.login("Alice")
 
 	for input, want := range map[string]string{
-		"readname": `object has no field or method "name". Its fields are contents, id, key, location, parent. Its methods are `,
+		"readname": `object has no field or method "name". Its fields are contents, id, key, location, parent, types. Its methods are `,
 		"setname":  `object.name can't be assigned: object fields are read-only; use its methods. To store name as a property, write o:set("name", value).`,
 		"move":     `object.location can't be assigned: object fields are read-only; use its methods. Move it with o:move_to(place).`,
 	} {

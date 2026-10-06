@@ -20,6 +20,7 @@ import (
 	"bbuck.dev/dragon-mud/event"
 	"bbuck.dev/dragon-mud/message"
 	"bbuck.dev/dragon-mud/plugin"
+	"bbuck.dev/dragon-mud/schema"
 	"bbuck.dev/dragon-mud/scripting"
 	"bbuck.dev/dragon-mud/session"
 	"bbuck.dev/dragon-mud/store"
@@ -186,6 +187,12 @@ type scripts struct {
 
 	// tasks are every plugin's tasks, by full name.
 	tasks map[string]plugin.TaskDef
+
+	// schema is every plugin's types, and types and extensions collect
+	// them as plugins load.
+	schema     *schema.Registry
+	types      []schema.Type
+	extensions []schema.Extension
 }
 
 // New returns a game with its plugins loaded. The game closes its engine
@@ -329,6 +336,9 @@ func (g *Game) loadInto(ctx context.Context, s *scripts) error {
 	if err := s.checkTasks(); err != nil {
 		return err
 	}
+	if err := g.loadSchema(s); err != nil {
+		return err
+	}
 
 	if s.events, err = event.New(events); err != nil {
 		return err
@@ -412,6 +422,13 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, p *plugin.Plugin, eve
 	if err := s.addTasks(p); err != nil {
 		return err
 	}
+
+	types, extensions, err := p.Schema(g.fromScript)
+	if err != nil {
+		return err
+	}
+	s.types = append(s.types, types...)
+	s.extensions = append(s.extensions, extensions...)
 
 	views, err := addTemplates(p, plugin.ViewsDir, s.views)
 	if err != nil {

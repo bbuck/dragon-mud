@@ -87,6 +87,13 @@ func (w *World) Keyed(key string) (*Object, bool) {
 	return o, ok
 }
 
+// Each calls fn with every object, in id order.
+func (w *World) Each(fn func(*Object)) {
+	for _, id := range slices.Sorted(maps.Keys(w.objects)) {
+		fn(w.objects[id])
+	}
+}
+
 // Len returns the number of objects.
 func (w *World) Len() int {
 	return len(w.objects)
@@ -178,6 +185,10 @@ type Object struct {
 	location *Object
 	contents []*Object
 	props    map[string]any
+
+	// types are the schema types o has itself, in the order they were
+	// added. It has its parents' too.
+	types []string
 }
 
 // ID returns the object's id.
@@ -294,6 +305,63 @@ func (o *Object) moveTo(location *Object) {
 	o.w.touch(o)
 }
 
+// Types returns the schema types o has itself, in the order they were
+// added.
+func (o *Object) Types() []string {
+	return slices.Clone(o.types)
+}
+
+// AllTypes returns o's own types, then its parent's, and so on, each once.
+// An object made from a prototype has the prototype's types.
+func (o *Object) AllTypes() []string {
+	var types []string
+	for p := o; p != nil; p = p.parent {
+		for _, t := range p.types {
+			if !slices.Contains(types, t) {
+				types = append(types, t)
+			}
+		}
+	}
+
+	return types
+}
+
+// AddType gives o the schema type name, if it doesn't have it itself
+// already. The world doesn't know which types exist; the game checks that.
+func (o *Object) AddType(name string) error {
+	if o.isDestroyed() {
+		return ErrDestroyed
+	}
+	if name == "" {
+		return errors.New("type has no name")
+	}
+	if slices.Contains(o.types, name) {
+		return nil
+	}
+
+	o.types = append(o.types, name)
+	o.w.touch(o)
+
+	return nil
+}
+
+// RemoveType removes the type name from o's own types. A type o inherits
+// stays.
+func (o *Object) RemoveType(name string) error {
+	if o.isDestroyed() {
+		return ErrDestroyed
+	}
+	i := slices.Index(o.types, name)
+	if i < 0 {
+		return nil
+	}
+
+	o.types = slices.Delete(o.types, i, i+1)
+	o.w.touch(o)
+
+	return nil
+}
+
 // Get returns the property name, from o or the nearest ancestor that has
 // it. Lists and maps are copies; change them with Set.
 func (o *Object) Get(name string) (any, bool) {
@@ -372,7 +440,7 @@ func (o *Object) isDestroyed() bool {
 
 // Record returns the object as plain data for storage or export.
 func (o *Object) Record() Record {
-	r := Record{ID: o.id, Key: o.key, Properties: clone(o.props).(map[string]any)}
+	r := Record{ID: o.id, Key: o.key, Properties: clone(o.props).(map[string]any), Types: slices.Clone(o.types)}
 	if o.parent != nil {
 		r.Parent = o.parent.id
 	}
@@ -391,6 +459,9 @@ type Record struct {
 	Parent     ID
 	Location   ID
 	Properties map[string]any
+
+	// Types are the object's own schema types.
+	Types []string
 }
 
 // Changes is what changed in a world: objects to save in full and ids of
@@ -427,7 +498,7 @@ func Load(records []Record) (*World, error) {
 			props[name] = normal
 		}
 
-		w.objects[r.ID] = &Object{w: w, id: r.ID, props: props}
+		w.objects[r.ID] = &Object{w: w, id: r.ID, props: props, types: slices.Clone(r.Types)}
 	}
 
 	for _, r := range records {

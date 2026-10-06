@@ -87,10 +87,10 @@ over telnet and the web and talk to each other.
       `dragon:chat` with `chat.say(actor, message, target)` and
       `chat.emote`, so games stop reusing its `say` view and coupling to
       its data shape (lesson 3 below).
-- [ ] Schema types and extensions; namespaced added fields. Open: can an
-      object have several types (a bag is an item and a container)?
-      Schemas are also how property typos (`descrition`) get caught
-      (lesson 6 below).
+- [x] Schema types and extensions; namespaced added fields
+      (`mapping.coords`). An object can have several types, and inherits
+      its parents'; a typed object only takes its types' fields, which
+      catches typos like `descrition` (lesson 6 below).
 - [x] Tasks (`dragon <plugin>:<task>`, `dragon tasks`), offline. Live tasks
       wait for the admin API (Milestone 5).
 - [ ] `dragon add/update/remove/list`, `dragon.lock`, vendoring.

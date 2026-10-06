@@ -26,13 +26,14 @@ return {
   },
   api = "api",                     -- the module others import, lua/api.lua
   tasks = require("tasks"),        -- run from the command line: dragon mapping:rebuild
+  schema = require("schema"),      -- types of object, and fields added to others'
 }
 ```
 
 Each part is a table keyed by name. Errors name the part they're in, such
 as `commands.look` or `events.handlers["dragon:said"]`, and a function's
-file and line. Parts to come: `schema`, `client` (handlers for what the
-web client sends) and `routes` (HTTP handlers).
+file and line. Parts to come: `client` (handlers for what the web client
+sends) and `routes` (HTTP handlers).
 
 **Names defined in Lua are used exactly as written.** A mode, event or slot
 type is called what its key says; the engine never renames it, so the
@@ -144,9 +145,10 @@ new extension point.
 
 1. **Behavior**: events (hooks and notifications), command forms (additive; replacing
    is declared).
-2. **Data**: add fields to another plugin's types. Added fields are namespaced
-   by the adding plugin (`room.mapping.coords`), appear in their own admin
-   form section, and are included in export.
+2. **Data**: add fields to another plugin's types (see Schemas). Added
+   fields are namespaced by the adding plugin (`mapping.coords` on a
+   room), appear in their own admin form section, and are included in
+   export.
 3. **Output**: add sections to another plugin's messages; the game can
    override any template or component.
 4. **Client UI**: put components into the core client's slots, ordered like
@@ -154,6 +156,67 @@ new extension point.
 5. **Tooling**: tasks, importers, export formats.
 6. **In-world**: objects inherit from parent objects (builder and player
    level, not plugin code).
+
+## Schemas
+
+A plugin declares the **types** of object it works with, and the fields
+each has, as `schema` in `init.lua`. Types are how property typos get
+caught, and what the admin UI and export will be generated from.
+
+```lua
+-- items/lua/schema.lua
+return {
+  types = {
+    ["items:item"] = {
+      desc = "Something that can be carried.",
+      fields = {
+        description = { "what players see when they look at it", type = "text" },
+        weight = { "how heavy it is, in pounds", type = "number", default = 1 },
+        notes = "anything builders want to remember",
+      },
+    },
+    ["items:container"] = {
+      fields = { capacity = { "how much it holds", type = "integer", default = 10 } },
+    },
+  },
+  extend = {
+    ["rooms:room"] = { fields = { light = { "how bright it is", type = "integer" } } },
+  },
+}
+```
+
+- **A field** is a description, or a table with the description first and
+  a `type` and `default`. Types are `any` (the default), `string`,
+  `text`, `number`, `integer`, `boolean`, `object`, `list` and `table`,
+  and every one also takes nil. Every type also has the fields the
+  engine reads: `name`, `proper` and `article` (design.md §5).
+- **Names are as written**, like events: plugins namespace their types
+  (`items:item`), and `dragon:` is for built-ins. Two plugins declaring
+  one type is a startup error.
+- **An object can have several types**, and has its parents' too: a bag
+  is an `items:item` and an `items:container`, and every copy made from a
+  wolf prototype is whatever the wolf is. `world.create{ types = {
+  "items:item" } }` gives types at creation, `o:add_type(name)` and
+  `o:remove_type(name)` change an object's own, `o.types` lists them all
+  (its own, then its parents'), and `o:has_type(name)` checks one.
+- **A typed object only takes its types' fields.** `o:set` and
+  `o:delete` of a field none of its types has is an error with a
+  suggestion (`"descrition" isn't a field of items:item. Did you mean
+  "description"?`), and so is `o:get`, so a misspelled read fails too. A
+  value of the wrong kind is an error naming the field. `o:get` of a field
+  no object in the chain has gives its default. Adding a type, removing
+  one or changing an object's parent checks the object's own properties
+  against the types it would have.
+- **An object with no types takes any property**, as before types
+  existed. So does one with a type no plugin declares any more, such as
+  one from a plugin the game stopped loading; startup logs how many
+  objects that affects.
+- **`extend` adds fields to another plugin's type**, named for the adding
+  plugin: `light` above is `items.light` on a `rooms:room`. A plugin's
+  fields never collide with another's, and code reads them by their full
+  name (`room:get("items.light")`). Extending a type no plugin declares is
+  logged at startup and adds nothing, as with handlers for an undeclared
+  event, so an optional plugin's absence breaks nothing.
 
 ## APIs and "provides"
 

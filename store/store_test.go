@@ -66,6 +66,9 @@ func TestRoundTrip(t *testing.T) {
 	must(t, rock.Set("stats", map[string]any{"hp": 10, "nested": []any{1, "two", nil, true}}))
 	must(t, rock.Set("home", room))
 	must(t, rock.Set("trail", []any{room, map[string]any{"at": room}}))
+	must(t, room.AddType("rooms:room"))
+	must(t, rock.AddType("items:item"))
+	must(t, rock.AddType("items:container"))
 	save(t, s, w)
 	s.Close()
 
@@ -81,6 +84,9 @@ func TestRoundTrip(t *testing.T) {
 	rock2, _ := w2.Get(rock.ID())
 	if rock2.Location() != r2 || rock2.Parent() != r2 {
 		t.Error("parent or location not saved")
+	}
+	if got, want := rock2.AllTypes(), []string{"items:item", "items:container", "rooms:room"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("types = %q, want %q", got, want)
 	}
 	for _, name := range rock.Properties() {
 		want, _ := rock.GetOwn(name)

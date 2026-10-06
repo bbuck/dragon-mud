@@ -56,6 +56,9 @@ var migrations = []string{
 	`
 	ALTER TABLE objects RENAME COLUMN name TO key;
 	`,
+	`
+	ALTER TABLE objects ADD COLUMN types TEXT; -- JSON list of schema types
+	`,
 }
 
 // Store is a game's database.
@@ -120,7 +123,7 @@ func (s *Store) migrate(ctx context.Context) error {
 // Load reads every object.
 func (s *Store) Load(ctx context.Context) ([]world.Record, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, coalesce(key, ''), coalesce(parent, ''), coalesce(location, '')
+		SELECT id, coalesce(key, ''), coalesce(parent, ''), coalesce(location, ''), coalesce(types, '')
 		FROM objects ORDER BY id`)
 	if err != nil {
 		return nil, err
@@ -129,10 +132,19 @@ func (s *Store) Load(ctx context.Context) ([]world.Record, error) {
 	var records []world.Record
 	index := make(map[world.ID]int)
 	for rows.Next() {
-		var r world.Record
-		if err := rows.Scan(&r.ID, &r.Key, &r.Parent, &r.Location); err != nil {
+		var (
+			r     world.Record
+			types string
+		)
+		if err := rows.Scan(&r.ID, &r.Key, &r.Parent, &r.Location, &types); err != nil {
 			rows.Close()
 			return nil, err
+		}
+		if types != "" {
+			if err := json.Unmarshal([]byte(types), &r.Types); err != nil {
+				rows.Close()
+				return nil, fmt.Errorf("object %s types: %w", r.ID, err)
+			}
 		}
 		r.Properties = make(map[string]any)
 		index[r.ID] = len(records)
@@ -195,11 +207,20 @@ func (s *Store) Save(ctx context.Context, changes world.Changes) error {
 }
 
 func saveRecord(ctx context.Context, tx *sql.Tx, r world.Record) error {
+	var types any
+	if len(r.Types) > 0 {
+		data, err := json.Marshal(r.Types)
+		if err != nil {
+			return err
+		}
+		types = string(data)
+	}
+
 	_, err := tx.ExecContext(ctx, `
-		INSERT INTO objects (id, key, parent, location) VALUES (?, ?, ?, ?)
+		INSERT INTO objects (id, key, parent, location, types) VALUES (?, ?, ?, ?, ?)
 		ON CONFLICT (id) DO UPDATE SET
-			key = excluded.key, parent = excluded.parent, location = excluded.location`,
-		r.ID, nullable(r.Key), nullable(string(r.Parent)), nullable(string(r.Location)))
+			key = excluded.key, parent = excluded.parent, location = excluded.location, types = excluded.types`,
+		r.ID, nullable(r.Key), nullable(string(r.Parent)), nullable(string(r.Location)), types)
 	if err != nil {
 		return err
 	}

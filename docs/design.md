@@ -13,7 +13,8 @@ Very little. The core provides:
 - the game loop
 - **objects**: an id, an optional unique key, an optional parent (to
   inherit properties and script handlers from), a location (the object
-  that contains it), properties and an optional script (§2)
+  that contains it), properties, types that say which properties it has,
+  and an optional script (§2)
 - permissions
 - scripting, including scripts on objects (§2)
 - events (hooks and notifications) and a replaceable command dispatcher
@@ -1109,9 +1110,12 @@ else can be added without changing the engine or the modules.
   can't assign fields or reach the metatable; unknown names are errors.
 - **Objects** are handles holding an object's id, so a handle to a
   destroyed object raises an error. Fields: `id`, `key`, `parent`,
-  `location`, `contents`, changed with `o:set_key(key)`,
-  `o:set_parent(parent)` and `o:move_to(place)` (nil for none; an object
-  can't move into itself or what it contains). Moving only changes
+  `location`, `contents` and `types`, changed with `o:set_key(key)`,
+  `o:set_parent(parent)`, `o:move_to(place)` (nil for none; an object
+  can't move into itself or what it contains), `o:add_type(name)` and
+  `o:remove_type(name)`. Types come from plugins' schemas, and an object
+  with types only takes the properties they declare (plugins.md,
+  "Schemas"). Moving only changes
   containment: no messages, no hooks. Properties are read and written with
   methods (`o:get(name)`, `o:get_own(name)`, `o:set(name, value)`,
   `o:delete(name)`), never as fields, so property names can't collide with
@@ -1227,6 +1231,7 @@ check sits where Lua can't reach it.
 | `builtin`          | Built-in plugins, embedded in the binary.               |
 | `game`             | The game loop, events and world ownership.              |
 | `world`            | Objects in memory: ids, parents, locations, properties. |
+| `schema`           | Types plugins declare for objects, and their fields.    |
 | `command`          | Form patterns, slot types and the input parser.         |
 | `hook`             | Hook chains, notifications, ordering.                   |
 | `plugin`           | Plugin loading, manifests and dependency sorting.       |

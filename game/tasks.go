@@ -31,7 +31,7 @@ func (s *scripts) addTasks(p *plugin.Plugin) error {
 	for _, def := range defs {
 		if other, ok := s.tasks[def.Name]; ok {
 			return fmt.Errorf("%s: %s and %s both have a task called %s, since both plugins are named %s. Rename one of the plugins in its %s.",
-				def.Path, other.Plugin, def.Plugin, def.Name, p.TaskNamespace(), plugin.ManifestFile)
+				def.Path, other.Plugin, def.Plugin, def.Name, p.Namespace(), plugin.ManifestFile)
 		}
 		s.tasks[def.Name] = def
 	}

@@ -21,8 +21,10 @@ import (
 //	o.parent                   the object it inherits from, or nil
 //	o.location                 the object containing it, or nil
 //	o.contents                 list of objects inside it
+//	o.types                    its schema types, then its parents'
 //
-//	o:get(name)                property value, inherited from parents
+//	o:get(name)                property value, inherited from parents, or
+//	                           its field's default
 //	o:is_a(other)              true if o is other or inherits from it
 //	o:is_player()              true if an account owns o as a character
 //	o:get_own(name)            property value only if o has its own
@@ -32,6 +34,9 @@ import (
 //	o:move_to(location)        move inside location (nil for nowhere)
 //	o:set_parent(parent)       inherit from parent (nil for none)
 //	o:set_key(key)             set the unique key (nil to remove)
+//	o:add_type(name)           give o a schema type
+//	o:remove_type(name)        take a type of o's own away
+//	o:has_type(name)           true if o or a parent has the type
 //	o:send(text)               send text to everyone playing o
 //	o:send(kind, data[, block]) send a message kind to everyone playing o,
 //	                           rendering only block if given
@@ -78,19 +83,33 @@ func (g *Game) objectType() *scripting.Type {
 				}
 				return contents, nil
 			},
+			"types": func(key any) (any, error) {
+				o, err := g.object(key)
+				if err != nil {
+					return nil, err
+				}
+				types := []any{}
+				for _, t := range o.AllTypes() {
+					types = append(types, t)
+				}
+				return types, nil
+			},
 		},
 		Methods: map[string]scripting.Method{
-			"get":        g.objectGet((*world.Object).Get),
-			"get_own":    g.objectGet((*world.Object).GetOwn),
-			"is_a":       g.objectIsA,
-			"is_player":  g.objectIsPlayer,
-			"set":        g.mutating(g.objectSet),
-			"delete":     g.mutating(g.objectDelete),
-			"properties": g.objectProperties,
-			"move_to":    g.mutating(g.objectMoveTo),
-			"set_parent": g.mutating(g.objectSetParent),
-			"set_key":    g.mutating(g.objectSetKey),
-			"send":       g.mutating(g.objectSend),
+			"get":         g.objectGet(true),
+			"get_own":     g.objectGet(false),
+			"is_a":        g.objectIsA,
+			"is_player":   g.objectIsPlayer,
+			"set":         g.mutating(g.objectSet),
+			"delete":      g.mutating(g.objectDelete),
+			"properties":  g.objectProperties,
+			"move_to":     g.mutating(g.objectMoveTo),
+			"set_parent":  g.mutating(g.objectSetParent),
+			"set_key":     g.mutating(g.objectSetKey),
+			"send":        g.mutating(g.objectSend),
+			"add_type":    g.mutating(g.objectAddType),
+			"remove_type": g.mutating(g.objectRemoveType),
+			"has_type":    g.objectHasType,
 		},
 		String: func(key any) string {
 			if o, ok := g.world.Get(key.(world.ID)); ok {
@@ -106,6 +125,8 @@ func (g *Game) objectType() *scripting.Type {
 				return "Set it with o:set_parent(parent)."
 			case name == "key" && assign:
 				return "Set it with o:set_key(key)."
+			case name == "types" && assign:
+				return "Change them with o:add_type(name) and o:remove_type(name)."
 			case assign:
 				return fmt.Sprintf("To store %s as a property, write o:set(%q, value).", name, name)
 			default:
@@ -118,7 +139,7 @@ func (g *Game) objectType() *scripting.Type {
 // worldModule is the "world" scripting module.
 //
 //	world.create([options])    a new object; options is a table with any of
-//	                           parent, location, key and properties
+//	                           parent, location, key, types and properties
 //	world.get(id)              the object with id, or nil
 //	world.keyed(key)           the object with the builder key, or nil
 //	world.destroy(o)           destroy o; its contents move to its location
@@ -161,7 +182,7 @@ func (g *Game) worldModule() scripting.Module {
 }
 
 // createOptions are the options world.create accepts.
-var createOptions = []string{"parent", "location", "key", "properties"}
+var createOptions = []string{"parent", "location", "key", "types", "properties"}
 
 // scriptCreate creates an object, applying any options. If an option fails
 // the object is destroyed again, so a failed create leaves nothing behind.
@@ -230,6 +251,27 @@ func (g *Game) applyCreateOptions(o *world.Object, opts map[string]any) error {
 		}
 	}
 
+	if types, ok := opts["types"]; ok {
+		list, isList := types.([]any)
+		if !isList {
+			if m, isMap := types.(map[string]any); !isMap || len(m) > 0 {
+				return fmt.Errorf("types: expected a list of type names, like types = { \"items:item\" }, got %s", scripting.TypeName(types))
+			}
+		}
+		for i, item := range list {
+			name, ok := item.(string)
+			if !ok {
+				return fmt.Errorf("types: #%d: expected a type name, got %s", i+1, scripting.TypeName(item))
+			}
+			if err := g.schema.Declared(name); err != nil {
+				return fmt.Errorf("types: %w", err)
+			}
+			if err := o.AddType(name); err != nil {
+				return err
+			}
+		}
+	}
+
 	if props, ok := opts["properties"]; ok {
 		m, ok := props.(map[string]any)
 		if !ok {
@@ -242,6 +284,9 @@ func (g *Game) applyCreateOptions(o *world.Object, opts map[string]any) error {
 			value, err := g.fromScript(m[name])
 			if err != nil {
 				return fmt.Errorf("properties: %q: %w", name, err)
+			}
+			if err := g.checkProperty(o, name, value); err != nil {
+				return fmt.Errorf("properties: %w", err)
 			}
 			if err := o.Set(name, value); err != nil {
 				return fmt.Errorf("properties: %w", err)
@@ -375,7 +420,9 @@ func (g *Game) fromScript(value any) (any, error) {
 	}
 }
 
-func (g *Game) objectGet(get func(*world.Object, string) (any, bool)) scripting.Method {
+// objectGet reads a property: inherited from o's parents, falling back to
+// its field's default, or only o's own when inherit is false.
+func (g *Game) objectGet(inherit bool) scripting.Method {
 	return func(key any, args scripting.Args) (any, error) {
 		o, err := g.object(key)
 		if err != nil {
@@ -388,8 +435,19 @@ func (g *Game) objectGet(get func(*world.Object, string) (any, bool)) scripting.
 		if err := structuralName(name); err != nil {
 			return nil, err
 		}
+		f, checked, err := g.checkField(o, name)
+		if err != nil {
+			return nil, err
+		}
 
-		value, _ := get(o, name)
+		get := o.GetOwn
+		if inherit {
+			get = o.Get
+		}
+		value, ok := get(name)
+		if !ok && inherit && checked && f.HasDefault {
+			value = f.Default
+		}
 
 		return g.toScript(value), nil
 	}
@@ -414,6 +472,9 @@ func (g *Game) objectSet(key any, args scripting.Args) (any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("argument #2: %w", err)
 	}
+	if err := g.checkProperty(o, name, value); err != nil {
+		return nil, err
+	}
 
 	return nil, o.Set(name, value)
 }
@@ -430,6 +491,9 @@ func (g *Game) objectDelete(key any, args scripting.Args) (any, error) {
 	if err := structuralName(name); err != nil {
 		return nil, err
 	}
+	if _, _, err := g.checkField(o, name); err != nil {
+		return nil, err
+	}
 
 	return nil, o.Delete(name)
 }
@@ -442,6 +506,7 @@ var structuralFields = map[string]string{
 	"parent":   "Read it as o.parent, and set it with o:set_parent(parent) or parent = ... in world.create.",
 	"location": "Read it as o.location, and set it with o:move_to(place) or location = ... in world.create.",
 	"contents": "Read it as o.contents; it lists the objects whose location is o, so move things in with thing:move_to(o).",
+	"types":    "Read it as o.types, and change it with o:add_type(name) and o:remove_type(name), or types = { ... } in world.create.",
 }
 
 // structuralName errors for a property named after an object field, which
@@ -510,6 +575,17 @@ func (g *Game) objectSetParent(key any, args scripting.Args) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	types := o.Types()
+	if parent != nil {
+		for _, t := range parent.AllTypes() {
+			if !slices.Contains(types, t) {
+				types = append(types, t)
+			}
+		}
+	}
+	if err := g.checkOwnProperties(o, types, "change its parent"); err != nil {
+		return nil, err
+	}
 
 	return nil, o.SetParent(parent)
 }
@@ -547,4 +623,69 @@ func (g *Game) objectSend(key any, args scripting.Args) (any, error) {
 	}
 
 	return nil, nil
+}
+
+func (g *Game) objectAddType(key any, args scripting.Args) (any, error) {
+	o, err := g.object(key)
+	if err != nil {
+		return nil, err
+	}
+	name, err := args.String(0)
+	if err != nil {
+		return nil, err
+	}
+	if err := g.schema.Declared(name); err != nil {
+		return nil, err
+	}
+	types := o.AllTypes()
+	if !slices.Contains(types, name) {
+		types = append([]string{name}, types...)
+	}
+	if err := g.checkOwnProperties(o, types, "add the type "+name); err != nil {
+		return nil, err
+	}
+
+	return nil, o.AddType(name)
+}
+
+func (g *Game) objectRemoveType(key any, args scripting.Args) (any, error) {
+	o, err := g.object(key)
+	if err != nil {
+		return nil, err
+	}
+	name, err := args.String(0)
+	if err != nil {
+		return nil, err
+	}
+	if !slices.Contains(o.Types(), name) {
+		if slices.Contains(o.AllTypes(), name) {
+			return nil, fmt.Errorf("%s has the type %s from its parent, not of its own, so it can't remove it. Remove it from the parent, or change the parent.", o, name)
+		}
+		return nil, nil
+	}
+
+	var remaining []string
+	for _, t := range o.AllTypes() {
+		if t != name || o.Parent() != nil && slices.Contains(o.Parent().AllTypes(), t) {
+			remaining = append(remaining, t)
+		}
+	}
+	if err := g.checkOwnProperties(o, remaining, "remove the type "+name); err != nil {
+		return nil, err
+	}
+
+	return nil, o.RemoveType(name)
+}
+
+func (g *Game) objectHasType(key any, args scripting.Args) (any, error) {
+	o, err := g.object(key)
+	if err != nil {
+		return nil, err
+	}
+	name, err := args.String(0)
+	if err != nil {
+		return nil, err
+	}
+
+	return slices.Contains(o.AllTypes(), name), nil
 }
