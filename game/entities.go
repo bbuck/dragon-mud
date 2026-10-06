@@ -75,10 +75,7 @@ func (g *Game) request(ctx context.Context, p *player, r session.Request) {
 		}
 
 	default:
-		g.log.Debug("unknown client request", "request", r.Name)
-		if r.ID != "" {
-			p.s.Send(message.Message{Kind: r.Name, Reply: r.ID})
-		}
+		g.clientEvent(ctx, p, r)
 	}
 }
 

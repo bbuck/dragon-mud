@@ -1,7 +1,19 @@
 // The core game client. It owns the WebSocket: HTML frames from the server
 // are handed to htmx, which applies their out-of-band swaps into the page's
-// slots (#feed for now), and reply frames resolve requests. See
-// docs/design.md §5.
+// slots (#feed for now), reply frames resolve requests, and event frames
+// go to plugins' listeners. See docs/design.md §5.
+//
+// Plugins' JavaScript uses it through the import map:
+//
+//   import { client } from "dragon";
+//
+//   client.send("cast fireball goblin");             // a command
+//   client.push("mapping:pan", { x: 4 });             // a plugin's client event
+//   const area = await client.request("mapping:area", { id: "riverside" });
+//   client.on("mapping:path_found", (data) => ...);   // pushed by session:push
+//   client.onMessage("room", (element) => ...);       // a message in the feed
+//   client.connection.on("connected", () => ...);     // also "disconnected"
+//   client.hook("mapping-pin", { mounted(el) {}, removed(el) {} });
 
 const MAX_FEED_LINES = 2000;
 const RECONNECT_DELAY_MS = 2000;
@@ -14,23 +26,53 @@ const status = document.getElementById("status");
 
 let socket = null;
 
+// listeners maps a name to the functions listening for it: event names
+// for client.on, "message:<kind>" for client.onMessage and
+// "connection:<state>" for client.connection.on.
+const listeners = new Map();
+
+function listen(name, handler) {
+  if (!listeners.has(name)) listeners.set(name, new Set());
+  listeners.get(name).add(handler);
+  return () => listeners.get(name)?.delete(handler);
+}
+
+function emit(name, ...args) {
+  for (const handler of listeners.get(name) ?? []) {
+    try {
+      handler(...args);
+    } catch (err) {
+      console.error(`dragon: a ${name} listener failed`, err);
+    }
+  }
+}
+
 function connect() {
   const scheme = location.protocol === "https:" ? "wss" : "ws";
   socket = new WebSocket(`${scheme}://${location.host}/ws`);
 
-  socket.addEventListener("open", () => setStatus("Connected", "connected"));
+  socket.addEventListener("open", () => {
+    setStatus("Connected", "connected");
+    emit("connection:connected");
+  });
 
   socket.addEventListener("message", (event) => {
     const frame = JSON.parse(event.data);
     if (frame.t === "html") {
       const stick = nearBottom();
+      const last = feed.lastElementChild;
       htmx.swap(feed, frame.html, { swapStyle: "none" });
+      for (let el = last ? last.nextElementSibling : feed.firstElementChild; el; el = el.nextElementSibling) {
+        if (el.dataset.kind) emit(`message:${el.dataset.kind}`, el);
+      }
       trimFeed();
       if (stick) feed.scrollTop = feed.scrollHeight;
       if (frame.secret) setSecret(true);
     } else if (frame.t === "reply") {
-      pending.get(frame.id)?.resolve(frame.html ?? "");
+      pending.get(frame.id)?.resolve("data" in frame ? frame.data : frame.html ?? "");
       pending.delete(frame.id);
+    } else if (frame.t === "event") {
+      emit(frame.name, frame.data ?? null);
     }
   });
 
@@ -38,6 +80,7 @@ function connect() {
     for (const { reject } of pending.values()) reject(new Error("disconnected"));
     pending.clear();
     setStatus("Disconnected. Reconnecting…", "disconnected");
+    emit("connection:disconnected");
     setTimeout(connect, RECONNECT_DELAY_MS);
   });
 }
@@ -48,11 +91,20 @@ function send(line) {
   }
 }
 
-// Requests ask the server for something and resolve with its reply's HTML.
+// Requests ask the server for something and resolve with its reply: a
+// plugin's client event handler's answer, or HTML for the engine's own
+// requests, such as tooltips.
 const pending = new Map();
 let lastRequestID = 0;
 
-function request(name, data) {
+// push sends a plugin's client event without waiting for an answer.
+function push(name, data = {}) {
+  if (socket?.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify({ t: "req", name, data }));
+  }
+}
+
+function request(name, data = {}) {
   if (socket?.readyState !== WebSocket.OPEN) {
     return Promise.reject(new Error("not connected"));
   }
@@ -303,7 +355,48 @@ document.addEventListener("keydown", (event) => {
 });
 feed.addEventListener("scroll", () => hideTooltip());
 
-export const client = { send, request };
+// Hooks give plain elements a lifecycle, as connectedCallback does for
+// custom elements: an element with data-dragon-hook="name" calls the
+// hook's mounted(element) when it's added to the page and removed(element)
+// when it leaves.
+const hooks = new Map();
+
+function hook(name, callbacks) {
+  hooks.set(name, callbacks);
+  for (const el of document.querySelectorAll(`[data-dragon-hook="${CSS.escape(name)}"]`)) {
+    callbacks.mounted?.(el);
+  }
+}
+
+function runHooks(node, which) {
+  if (!(node instanceof Element)) return;
+  const els = node.matches("[data-dragon-hook]") ? [node] : [];
+  els.push(...node.querySelectorAll("[data-dragon-hook]"));
+  for (const el of els) {
+    try {
+      hooks.get(el.dataset.dragonHook)?.[which]?.(el);
+    } catch (err) {
+      console.error(`dragon: hook ${el.dataset.dragonHook} failed`, err);
+    }
+  }
+}
+
+new MutationObserver((mutations) => {
+  for (const m of mutations) {
+    m.addedNodes.forEach((node) => runHooks(node, "mounted"));
+    m.removedNodes.forEach((node) => runHooks(node, "removed"));
+  }
+}).observe(document.body, { childList: true, subtree: true });
+
+export const client = {
+  send,
+  push,
+  request,
+  on: listen,
+  onMessage: (kind, handler) => listen(`message:${kind}`, handler),
+  connection: { on: (state, handler) => listen(`connection:${state}`, handler) },
+  hook,
+};
 window.dragon = { client };
 
 connect();

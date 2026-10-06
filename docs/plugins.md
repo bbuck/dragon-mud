@@ -32,8 +32,8 @@ return {
 
 Each part is a table keyed by name. Errors name the part they're in, such
 as `commands.look` or `events.handlers["dragon:said"]`, and a function's
-file and line. Parts to come: `client` (handlers for what the web client
-sends) and `routes` (HTTP handlers).
+file and line. `client` handles what the web client sends (see Client
+events). Still to come: `routes` (HTTP handlers).
 
 **Names defined in Lua are used exactly as written.** A mode, event or slot
 type is called what its key says; the engine never renames it, so the
@@ -478,25 +478,44 @@ return {
 
 ## Web client
 
+A plugin adds to the web client with files in its `web/` directory, which
+needs the `web_client` capability. The game's own `game/web/` works the
+same way, with no capability needed.
+
+```
+mapping/web/
+  main.mjs        loaded on every page: define elements, listen for events
+  map.css         every top-level stylesheet is linked on every page
+  map.mjs         other modules, imported from main.mjs or each other
+  vendor/         third-party code, copied in
+```
+
 ### JavaScript modules
 
-Plain ES modules, no build step. The engine generates an import map from the
-installed plugins:
+Plain ES modules, no build step. The engine generates an import map from
+the loaded plugins:
 
 ```html
 <script type="importmap">
 { "imports": {
-  "dragon":   "/assets/dragon/client.mjs",
-  "mapping/": "/plugins/mapping/9f8e7d/web/",
-  "rooms/":   "/plugins/grid-rooms/a1b2c3/web/"
+  "dragon":       "/assets/client.mjs",
+  "mapping/":     "/plugins/mapping/9f8e7d6c5b4a/",
+  "grid-rooms/":  "/plugins/grid-rooms/a1b2c3d4e5f6/",
+  "dragon:rooms/": "/plugins/grid-rooms/a1b2c3d4e5f6/"
 } }
 </script>
 ```
 
-- API names resolve to the providing plugin, so "provides" works in JS too.
-- The lock hash in the path gives immutable caching; dev mode disables it.
+- Each plugin's files import by its name (`import "mapping/map.mjs"`),
+  and by each API it provides, so "provides" works in JavaScript too:
+  `import "dragon:rooms/map.mjs"` reaches whichever plugin provides
+  `dragon:rooms`.
+- The hash in the path is of the files' contents, so browsers cache them
+  for good and a change gets a new URL. A page loaded before a reload
+  still gets the current files, uncached.
 - Only a plugin's `web/` directory is served.
-- No CDNs (`script-src 'self'`); vendor dependencies into `web/vendor/`.
+- No CDNs (`script-src 'self'`, plus the page's own import map by its
+  hash); vendor dependencies into `web/vendor/`.
 - Custom element names start with the plugin name (`<mapping-map>`).
 
 ### The client API
@@ -505,20 +524,51 @@ installed plugins:
 import { client } from "dragon";   // also window.dragon
 
 client.send("cast fireball goblin");                 // a command
-client.push("mapping:pan", { x: 4, y: -2 });         // a plugin event
-await client.request("mapping:area", { id: "riverside" });
-client.on("mapping:path_found", handler);            // server-pushed event
-client.onMessage("room", handler);                   // message data
-client.connection.on("reconnecting", handler);
+client.push("mapping:pan", { x: 4, y: -2 });         // a client event
+const area = await client.request("mapping:area", { id: "riverside" });
+client.on("mapping:path_found", (data) => ...);      // pushed by session:push
+client.onMessage("room", (element) => ...);          // a message in the feed
+client.connection.on("connected", handler);          // or "disconnected"
+client.hook("mapping-pin", { mounted(el) {}, removed(el) {} });
 ```
 
 - Game actions are commands; push and request are for UI state and data.
+- `on`, `onMessage` and `connection.on` return a function that stops
+  listening. `onMessage` gets each feed message of a view, as the element
+  added to the feed, after it's added.
 - Custom elements' `connectedCallback` and `disconnectedCallback` are the
-  lifecycle hooks; `data-dragon-hook` covers plain elements.
-- Server side, the plugin's `client` part holds typed handlers that run on the game loop;
-  `session:push(name, data)` sends events to a player's client.
-- Client input is validated and rate-limited; the session always comes from
-  the server.
+  lifecycle hooks; `client.hook(name, ...)` gives the same to plain
+  elements with `data-dragon-hook="name"`.
+
+### Client events
+
+What a plugin's JavaScript sends with `client.push` and `client.request`
+is handled by its `client` part, which needs the `client_events`
+capability:
+
+```lua
+-- mapping/init.lua
+return {
+  client = {
+    pan = function(session, data) ... end,
+    area = function(session, data)
+      return { rooms = rooms_in(data.id) }
+    end,
+  },
+}
+```
+
+- The engine puts the plugin's namespace in front of each name, so `pan`
+  in `mapping` is sent as `mapping:pan`.
+- Handlers run on the game loop as `fn(session, data)`, with the script
+  deadline. What one returns answers a `client.request`, with objects as
+  their ids; a handler that fails is logged and answers with `null`.
+- `session:push(name, data)` sends an event to the player's client, for
+  `client.on`; name it with your plugin's name in front
+  (`mapping:path_found`). Telnet drops these.
+- Only players in the game can send client events, and each connection is
+  limited to 20 a second, in bursts of up to 40. The session always comes
+  from the server, never from what the client sends.
 
 ## Admin UI
 

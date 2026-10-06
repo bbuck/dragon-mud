@@ -6,8 +6,15 @@
   <title>{{.Name}}</title>
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/style.css">
+  {{- range .Head.Styles}}
+  <link rel="stylesheet" href="{{.}}">
+  {{- end}}
+  <script type="importmap">{{.Head.ImportMap}}</script>
   <script src="/assets/htmx.min.js"></script>
   <script type="module" src="/assets/client.mjs"></script>
+  {{- range .Head.Modules}}
+  <script type="module" src="{{.}}"></script>
+  {{- end}}
 </head>
 <body>
   <header>

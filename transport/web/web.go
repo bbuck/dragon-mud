@@ -20,6 +20,7 @@ import (
 
 	"bbuck.dev/dragon-mud/ansi"
 	"bbuck.dev/dragon-mud/message"
+	"bbuck.dev/dragon-mud/plugin"
 	"bbuck.dev/dragon-mud/session"
 )
 
@@ -34,6 +35,11 @@ var page = template.Must(template.ParseFS(static, "static/index.html"))
 type Options struct {
 	Address  string
 	GameName string
+
+	// Plugins, if not nil, returns what the game's plugins serve to the
+	// client: their web/ files, imported through the page's import map.
+	// It's called for each page and file, so reloaded plugins show up.
+	Plugins func() []plugin.Web
 }
 
 // Serve runs the web server until ctx is cancelled.
@@ -88,9 +94,14 @@ func NewHandler(opts Options, g session.Handler, log *slog.Logger) (http.Handler
 	mux.HandleFunc("GET /ws", func(w http.ResponseWriter, r *http.Request) {
 		serveSocket(w, r, g, log)
 	})
+	mux.HandleFunc("GET /plugins/{plugin}/{hash}/{file...}", func(w http.ResponseWriter, r *http.Request) {
+		servePluginFile(w, r, plugins(opts))
+	})
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+		head := pageHead(plugins(opts))
+		w.Header().Set("Content-Security-Policy", csp(head.ImportMapHash))
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := page.Execute(w, map[string]string{"Name": opts.GameName}); err != nil {
+		if err := page.Execute(w, map[string]any{"Name": opts.GameName, "Head": head}); err != nil {
 			log.Error("rendering page", "error", err)
 		}
 	})
@@ -98,11 +109,31 @@ func NewHandler(opts Options, g session.Handler, log *slog.Logger) (http.Handler
 	return securityHeaders(mux), nil
 }
 
+func plugins(opts Options) []plugin.Web {
+	if opts.Plugins == nil {
+		return nil
+	}
+
+	return opts.Plugins()
+}
+
+// csp is the Content-Security-Policy for pages: scripts only from the
+// server, plus the page's own import map, allowed by its hash. Inline
+// styles are allowed for xterm 256 colors in feed messages.
+func csp(importMapHash string) string {
+	scripts := "'self'"
+	if importMapHash != "" {
+		scripts += " 'sha256-" + importMapHash + "'"
+	}
+
+	return "default-src 'self'; script-src " + scripts + "; style-src 'self' 'unsafe-inline'; connect-src 'self'"
+}
+
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Inline styles are allowed for xterm 256 colors in feed messages.
-		w.Header().Set("Content-Security-Policy",
-			"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'")
+		if w.Header().Get("Content-Security-Policy") == "" {
+			w.Header().Set("Content-Security-Policy", csp(""))
+		}
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		next.ServeHTTP(w, r)
 	})
@@ -134,11 +165,14 @@ type clientFrame struct {
 
 // serverFrame is a frame sent to the browser. "html" frames are handed to
 // htmx, which applies their out-of-band swaps. "reply" frames answer the
-// request with the same ID.
+// request with the same ID, with HTML or Data. "event" frames are events
+// for client code, named Name, with Data.
 type serverFrame struct {
 	T    string `json:"t"`
-	HTML string `json:"html"`
+	HTML string `json:"html,omitempty"`
 	ID   string `json:"id,omitempty"`
+	Name string `json:"name,omitempty"`
+	Data any    `json:"data,omitempty"`
 
 	// Secret asks the client to hide the player's next line.
 	Secret bool `json:"secret,omitempty"`
@@ -152,6 +186,7 @@ func serveSocket(w http.ResponseWriter, r *http.Request, g session.Handler, log 
 	}
 
 	ctx := r.Context()
+	limit := newBucket(requestRate, requestBurst)
 	s := session.New(&conn{ws: ws})
 	g.Connect(s)
 	defer g.Disconnect(s)
@@ -167,6 +202,10 @@ func serveSocket(w http.ResponseWriter, r *http.Request, g session.Handler, log 
 		case "cmd":
 			g.Input(s, frame.Line)
 		case "req":
+			if !limit.allow(time.Now()) {
+				log.Debug("dropped a client request over the rate limit", "request", frame.Name)
+				continue
+			}
 			g.Request(s, session.Request{ID: frame.ID, Name: frame.Name, Data: frame.Data})
 		}
 	}
@@ -183,12 +222,19 @@ func (c *conn) Write(m message.Message) error {
 	ctx, cancel := context.WithTimeout(context.Background(), writeTimeout)
 	defer cancel()
 
-	frame := serverFrame{T: "html", HTML: render(m), Secret: m.Secret}
-	if m.Reply != "" {
-		frame = serverFrame{T: "reply", ID: m.Reply, HTML: m.HTML}
-	}
+	return wsjson.Write(ctx, c.ws, frameFor(m))
+}
 
-	return wsjson.Write(ctx, c.ws, frame)
+// frameFor is the frame that sends m.
+func frameFor(m message.Message) serverFrame {
+	switch {
+	case m.Reply != "":
+		return serverFrame{T: "reply", ID: m.Reply, HTML: m.HTML, Data: m.Data}
+	case m.Event != "":
+		return serverFrame{T: "event", Name: m.Event, Data: m.Data}
+	default:
+		return serverFrame{T: "html", HTML: render(m), Secret: m.Secret}
+	}
 }
 
 func (c *conn) Close() error {
@@ -204,7 +250,7 @@ func render(m message.Message) string {
 	}
 
 	return fmt.Sprintf(
-		`<div hx-swap-oob="beforeend:#feed"><div class="msg msg-%s">%s</div></div>`,
-		template.HTMLEscapeString(strings.ReplaceAll(m.Kind, "/", "-")), body,
+		`<div hx-swap-oob="beforeend:#feed"><div class="msg msg-%s" data-kind="%s">%s</div></div>`,
+		template.HTMLEscapeString(strings.ReplaceAll(m.Kind, "/", "-")), template.HTMLEscapeString(m.Kind), body,
 	)
 }

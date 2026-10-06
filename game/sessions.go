@@ -41,6 +41,8 @@ var errClosing = errors.New("the session is disconnecting")
 //	s:play(character)            enter the game as one of the account's
 //	                             characters, ending every mode
 //	s:close([text])              send an optional farewell and disconnect
+//	s:push(name[, data])         send an event to the web client's code,
+//	                             such as a plugin's JavaScript
 func (g *Game) makeSessionType() *scripting.Type {
 	return &scripting.Type{
 		Name: "session",
@@ -78,6 +80,7 @@ func (g *Game) makeSessionType() *scripting.Type {
 			"replace_mode": g.mutating(g.sessionReplaceMode),
 			"play":         g.mutating(g.sessionPlay),
 			"close":        g.mutating(g.sessionClose),
+			"push":         g.mutating(g.sessionPush),
 		},
 		String: func(key any) string {
 			if p, ok := g.players[key.(session.ID)]; ok && p.account.Name != "" {

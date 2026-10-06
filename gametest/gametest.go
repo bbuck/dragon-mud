@@ -409,6 +409,9 @@ type conn struct {
 }
 
 func (c *conn) Write(m message.Message) error {
+	if m.Event != "" || m.Reply != "" {
+		return nil // what a web client's code gets, not text
+	}
 	select {
 	case c.messages <- m:
 	default:

@@ -468,7 +468,7 @@ var identRx = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 // exportKeys are the fields init.lua's table may have, and eventsKeys
 // those of its events.
 var (
-	exportKeys = []string{"commands", "slots", "modes", "events", "api", "tasks", "schema"}
+	exportKeys = []string{"commands", "slots", "modes", "events", "api", "tasks", "schema", "client"}
 	eventsKeys = []string{"declare", "handlers", "wiring"}
 )
 

@@ -183,7 +183,7 @@ func runServe(args []string) error {
 	}
 	if cfg.Web.Client.Enabled {
 		tasks = append(tasks, func() error {
-			return web.Serve(ctx, web.Options{Address: cfg.Web.Address, GameName: cfg.Name}, g, log.With(termlog.PrefixKey, "web"))
+			return web.Serve(ctx, web.Options{Address: cfg.Web.Address, GameName: cfg.Name, Plugins: g.Web}, g, log.With(termlog.PrefixKey, "web"))
 		})
 	}
 

@@ -93,8 +93,8 @@ type conn struct {
 }
 
 func (c *conn) Write(m message.Message) error {
-	if m.Reply != "" {
-		return nil // telnet clients don't make requests
+	if m.Reply != "" || m.Event != "" {
+		return nil // telnet clients don't make requests or run client code
 	}
 
 	text := ansi.Colorize(ansi.Wrap(m.Text, c.wrap) + "[x]")

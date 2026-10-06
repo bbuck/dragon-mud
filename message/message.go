@@ -39,6 +39,21 @@ type Message struct {
 	// Reply is the id of the client request this answers. Transports that
 	// don't make requests drop replies.
 	Reply string
+
+	// Event, when set, makes the message an event for the client's own
+	// code, such as a plugin's JavaScript, with Data as its payload. Data
+	// also answers a client event's request. Transports without client
+	// code drop events.
+	Event string
+	Data  any
+}
+
+// KindEvent is the kind of a message that's an event for client code.
+const KindEvent = "event"
+
+// ClientEvent returns an event for the client's code.
+func ClientEvent(name string, data any) Message {
+	return Message{Kind: KindEvent, Event: name, Data: data}
 }
 
 // Text returns a text message.

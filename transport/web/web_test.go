@@ -102,7 +102,7 @@ func TestSocket(t *testing.T) {
 	if err := wsjson.Read(ctx, ws, &frame); err != nil {
 		t.Fatal(err)
 	}
-	want := `<div hx-swap-oob="beforeend:#feed"><div class="msg msg-system"><span class="ansi-fg-3 ansi-bold">Welcome</span></div></div>`
+	want := `<div hx-swap-oob="beforeend:#feed"><div class="msg msg-system" data-kind="system"><span class="ansi-fg-3 ansi-bold">Welcome</span></div></div>`
 	if frame.T != "html" || frame.HTML != want {
 		t.Errorf("greeting frame = %+v\nwant html %s", frame, want)
 	}
@@ -163,7 +163,7 @@ func TestSocketRequests(t *testing.T) {
 
 func TestRenderHTML(t *testing.T) {
 	got := render(message.Message{Kind: "say", Text: "[r]ignored[x]", HTML: `<q>hi</q>`})
-	want := `<div hx-swap-oob="beforeend:#feed"><div class="msg msg-say"><q>hi</q></div></div>`
+	want := `<div hx-swap-oob="beforeend:#feed"><div class="msg msg-say" data-kind="say"><q>hi</q></div></div>`
 	if got != want {
 		t.Errorf("render = %s\nwant %s", got, want)
 	}

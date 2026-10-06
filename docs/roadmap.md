@@ -94,7 +94,7 @@ over telnet and the web and talk to each other.
 - [x] Tasks (`dragon <plugin>:<task>`, `dragon tasks`), offline. Live tasks
       wait for the admin API (Milestone 5).
 - [ ] `dragon add/update/remove/list`, `dragon.lock`, vendoring.
-- [ ] Import maps, plugin JS, the `dragon` client API, client events.
+- [x] Import maps, plugin JS, the `dragon` client API, client events.
 - [x] `dragon test` with scripted sessions. Conformance suites for APIs
       are still to come.
 - [ ] Plugin introspection: `dragon plugin <name>` shows everything a

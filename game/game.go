@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"bbuck.dev/dragon-mud/auth"
@@ -156,6 +157,11 @@ type Game struct {
 	inbox   chan loopEvent
 	stopped chan struct{}
 	players map[session.ID]*player
+
+	// web is what plugins serve to the web client, as of the last load,
+	// for the web server's goroutines.
+	webMu sync.RWMutex
+	web   []plugin.Web
 }
 
 // scripts is everything loaded from plugins. Its parts are replaced
@@ -188,6 +194,11 @@ type scripts struct {
 	// game is the game's own plugin, if it has one.
 	game *plugin.Plugin
 
+	// client handles what the web client sends, by full event name, and
+	// web is what each plugin serves to it, in load order.
+	client map[string]plugin.ClientDef
+	web    []plugin.Web
+
 	// tasks are every plugin's tasks, by full name.
 	tasks map[string]plugin.TaskDef
 
@@ -211,6 +222,7 @@ func New(ctx context.Context, opts Options) (*Game, error) {
 		return nil, err
 	}
 	g.scripts = s
+	g.setWeb(s.web)
 
 	return g, nil
 }
@@ -277,6 +289,7 @@ func (g *Game) load(ctx context.Context) (*scripts, error) {
 		templates: view.NewTemplates(),
 		origins:   make(map[string]string),
 		tasks:     make(map[string]plugin.TaskDef),
+		client:    make(map[string]plugin.ClientDef),
 	}
 	s.views.SetWidth(g.textWidth)
 	s.templates.SetWidth(g.textWidth)
@@ -426,6 +439,10 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, p *plugin.Plugin, eve
 	}
 
 	if err := s.addTasks(p); err != nil {
+		return err
+	}
+
+	if err := s.addClient(p); err != nil {
 		return err
 	}
 
@@ -651,6 +668,7 @@ func (g *Game) reload(ctx context.Context) {
 
 	g.engine.Close()
 	g.scripts = s
+	g.setWeb(s.web)
 	g.log.Info("reloaded plugins")
 	g.pruneModes(ctx)
 }
