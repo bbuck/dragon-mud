@@ -1180,6 +1180,22 @@ Every script also runs under limits: the deadline in §10, quotas where a
 game wants them, and output that's always text and color markup, never
 JavaScript.
 
+**Enforcing it takes two layers** (not built yet), because hiding modules
+isn't enough on its own: a world script could reach a system function a
+plugin left on a table it exports, or one a plugin passes along in an
+event.
+
+1. **Separate Lua states.** World scripts run in a state of their own,
+   with only game modules loaded, so nothing from a plugin's state is
+   there to find.
+2. **System functions check who's calling.** Every call carries a
+   context (§10), and a call that started from a world script is marked
+   as such for its whole length, including through any plugin code it
+   calls along the way. A system function refuses a world-marked call
+   whatever path reached it, so getting hold of one is harmless. The
+   check lives in Go, beside the system function, where scripts can't
+   change it.
+
 ## Package layout
 
 | Package            | Responsibility                                          |
