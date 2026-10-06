@@ -39,7 +39,6 @@ func TestScriptsLog(t *testing.T) {
 		Name:      "Test Realm",
 		NewEngine: func() scripting.Engine { return lua.New() },
 		Plugins: sources(t, fstest.MapFS{
-			"plugin.lua": file(`return { name = "game" }`),
 			"commands.lua": file(`
 								local log = require("dragon.log")
 				return {

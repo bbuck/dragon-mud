@@ -1,5 +1,5 @@
-// Package plugin loads plugins: a directory with a plugin.lua manifest and
-// files that each return a table for the engine to register.
+// Package plugin loads plugins: a directory with a plugin.toml manifest
+// and files that each return a table for the engine to register.
 // See docs/plugins.md.
 package plugin
 
@@ -10,6 +10,9 @@ import (
 	"io/fs"
 	"regexp"
 
+	"github.com/BurntSushi/toml"
+
+	"bbuck.dev/dragon-mud/command"
 	"bbuck.dev/dragon-mud/scripting"
 )
 
@@ -25,10 +28,10 @@ const BuiltinPrefix = "dragon:"
 
 var nameRx = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
 
-// Manifest is what a plugin's plugin.lua returns.
+// Manifest is what a plugin's plugin.toml says about it.
 type Manifest struct {
-	Name    string
-	Version string
+	Name    string `toml:"name"`
+	Version string `toml:"version"`
 }
 
 // Source is where a plugin's files come from.
@@ -61,46 +64,44 @@ type Plugin struct {
 	scope scripting.Scope
 }
 
-// Open reads the manifest in fsys. Built-in plugins get BuiltinPrefix on
-// their ID.
+// ManifestFile is the plugin's manifest. It's data, read without running
+// any of the plugin's code, so tools can read what a plugin needs before
+// trusting it.
+const ManifestFile = "plugin.toml"
+
+// GameID is the game's own plugin's ID. The game needs no manifest; its
+// settings are in dragon.toml.
+const GameID = "game"
+
+// Open reads src's manifest. Built-in plugins get BuiltinPrefix on their
+// ID, and the game's own plugin is GameID.
 //
 // own, if not nil, returns modules the plugin's scripts can require that
 // are theirs alone, given its ID.
-func Open(ctx context.Context, engine scripting.Engine, fsys fs.FS, builtin bool, own func(id string) []scripting.Module) (*Plugin, error) {
+func Open(ctx context.Context, engine scripting.Engine, src Source, own func(id string) []scripting.Module) (*Plugin, error) {
+	fsys := src.Files
 	p := &Plugin{files: fsys}
 
-	source, err := p.read("plugin.lua")
-	if err != nil {
-		return nil, err
-	}
-	var value any
-	if source != "" {
-		if value, err = engine.Eval(ctx, "plugin.lua", source); err != nil {
+	if src.Game {
+		if p.exists(ManifestFile) || p.exists("plugin.lua") {
+			file := ManifestFile
+			if !p.exists(file) {
+				file = "plugin.lua"
+			}
+			return nil, fmt.Errorf("game/%s: the game's own plugin has no manifest; its settings are in dragon.toml. Delete game/%s.", file, file)
+		}
+		p.Manifest = Manifest{Name: GameID}
+		p.ID = GameID
+	} else {
+		m, err := p.readManifest()
+		if err != nil {
 			return nil, err
 		}
-	}
-	if err != nil {
-		return nil, err
-	}
-	if value == nil {
-		return nil, errors.New(`plugin.lua not found. Every plugin needs one, returning at least its name: return { name = "myplugin" }`)
-	}
-
-	table, ok := value.(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("plugin.lua must return a table, got %s", scripting.TypeName(value))
-	}
-
-	name, _ := table["name"].(string)
-	if !nameRx.MatchString(name) {
-		return nil, fmt.Errorf("plugin.lua: invalid name %q (use lowercase letters, digits, - and _)", name)
-	}
-	version, _ := table["version"].(string)
-
-	p.Manifest = Manifest{Name: name, Version: version}
-	p.ID = name
-	if builtin {
-		p.ID = BuiltinPrefix + name
+		p.Manifest = m
+		p.ID = m.Name
+		if src.Builtin {
+			p.ID = BuiltinPrefix + m.Name
+		}
 	}
 
 	modules, err := fs.Sub(fsys, ModulesDir)
@@ -145,3 +146,40 @@ func (p *Plugin) exists(file string) bool {
 
 	return err == nil
 }
+
+// readManifest reads and checks plugin.toml.
+func (p *Plugin) readManifest() (Manifest, error) {
+	source, err := p.read(ManifestFile)
+	if err != nil {
+		return Manifest{}, err
+	}
+	if source == "" {
+		if p.exists("plugin.lua") {
+			return Manifest{}, errors.New(`plugin.lua: manifests are plugin.toml now, so tools can read them without running the plugin. Move its name and version there, like name = "mapping" and version = "0.1.0" on their own lines, and delete plugin.lua.`)
+		}
+		return Manifest{}, fmt.Errorf(`%s not found. Every plugin needs one, with at least its name: name = "mapping".`, ManifestFile)
+	}
+
+	var m Manifest
+	meta, err := toml.Decode(source, &m)
+	if err != nil {
+		return Manifest{}, fmt.Errorf("%s: %w", ManifestFile, err)
+	}
+	if undecoded := meta.Undecoded(); len(undecoded) > 0 {
+		key := undecoded[0].String()
+		return Manifest{}, fmt.Errorf("%s: unknown setting %q.%s A manifest has name and version.", ManifestFile, key, command.DidYouMean(key, manifestKeys))
+	}
+
+	switch {
+	case m.Name == "":
+		return Manifest{}, fmt.Errorf(`%s needs the plugin's name, like name = "mapping".`, ManifestFile)
+	case !nameRx.MatchString(m.Name):
+		return Manifest{}, fmt.Errorf("%s: name %q isn't a valid plugin name. Use lowercase letters, digits, - and _, starting with a letter, like \"mapping\".", ManifestFile, m.Name)
+	case m.Name == GameID:
+		return Manifest{}, fmt.Errorf("%s: name %q is the game's own plugin. Name this plugin for what it does, like \"combat\".", ManifestFile, m.Name)
+	}
+
+	return m, nil
+}
+
+var manifestKeys = []string{"name", "version"}

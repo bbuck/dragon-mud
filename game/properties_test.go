@@ -9,7 +9,6 @@ import (
 // from the same database reads them back.
 func TestPropertiesSurviveARestart(t *testing.T) {
 	files := fstest.MapFS{
-		"plugin.lua": file(`return { name = "game" }`),
 		"hooks.lua": file(`
 						local world = require("dragon.world")
 			return {
@@ -76,7 +75,6 @@ func TestPropertiesSurviveARestart(t *testing.T) {
 
 func TestStructuralFieldsArentProperties(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"plugin.lua": file(`return { name = "game" }`),
 		"commands.lua": file(`
 						local world = require("dragon.world")
 			return {
@@ -110,7 +108,6 @@ func TestStructuralFieldsArentProperties(t *testing.T) {
 
 func TestObjectFieldErrors(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"plugin.lua": file(`return { name = "game" }`),
 		"commands.lua": file(`
 			return {
 				readname = { execute = function(actor) return actor.name end },

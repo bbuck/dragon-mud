@@ -314,13 +314,13 @@ func (g *Game) loadInto(ctx context.Context, s *scripts) error {
 func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, hooks *hook.Config) error {
 	engine, commands := s.engine, s.commands
 
-	p, err := plugin.Open(ctx, engine, src.Files, src.Builtin, g.pluginModules)
+	p, err := plugin.Open(ctx, engine, src, g.pluginModules)
 	if err != nil {
 		return err
 	}
 
 	if other, ok := s.origins[p.ID]; ok {
-		return fmt.Errorf("plugin.lua names the plugin %q, but %s already has that name. Plugin names must be unique; rename one of them in its plugin.lua.", p.ID, other)
+		return fmt.Errorf("plugin.toml names the plugin %q, but %s already has that name. Plugin names must be unique; rename one of them in its plugin.toml.", p.ID, other)
 	}
 	s.origins[p.ID] = src.Origin
 	s.loading = p.ID

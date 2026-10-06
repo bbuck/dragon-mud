@@ -441,8 +441,8 @@ leaves `characters` out of `builtins`.
 A plugin that changes another plugin's behavior does it through that
 plugin's hooks, not by checking whether it's installed: `dragon:classes`
 would run `available_classes` (`draft`, `classes`), and `dragon:races`
-would filter the list. Optional dependencies (`depends = { weather = {
-"^1.0", optional = true } }`, Milestone 3) are for *using* another plugin's
+would filter the list. Optional dependencies (`weather = { version =
+"^1.0", optional = true }` under `[depends]`, Milestone 3) are for *using* another plugin's
 API.
 
 Input no command matches can still reach the entities around the player,

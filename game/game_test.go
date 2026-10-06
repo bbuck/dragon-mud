@@ -347,7 +347,6 @@ func TestQuit(t *testing.T) {
 
 func TestGamePluginOverridesLook(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"plugin.lua": {Data: []byte(`return { name = "game", version = "0.1.0" }`)},
 		"commands.lua": {Data: []byte(`
 						local game = require("dragon.game")
 			return {
@@ -377,7 +376,6 @@ func TestGamePluginOverridesLook(t *testing.T) {
 
 func TestOverrideMustBeDeclared(t *testing.T) {
 	_, err := newGame(t, fstest.MapFS{
-		"plugin.lua":   {Data: []byte(`return { name = "game" }`)},
 		"commands.lua": {Data: []byte(`return { say = { execute = function() end } }`)},
 	})
 	if err == nil || !strings.Contains(err.Error(), "dragon:chat") {
@@ -387,7 +385,6 @@ func TestOverrideMustBeDeclared(t *testing.T) {
 
 func TestScriptErrorsAreReported(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
 		"commands.lua": {Data: []byte(`
 			return {
 				broken = { execute = function() error("oops") end },
@@ -412,7 +409,6 @@ func TestScriptErrorsAreReported(t *testing.T) {
 
 func TestReload(t *testing.T) {
 	files := fstest.MapFS{
-		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
 		"commands.lua": {Data: []byte(`
 			return { dance = { execute = function(actor) actor:send("You waltz.") end } }
 		`)},
@@ -436,7 +432,6 @@ func TestReload(t *testing.T) {
 
 func TestFailedReloadKeepsScripts(t *testing.T) {
 	files := fstest.MapFS{
-		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
 		"commands.lua": {Data: []byte(`
 			return { dance = { execute = function(actor) actor:send("You waltz.") end } }
 		`)},
@@ -491,7 +486,6 @@ func TestLoginUpgradesOldHashes(t *testing.T) {
 
 // builder is a game plugin that exercises objects from Lua.
 var builder = fstest.MapFS{
-	"plugin.lua": {Data: []byte(`return { name = "game" }`)},
 	"commands.lua": {Data: []byte(`
 				local world = require("dragon.world")
 		local function title(o)
@@ -596,7 +590,6 @@ func TestObjectsPersist(t *testing.T) {
 
 func TestCreateWithOptions(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
 		"commands.lua": {Data: []byte(`
 						local world = require("dragon.world")
 			return {
@@ -656,8 +649,7 @@ func TestCreateWithOptions(t *testing.T) {
 // oneRoom is a game where every player starts in the same room, for tests
 // of things players do to each other.
 var oneRoom = fstest.MapFS{
-	"plugin.lua": file(`return { name = "game" }`),
-	"hooks.lua":  file(`return require("room")`),
+	"hooks.lua": file(`return require("room")`),
 	"lua/room.lua": file(`
 		local world = require("dragon.world")
 		return {
@@ -702,7 +694,6 @@ func TestSayTo(t *testing.T) {
 
 // doors is a game plugin with its own slot type.
 var doors = fstest.MapFS{
-	"plugin.lua": {Data: []byte(`return { name = "game" }`)},
 	"slots.lua": {Data: []byte(`
 		local doors = { red = { open = true }, blue = { open = false } }
 		return {
@@ -802,7 +793,6 @@ func TestObjectSlot(t *testing.T) {
 
 func TestBadCommandsFileIsExplained(t *testing.T) {
 	_, err := newGame(t, fstest.MapFS{
-		"plugin.lua":   {Data: []byte(`return { name = "game" }`)},
 		"commands.lua": {Data: []byte(`return { jump = { froms = {} } }`)},
 	})
 	want := `game/commands.lua: command "jump" has an unknown field "froms". Did you mean "forms"? Allowed fields: desc, forms, execute, replace.`

@@ -40,7 +40,6 @@ func (c *client) expectWithout(want string, unwanted ...string) {
 
 func TestGameHooksChangeAndCancelSay(t *testing.T) {
 	files := fstest.MapFS{
-		"plugin.lua":   {Data: []byte(`return { name = "game" }`)},
 		"lua/room.lua": oneRoom["lua/room.lua"],
 		"hooks.lua": {Data: []byte(`
 			local handlers = require("room")
@@ -87,7 +86,6 @@ func TestGameHooksChangeAndCancelSay(t *testing.T) {
 
 func TestWiringDisablesBasicsArrival(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
 		"wiring.lua": {Data: []byte(`
 			return { hooks = { ["dragon:player_connected"] = { disable = { "dragon:presence" } } } }
 		`)},
@@ -106,7 +104,6 @@ func TestWiringDisablesBasicsArrival(t *testing.T) {
 // characters somewhere has done so when presence says where they arrived.
 func TestArrivalWaitsForTheGame(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
 		"hooks.lua": {Data: []byte(`
 			local game = require("dragon.game")
 			return {
@@ -129,7 +126,6 @@ func TestArrivalWaitsForTheGame(t *testing.T) {
 
 func TestFailingNotificationDoesntStopOthers(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
 		"hooks.lua": {Data: []byte(`
 			return {
 				["dragon:player_connected"] = {
@@ -192,7 +188,6 @@ func TestHooksFileErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.files["plugin.lua"] = &fstest.MapFile{Data: []byte(`return { name = "game" }`)}
 			_, err := newGame(t, tt.files)
 			if err == nil || !strings.Contains(err.Error(), tt.want) {
 				t.Errorf("error = %v\nwant it to contain %q", err, tt.want)
@@ -205,8 +200,8 @@ func TestOnlyTheGameWires(t *testing.T) {
 	srcs := append(sources(t, nil), plugin.Source{
 		Origin: "plugins/extra",
 		Files: fstest.MapFS{
-			"plugin.lua": {Data: []byte(`return { name = "extra" }`)},
-			"wiring.lua": {Data: []byte(`return {}`)},
+			"plugin.toml": {Data: []byte(`name = "extra"`)},
+			"wiring.lua":  {Data: []byte(`return {}`)},
 		},
 	})
 
@@ -224,7 +219,6 @@ func TestOnlyTheGameWires(t *testing.T) {
 
 func TestHooksRunFromLua(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
 		"events.lua": {Data: []byte(`
 			return {
 				can_dance = { fields = { partner = "who with" } },
@@ -282,8 +276,7 @@ func TestHooksForTheCLI(t *testing.T) {
 	hooks, err := Hooks(context.Background(), Options{
 		NewEngine: func() scripting.Engine { return lua.New() },
 		Plugins: sources(t, fstest.MapFS{
-			"plugin.lua": {Data: []byte(`return { name = "game" }`)},
-			"hooks.lua":  {Data: []byte(`return { ["dragon:player_connected"] = { before = { "dragon:presence" }, handler = function() end } }`)},
+			"hooks.lua": {Data: []byte(`return { ["dragon:player_connected"] = { before = { "dragon:presence" }, handler = function() end } }`)},
 		}),
 	})
 	if err != nil {
@@ -306,7 +299,6 @@ func TestHooksForTheCLI(t *testing.T) {
 
 func TestEventsAreChecked(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"plugin.lua": {Data: []byte(`return { name = "game" }`)},
 		"events.lua": {Data: []byte(`
 			return {
 				greeted = {
@@ -387,7 +379,6 @@ func TestEventsFileErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := newGame(t, fstest.MapFS{
-				"plugin.lua": {Data: []byte(`return { name = "game" }`)},
 				"events.lua": {Data: []byte(tt.events)},
 			})
 			if err == nil || !strings.Contains(err.Error(), tt.want) {
@@ -403,8 +394,7 @@ func TestUndeclaredHandlersAreLogged(t *testing.T) {
 		Name:      "Test Realm",
 		NewEngine: func() scripting.Engine { return lua.New() },
 		Plugins: sources(t, fstest.MapFS{
-			"plugin.lua": {Data: []byte(`return { name = "game" }`)},
-			"hooks.lua":  {Data: []byte(`return { ["dragon:player_conected"] = function() end }`)},
+			"hooks.lua": {Data: []byte(`return { ["dragon:player_conected"] = function() end }`)},
 		}),
 		Store: openStore(t),
 		Log:   slog.New(slog.NewTextHandler(&log, nil)),
@@ -422,7 +412,6 @@ func TestUndeclaredHandlersAreLogged(t *testing.T) {
 // A reaction to speech comes after the line it reacts to, for everyone.
 func TestReactionsComeAfterTheAction(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"plugin.lua":   {Data: []byte(`return { name = "game" }`)},
 		"lua/room.lua": oneRoom["lua/room.lua"],
 		"hooks.lua": {Data: []byte(`
 			local game = require("dragon.game")

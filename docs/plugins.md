@@ -42,7 +42,7 @@ A plugin is a directory. Every part is optional except the manifest.
 
 ```
 mapping/
-  plugin.lua        manifest: name, version, provides, depends, capabilities
+  plugin.toml       manifest: name, version, provides, depends, capabilities
   commands.lua      player commands and their forms
   slots.lua         slot types for command patterns
   modes.lua         input modes: prompts, menus, editors (see design.md §4)
@@ -61,7 +61,13 @@ mapping/
 
 ### The game is a plugin
 
-A game directory has the same layout under `game/`. It's the top-level
+**The manifest is data, not code.** `plugin.toml` is read without running
+any of the plugin, so `dragon add` can show what a plugin asks for before
+it's trusted, and the engine knows which capabilities to grant before the
+plugin's Lua loads. It's TOML, like `dragon.toml`.
+
+A game directory has the same layout under `game/`, without a manifest:
+the game's settings are in `dragon.toml`. It's the top-level
 plugin and always wins: its wiring, overrides and templates take precedence
 over every installed plugin. Only the game has a `wiring.lua`, which
 reorders or disables other plugins' hook handlers.
@@ -138,12 +144,23 @@ new extension point.
 
 Plugins depend on **APIs**, not on particular plugins.
 
-```lua
--- grid-rooms/plugin.lua
-return { name = "grid-rooms", version = "0.4.0", provides = { rooms = "1.3" } }
+```toml
+# grid-rooms/plugin.toml
+name = "grid-rooms"
+version = "0.4.0"
 
--- mapping/plugin.lua
-return { name = "mapping", depends = { rooms = "^1.2" } }
+[provides]
+rooms = "1.3"
+```
+
+```toml
+# mapping/plugin.toml
+name = "mapping"
+version = "0.2.0"
+
+[depends]
+rooms = "^1.2"
+weather = { version = "^1.0", optional = true }
 ```
 
 - `dragon:rooms` is the reference implementation of the `rooms` API. Plugin
@@ -161,9 +178,9 @@ different model (rooms on a grid instead of a graph).
 
 Plugins declare what they need, and the engine only grants that:
 
-```lua
-capabilities = { "game", "store", "sql", "tasks", "live_tasks",
-                 "web_client", "client_events", "web_routes", "admin_ui" }
+```toml
+capabilities = ["game", "store", "sql", "tasks", "live_tasks",
+                "web_client", "client_events", "web_routes", "admin_ui"]
 ```
 
 `dragon add` shows capabilities before installing, and `dragon update`

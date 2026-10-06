@@ -11,7 +11,6 @@ import (
 // and the game both add to.
 func sectioned(extra fstest.MapFS) fstest.MapFS {
 	files := fstest.MapFS{
-		"plugin.lua": file(`return { name = "game" }`),
 		"commands.lua": file(`
 			return { look = { replace = true, forms = { { "look", function(actor)
 				actor:send("room", { title = "The Dragon's Rest", here = actor })

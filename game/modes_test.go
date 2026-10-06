@@ -15,7 +15,6 @@ import (
 )
 
 var confirming = fstest.MapFS{
-	"plugin.lua": file(`return { name = "game" }`),
 	"commands.lua": file(`
 				local game = require("dragon.game")
 		local world = require("dragon.world")
@@ -81,7 +80,6 @@ func TestModeFormsAndChoices(t *testing.T) {
 
 func TestModeStateAndResume(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"plugin.lua": file(`return { name = "game" }`),
 		"commands.lua": file(`
 						local game = require("dragon.game")
 			return {
@@ -137,7 +135,6 @@ func TestModeStateAndResume(t *testing.T) {
 
 func TestPassthroughMode(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"plugin.lua": file(`return { name = "game" }`),
 		"commands.lua": file(`
 						local game = require("dragon.game")
 			return { fight = { execute = function(actor)
@@ -174,7 +171,6 @@ func TestPassthroughMode(t *testing.T) {
 
 func TestCharacterCreationSteps(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"plugin.lua": file(`return { name = "game" }`),
 		"hooks.lua": file(`
 			return {
 				["dragon:character_steps"] = function(event)
@@ -227,7 +223,6 @@ func TestCharacterCreationSteps(t *testing.T) {
 func TestChoosingAmongCharacters(t *testing.T) {
 	db := openStore(t)
 	g := startGameWith(t, db, fstest.MapFS{
-		"plugin.lua": file(`return { name = "game" }`),
 		"commands.lua": file(`
 						local game = require("dragon.game")
 			local world = require("dragon.world")
@@ -277,7 +272,6 @@ func TestGameReplacesCharacterSelect(t *testing.T) {
 	// The game's characters mode runs instead of dragon:characters, and
 	// can still use dragon:create_character.
 	g := startGame(t, fstest.MapFS{
-		"plugin.lua": file(`return { name = "game" }`),
 		"modes.lua": file(`
 			return {
 				characters = {
@@ -322,8 +316,8 @@ func TestNoCharactersMode(t *testing.T) {
 func TestModeConflicts(t *testing.T) {
 	waiting := func(name string) plugin.Source {
 		return plugin.Source{Origin: name, Files: fstest.MapFS{
-			"plugin.lua": file(`return { name = "` + name + `" }`),
-			"modes.lua":  file(`return { waiting = { input = function() end } }`),
+			"plugin.toml": file(`name = "` + name + `"`),
+			"modes.lua":   file(`return { waiting = { input = function() end } }`),
 		}}
 	}
 
@@ -342,7 +336,6 @@ func TestModeConflicts(t *testing.T) {
 
 func TestModeErrors(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"plugin.lua": file(`return { name = "game" }`),
 		"commands.lua": file(`
 						local game = require("dragon.game")
 			return {
@@ -374,7 +367,6 @@ func TestModeErrors(t *testing.T) {
 
 func TestReloadEndsRemovedModes(t *testing.T) {
 	files := fstest.MapFS{
-		"plugin.lua": file(`return { name = "game" }`),
 		"commands.lua": file(`
 						local game = require("dragon.game")
 			return { wait = { execute = function(actor) game.session(actor):push_mode("waiting") end } }
@@ -409,8 +401,7 @@ func TestModesFileErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := newGame(t, fstest.MapFS{
-				"plugin.lua": file(`return { name = "game" }`),
-				"modes.lua":  file(tt.source),
+				"modes.lua": file(tt.source),
 			})
 			if err == nil || !strings.Contains(err.Error(), tt.want) {
 				t.Errorf("error = %v, want it to contain %q", err, tt.want)
@@ -421,7 +412,6 @@ func TestModesFileErrors(t *testing.T) {
 
 func TestCancelledCreationDisconnects(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"plugin.lua": file(`return { name = "game" }`),
 		"hooks.lua": file(`
 			return { ["dragon:character_steps"] = function() return false, "The realm is closed to newcomers." end }
 		`),
@@ -444,7 +434,6 @@ func TestCancelledCreationDisconnects(t *testing.T) {
 
 func TestCreationSetsStructureAndNotifies(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"plugin.lua": file(`return { name = "game" }`),
 		"hooks.lua": file(`
 						local world = require("dragon.world")
 			return {
@@ -491,7 +480,6 @@ func TestCreationSetsStructureAndNotifies(t *testing.T) {
 
 func TestCreationRejectsAMisplacedProperty(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"plugin.lua": file(`return { name = "game" }`),
 		"hooks.lua": file(`
 			return { ["dragon:character_steps"] = function(event)
 				table.insert(event.steps, "oops")
@@ -517,7 +505,6 @@ func TestCreationRejectsAMisplacedProperty(t *testing.T) {
 
 func TestCharactersAreProperNames(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"plugin.lua":          file(`return { name = "game" }`),
 		"views/wave.txt.tmpl": file(`{{The .actor}} waves at {{a .thing}}.`),
 		"commands.lua": file(`
 			local world = require("dragon.world")

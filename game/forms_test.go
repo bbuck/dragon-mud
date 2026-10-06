@@ -7,7 +7,6 @@ import (
 )
 
 var shop = fstest.MapFS{
-	"plugin.lua": file(`return { name = "game" }`),
 	"hooks.lua": file(`
 				local forms = require("dragon.forms")
 		local shop = forms.new {
@@ -96,8 +95,7 @@ func TestFormSetErrors(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			_, err := newGame(t, fstest.MapFS{
-				"plugin.lua": file(`return { name = "game" }`),
-				"hooks.lua":  file("local forms = require(\"dragon.forms\")\n" + tc.hooks + "\nreturn {}"),
+				"hooks.lua": file("local forms = require(\"dragon.forms\")\n" + tc.hooks + "\nreturn {}"),
 			})
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("error = %v, want it to contain %q", err, tc.want)

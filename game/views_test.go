@@ -53,7 +53,6 @@ func file(source string) *fstest.MapFile {
 }
 
 var fighting = fstest.MapFS{
-	"plugin.lua": file(`return { name = "game" }`),
 	"commands.lua": file(`
 				local game = require("dragon.game")
 		local world = require("dragon.world")
@@ -198,7 +197,6 @@ func TestMessageFileErrors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.files["plugin.lua"] = file(`return { name = "game" }`)
 			_, err := newGame(t, tt.files)
 			if err == nil || !strings.Contains(err.Error(), tt.want) {
 				t.Errorf("error = %v\nwant it to contain %q", err, tt.want)
@@ -208,7 +206,6 @@ func TestMessageFileErrors(t *testing.T) {
 
 	// Dotfiles are ignored.
 	_, err := newGame(t, fstest.MapFS{
-		"plugin.lua":      file(`return { name = "game" }`),
 		"views/.DS_Store": file(""),
 	})
 	if err != nil {
@@ -217,7 +214,6 @@ func TestMessageFileErrors(t *testing.T) {
 }
 
 var clickable = fstest.MapFS{
-	"plugin.lua": file(`return { name = "game" }`),
 	"commands.lua": file(`
 				local world = require("dragon.world")
 		return {
@@ -458,7 +454,6 @@ func TestScaffoldedGame(t *testing.T) {
 
 func TestNestedViews(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"plugin.lua":                  file(`return { name = "game" }`),
 		"views/chat/shout.txt.tmpl":   file(`{{entity .actor}} shouts {{section "volume"}}!`),
 		"views/chat/shout.html.tmpl":  file(`<b>{{entity .actor}}</b> shouts {{section "volume"}}!`),
 		"views/.hidden/junk.txt.tmpl": file(`ignored`),
