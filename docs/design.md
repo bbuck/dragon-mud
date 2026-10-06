@@ -1180,21 +1180,30 @@ Every script also runs under limits: the deadline in §10, quotas where a
 game wants them, and output that's always text and color markup, never
 JavaScript.
 
-**Enforcing it takes two layers** (not built yet), because hiding modules
-isn't enough on its own: a world script could reach a system function a
-plugin left on a table it exports, or one a plugin passes along in an
-event.
+**Enforcing it happens in the Go bindings** (not built yet), not by
+inspecting Lua. Builders need plugin code: `dragon:items` might offer
+`items.spawn("emerald_grove")`, and a builder's script should be able to
+use it. So rather than keeping plugin code away from world scripts, the
+check sits where Lua can't reach it.
 
-1. **Separate Lua states.** World scripts run in a state of their own,
-   with only game modules loaded, so nothing from a plugin's state is
-   there to find.
-2. **System functions check who's calling.** Every call carries a
-   context (§10), and a call that started from a world script is marked
-   as such for its whole length, including through any plugin code it
-   calls along the way. A system function refuses a world-marked call
-   whatever path reached it, so getting hold of one is harmless. The
-   check lives in Go, beside the system function, where scripts can't
-   change it.
+- **World scripts run in a Lua state of their own.** A plugin API a world
+  script requires (`plugin.require`, Milestone 3) loads into that state,
+  as its own copy of the plugin's modules.
+- **Every system binding checks which state called it.** Each Go function
+  receives the state it was called from, and Lua code can't hide or fake
+  that. A system function called from a world state refuses, with an
+  error naming what was blocked (`items.spawn used dragon.store, which
+  world scripts can't reach`), however creatively the code got there. So
+  plugin code that only uses game features works for builders unchanged.
+  In gopher-lua, coroutines are separate `LState`s sharing one global
+  state, so the check compares global states.
+- **Code never crosses from a trusted state into a world state.** Values
+  converted between states (an event's payload, say) may carry data,
+  never a function from a plugin's state, which would run trusted when
+  called.
+- Each state has its own copy of a plugin's modules, so module variables
+  aren't shared between them. Plugins keep state on objects anyway, as hot
+  reload already requires.
 
 ## Package layout
 
