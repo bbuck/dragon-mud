@@ -93,7 +93,8 @@ over telnet and the web and talk to each other.
       catches typos like `descrition` (lesson 6 below).
 - [x] Tasks (`dragon <plugin>:<task>`, `dragon tasks`), offline. Live tasks
       wait for the admin API (Milestone 5).
-- [ ] `dragon add/update/remove/list`, `dragon.lock`, vendoring.
+- [x] `dragon add/update/remove/list`, `dragon.lock`, vendoring. Installing
+      doesn't fetch dependencies: they name APIs, not plugins.
 - [x] Import maps, plugin JS, the `dragon` client API, client events.
 - [x] `dragon test` with scripted sessions. Conformance suites for APIs
       are still to come.

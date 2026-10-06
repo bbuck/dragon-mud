@@ -76,6 +76,19 @@ const (
 	CapAdminUI      = "admin_ui"      // builder UI extensions
 )
 
+// CapabilityDescs say what each capability lets a plugin do, for dragon
+// add to show before installing one.
+var CapabilityDescs = map[string]string{
+	CapTasks:        "run tasks from the command line, against the game's database",
+	CapLiveTasks:    "run tasks inside the running game",
+	CapStore:        "keep its own data in the game's database",
+	CapSQL:          "read and write the game's database directly",
+	CapWebClient:    "run JavaScript and add CSS in every player's browser",
+	CapClientEvents: "handle what its JavaScript sends from players' browsers",
+	CapWebRoutes:    "serve its own pages and HTTP endpoints",
+	CapAdminUI:      "extend the builder UI; its JavaScript runs with a builder's privileges",
+}
+
 // AllCapabilities lists every capability, in the order docs give them.
 var AllCapabilities = []string{CapTasks, CapLiveTasks, CapStore, CapSQL, CapWebClient, CapClientEvents, CapWebRoutes, CapAdminUI}
 

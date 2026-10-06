@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"bbuck.dev/dragon-mud/event"
+	"bbuck.dev/dragon-mud/install"
 	"bbuck.dev/dragon-mud/scaffold"
 )
 
@@ -125,5 +126,58 @@ func TestNewGamesTestsPass(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "3 passed, 0 failed") {
 		t.Errorf("got\n%s", out.String())
+	}
+}
+
+// Installed plugins load after built-ins and before local plugins, each
+// after the plugins whose APIs it depends on.
+func TestPluginSourcesLoadsInstalledPlugins(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, data string) {
+		t.Helper()
+		path := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("plugins/aardvark/plugin.toml", "name = \"aardvark\"\n[depends]\n\"zoo:keeper\" = \"^1.0\"\n")
+	write("plugins/zookeeper/plugin.toml", "name = \"zookeeper\"\n[provides]\n\"zoo:keeper\" = \"1.0\"\n")
+	write("game/plugins/combat/plugin.toml", "name = \"combat\"\n")
+
+	var lock install.Lock
+	for _, name := range []string{"aardvark", "zookeeper"} {
+		hash, err := install.Hash(os.DirFS(filepath.Join(dir, "plugins", name)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		lock.Plugins = append(lock.Plugins, install.Locked{Name: name, Source: "example.com/" + name, Version: "v1.0.0", Hash: hash})
+	}
+	if err := install.WriteLock(dir, lock); err != nil {
+		t.Fatal(err)
+	}
+
+	sources, err := pluginSources(dir, []string{"chat"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, s := range sources {
+		origin, _ := filepath.Rel(dir, s.Origin)
+		if s.Builtin {
+			origin = s.Origin
+		}
+		got = append(got, origin)
+	}
+	want := []string{"built-in plugin chat", "plugins/zookeeper", "plugins/aardvark", "game/plugins/combat", "game"}
+	if !slices.Equal(got, want) {
+		t.Errorf("sources = %q, want %q", got, want)
+	}
+
+	write("plugins/zookeeper/init.lua", "return {}")
+	if _, err := pluginSources(dir, []string{"chat"}); err == nil || !strings.Contains(err.Error(), "plugins/zookeeper has changed") {
+		t.Errorf("changed plugin: %v", err)
 	}
 }

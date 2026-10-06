@@ -52,6 +52,11 @@ func (v Version) short() string {
 	return v.String()
 }
 
+// Less reports whether v is older than o.
+func (v Version) Less(o Version) bool {
+	return v.less(o)
+}
+
 func (v Version) less(o Version) bool {
 	if v.Major != o.Major {
 		return v.Major < o.Major

@@ -23,6 +23,7 @@ import (
 	"bbuck.dev/dragon-mud/config"
 	"bbuck.dev/dragon-mud/event"
 	"bbuck.dev/dragon-mud/game"
+	"bbuck.dev/dragon-mud/install"
 	"bbuck.dev/dragon-mud/plugin"
 	"bbuck.dev/dragon-mud/random"
 	"bbuck.dev/dragon-mud/scaffold"
@@ -52,6 +53,13 @@ Usage:
   dragon tasks [-dir <directory>]              list the tasks plugins provide
   dragon test [-dir <directory>] [-run <regexp>]
                                                run the game's tests
+  dragon add <source>[@version] [-dir <directory>] [-y]
+                                               install a plugin from git, like
+                                               github.com/usera/mapping@v1.2.0
+  dragon update <plugin>[@version] [-dir <directory>] [-y]
+                                               change an installed plugin's version
+  dragon remove <plugin> [-dir <directory>]    uninstall a plugin
+  dragon list [-dir <directory>]               list the installed plugins
   dragon <plugin>:<task> [-dir <directory>] [args...]
                                                run a task, after the tasks it
                                                depends on
@@ -80,6 +88,14 @@ func main() {
 		err = runTasks(os.Args[2:], os.Stdout)
 	case "test":
 		err = runTest(os.Args[2:], os.Stdout)
+	case "add":
+		err = runAdd(os.Args[2:], os.Stdin, os.Stdout)
+	case "update":
+		err = runUpdate(os.Args[2:], os.Stdin, os.Stdout)
+	case "remove":
+		err = runRemove(os.Args[2:], os.Stdout)
+	case "list":
+		err = runList(os.Args[2:], os.Stdout)
 	default:
 		if strings.Contains(os.Args[1], ":") {
 			err = runTask(os.Args[1], os.Args[2:], os.Stdout)
@@ -423,8 +439,11 @@ func showEvent(out io.Writer, events *event.Registry, name string) error {
 }
 
 // pluginSources lists the built-in plugins the game loads, in the engine's
-// order, then the game's local plugins in game/plugins by directory name,
-// then the game's own plugin.
+// order, then the plugins installed in plugins/, then the game's local
+// plugins in game/plugins, then the game's own plugin. Installed and local
+// plugins are each in directory name order, moved after the plugins that
+// provide the APIs they depend on. Installed plugins must match
+// dragon.lock.
 func pluginSources(dir string, builtins []string) ([]plugin.Source, error) {
 	var sources []plugin.Source
 	for _, name := range builtin.Names {
@@ -442,6 +461,17 @@ func pluginSources(dir string, builtins []string) ([]plugin.Source, error) {
 		})
 	}
 
+	lock, err := install.Verify(dir)
+	if err != nil {
+		return nil, err
+	}
+	var installed []plugin.Source
+	for _, name := range lock.Names() {
+		pluginDir := filepath.Join(dir, install.Dir, name)
+		installed = append(installed, plugin.Source{Origin: pluginDir, Files: os.DirFS(pluginDir)})
+	}
+	sources = append(sources, plugin.Order(installed)...)
+
 	gameDir := filepath.Join(dir, "game")
 	localDir := filepath.Join(gameDir, plugin.LocalDir)
 	if isDir(localDir) {
@@ -449,13 +479,15 @@ func pluginSources(dir string, builtins []string) ([]plugin.Source, error) {
 		if err != nil {
 			return nil, err
 		}
+		var local []plugin.Source
 		for _, e := range entries {
 			if !e.IsDir() || strings.HasPrefix(e.Name(), ".") {
 				continue
 			}
 			pluginDir := filepath.Join(localDir, e.Name())
-			sources = append(sources, plugin.Source{Origin: pluginDir, Files: os.DirFS(pluginDir)})
+			local = append(local, plugin.Source{Origin: pluginDir, Files: os.DirFS(pluginDir)})
 		}
+		sources = append(sources, plugin.Order(local)...)
 	}
 
 	if isDir(gameDir) {

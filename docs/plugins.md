@@ -93,7 +93,8 @@ reorders or disables other plugins' event handlers.
 code, split out the way a game would split out combat or crafting: edited
 in place, committed with the game, never in `dragon.lock`. They load after
 built-in and installed plugins and before the game itself, in directory
-name order (until `depends` orders them). Moving one to its own repository
+name order, except that a plugin loads after the plugins providing the
+APIs it depends on. Moving one to its own repository
 and installing it with `dragon add` is how a game shares it. Plugin names
 must be unique across every plugin a game loads.
 
@@ -353,21 +354,40 @@ need no capability: every plugin has them, and so do world scripts
 ## Distribution
 
 ```sh
-dragon add github.com/usera/pluginb[@v1.2.0]
-dragon update github.com/usera/pluginb
-dragon remove github.com/usera/pluginb
+dragon add github.com/usera/mapping[@v1.2.0]
+dragon update mapping[@v1.3.0]
+dragon remove mapping
 dragon list
 ```
 
-- Any git host. Versions are semver tags.
-- `dragon.lock` pins the commit and a content hash. The server won't start if
-  files don't match.
-- Plugins are vendored into `plugins/` and committed with the game.
-- Version conflicts are resolved like Go modules (minimum version that
-  satisfies everyone, one version per game).
-- A plugin's identity is its path; its short name comes from the manifest.
-  Short name clashes are resolved with an alias in the game config.
-- A searchable index can come later.
+- **Any git host.** A source is a path fetched over HTTPS
+  (`github.com/usera/mapping`), or a URL, SSH address or local path git
+  can clone. Versions are tags of one to three numbers, with or without a
+  `v` (`v1.2.0`); `dragon add` installs the newest unless given one, and
+  other tags, including pre-releases, are ignored.
+- **Installed plugins are vendored** into `plugins/<name>/`, named by
+  their manifest, without their git history, and committed with the game.
+  They load after the built-ins and before the game's local plugins.
+- **`dragon.lock`** records each one's source, tag, commit and a hash of
+  its files. The server won't start if `plugins/` doesn't match: a
+  changed file, a missing plugin or a directory `dragon add` didn't
+  install is an error saying what to do. To change an installed plugin,
+  move it to `game/plugins/` and it's a local plugin.
+- **`dragon add` shows the capabilities** a plugin asks for, with what
+  each lets it do, and asks before installing (`-y` doesn't ask).
+  `dragon update` asks only when the new version wants capabilities the
+  installed one didn't. `update` and `remove` take a plugin's name or
+  source.
+- **Dependencies aren't fetched.** `[depends]` names APIs, not where to
+  get a plugin providing one, so after installing, `dragon add` lists any
+  API the game's plugins depend on that nothing provides, or provides at
+  the wrong version, and the game won't start until it's fixed. One
+  version of each plugin per game.
+- A plugin's identity is its source; its short name comes from the
+  manifest. Two installed plugins with the same name, or one named like a
+  local plugin, is an error. (Aliases in the game config may come later.)
+- A searchable index, which could map APIs to the plugins providing them,
+  can come later.
 
 ## Tasks
 
