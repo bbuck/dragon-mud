@@ -102,7 +102,7 @@ over telnet and the web and talk to each other.
       is `rooms:can_move` (hook), `rooms:left` in the old room, `move_to`,
       then `rooms:entered` in the new one (notifications carrying `actor`,
       so mobs moving count too).
-- [ ] Built-in actions come in pairs: a hook before (change or cancel)
+- [x] Built-in actions come in pairs: a hook before (change or cancel)
       and a notification after (react). `dragon:chat` gets `dragon:said`
       and `dragon:emoted`, so NPCs answer after the player's line, not
       inside `dragon:before_say` (lesson 2 below).

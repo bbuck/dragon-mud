@@ -418,3 +418,53 @@ func TestUndeclaredHandlersAreLogged(t *testing.T) {
 		t.Errorf("log = %s\nwant it to contain %s", log.String(), want)
 	}
 }
+
+// A reaction to speech comes after the line it reacts to, for everyone.
+func TestReactionsComeAfterTheAction(t *testing.T) {
+	g := startGame(t, fstest.MapFS{
+		"plugin.lua":   {Data: []byte(`return { name = "game" }`)},
+		"lua/room.lua": oneRoom["lua/room.lua"],
+		"hooks.lua": {Data: []byte(`
+			local game = require("dragon.game")
+			local handlers = require("room")
+			for name, handler in pairs({
+				["dragon:said"] = function(event)
+					if event.message:find("hail") then
+						game.broadcast("The keeper nods to " .. event.actor:get("name") .. ".")
+					end
+				end,
+				["dragon:before_emote"] = function(event)
+					if event.action:find("dances") then return false, "Not in here." end
+					event.action = event.action:upper()
+					return event
+				end,
+				["dragon:emoted"] = function(event)
+					game.broadcast("The keeper saw: " .. event.action)
+				end,
+			}) do handlers[name] = handler end
+			return handlers
+		`)},
+	})
+
+	alice := connect(t, g)
+	alice.login("Alice")
+	bob := connect(t, g)
+	bob.login("Bob")
+
+	alice.send("say hail")
+	alice.expectWithout(`You say, "hail"`, "keeper")
+	alice.expect("The keeper nods to Alice.")
+	bob.expectWithout(`Alice says, "hail"`, "keeper")
+	bob.expect("The keeper nods to Alice.")
+
+	alice.send("say hail to bob")
+	bob.expectWithout(`Alice says to you, "hail"`, "keeper")
+	bob.expect("The keeper nods to Alice.")
+
+	alice.send("emote waves.")
+	bob.expectWithout("Alice WAVES.", "keeper")
+	bob.expect("The keeper saw: WAVES.")
+
+	alice.send("emote dances.")
+	alice.expectWithout("Not in here.", "DANCES")
+}

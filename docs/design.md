@@ -542,7 +542,12 @@ arrivals and departures where the player is, or to everyone for a player
 who is nowhere; its arrival handler runs after the game's, which is where a
 game puts new characters somewhere. `say` and `emote` reach the actor's
 location the same way. `dragon:chat` runs `dragon:before_say` (`actor`,
-`message`, and `target` when saying something to someone). The web client
+`message`, and `target` when saying something to someone) and
+`dragon:before_emote` (`actor`, `action`), and after the line has gone
+out, `dragon:said` and `dragon:emoted` with the same fields. **Built-in
+actions come in pairs**: a hook before, to change or stop the action, and
+a notification after, to react to it, so an NPC answering `dragon:said`
+speaks after the line it answers. The web client
 runs `dragon:get_tooltip` and `dragon:get_default_action` (`viewer`, `entity`; §6).
 Input no command matches runs `dragon:unmatched_input` (`actor`, `line`,
 `reason`; §2).

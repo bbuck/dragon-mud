@@ -69,4 +69,13 @@ return {
 	--     return false, "You think better of mentioning dragons in here."
 	--   end
 	-- end,
+
+	-- A notification: something was said, and everyone heard it. Answer
+	-- here, so the answer comes after the line it answers.
+	--
+	-- ["dragon:said"] = function(event)
+	--   if event.message:lower():find("cider") then
+	--     event.actor:send("ambient", { text = "The barkeep slides a mug of cider your way." })
+	--   end
+	-- end,
 }

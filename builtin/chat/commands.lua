@@ -13,18 +13,20 @@
 local game = require("dragon.game")
 local hooks = require("dragon.hooks")
 
--- dragon:before_say lets other plugins change what's said, or stop it. It
--- returns the message to say, or nil if a handler cancelled.
-local function before_say(actor, message, target)
-  local event, reason = hooks.run("dragon:before_say", { actor = actor, message = message, target = target })
-  if not event then
-    if reason then
-      actor:send(reason)
-    end
-    return nil
+-- Each action runs a hook before it, which other plugins use to change it
+-- or stop it, and a notification after it, for reacting to it: an NPC
+-- answers dragon:said, so its reply comes after the line it answers. The
+-- hooks are declared in events.lua.
+
+-- before runs the hook, telling the actor why if a handler cancelled. It
+-- returns the event as the handlers left it, or nil if one cancelled.
+local function before(hook, event)
+  local result, reason = hooks.run(hook, event)
+  if not result and reason then
+    event.actor:send(reason)
   end
 
-  return event.message
+  return result
 end
 
 -- around sends to everyone where actor is, or to the whole game if actor
@@ -38,18 +40,38 @@ local function around(actor, kind, data, block, except)
 end
 
 local function say(actor, args)
-  local message = before_say(actor, args.message)
-  if not message then
+  local event = before("dragon:before_say", { actor = actor, message = args.message })
+  if not event then
     return
   end
 
-  local data = { actor = actor, message = message }
+  local data = { actor = actor, message = event.message }
   actor:send("say", data, "actor")
   around(actor, "say", data, "others", actor)
+  hooks.notify("dragon:said", data)
+end
+
+local function say_to(actor, args)
+  local event = before("dragon:before_say", { actor = actor, message = args.message, target = args.target })
+  if not event then
+    return
+  end
+
+  local data = { actor = actor, message = event.message, target = args.target }
+  actor:send("say", data, "actor")
+  args.target:send("say", data, "target")
+  hooks.notify("dragon:said", data)
 end
 
 local function emote(actor, args)
-  around(actor, "emote", { actor = actor, action = args.action })
+  local event = before("dragon:before_emote", { actor = actor, action = args.action })
+  if not event then
+    return
+  end
+
+  local data = { actor = actor, action = event.action }
+  around(actor, "emote", data)
+  hooks.notify("dragon:emoted", data)
 end
 
 return {
@@ -58,17 +80,7 @@ return {
     forms = {
       { "say <message>", say },
       { "'<message>", say },
-      { "say <message> to <target:object:here>", function(actor, args)
-          local target = args.target
-          local message = before_say(actor, args.message, target)
-          if not message then
-            return
-          end
-
-          local data = { actor = actor, message = message, target = target }
-          actor:send("say", data, "actor")
-          target:send("say", data, "target")
-        end, desc = "Say something to someone." },
+      { "say <message> to <target:object:here>", say_to, desc = "Say something to someone." },
     },
   },
 
