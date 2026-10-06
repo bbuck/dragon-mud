@@ -1,5 +1,5 @@
--- What a player sees when they look around. Modules in lua/ are shared by
--- your game's files: commands.lua and hooks.lua both load this one with
+-- What a player sees when they look around. Any file here can be shared
+-- with require: commands.lua and handlers.lua both load this one with
 -- require("look").
 
 local look = {}

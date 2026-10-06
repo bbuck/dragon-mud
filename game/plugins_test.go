@@ -71,7 +71,7 @@ func TestManifestErrors(t *testing.T) {
 
 func TestPluginRequiresItsOwnModules(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"lua/items.lua": file(`return { describe = function(name) return "a shiny " .. name end }`),
+		"items.lua": file(`return { describe = function(name) return "a shiny " .. name end }`),
 		"commands.lua": file(`
 			local items = require("items")
 			return {
@@ -95,7 +95,7 @@ func TestPluginRequiresItsOwnModules(t *testing.T) {
 
 func TestBootedRunsOnceBeforeInput(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"hooks.lua": file(`
+		"handlers.lua": file(`
 						local world = require("dragon.world")
 			return {
 				["dragon:booted"] = function()
@@ -119,4 +119,85 @@ func TestBootedRunsOnceBeforeInput(t *testing.T) {
 
 	alice.send("boots")
 	alice.expect("booted 1 times")
+}
+
+func TestInitErrors(t *testing.T) {
+	tests := []struct {
+		name  string
+		files fstest.MapFS
+		want  string
+	}{
+		{
+			"no init.lua",
+			fstest.MapFS{"commands.lua": file(`return {}`), "look.lua": file(`return {}`)},
+			`game: there's no init.lua, so nothing loads commands.lua and look.lua. A plugin's init.lua returns what it provides, built from its other files, like return { commands = require("commands") }.`,
+		},
+		{
+			"returns nothing",
+			fstest.MapFS{"init.lua": file(`local x = 1`)},
+			`game: init.lua returns nothing. It returns a table of what the plugin provides`,
+		},
+		{
+			"unknown export",
+			fstest.MapFS{"init.lua": file(`return { comands = {} }`)},
+			`game: init.lua has an unknown field "comands". Did you mean "commands"? Allowed fields: commands, slots, modes, events.`,
+		},
+		{
+			"hooks moved",
+			fstest.MapFS{"init.lua": file(`return { hooks = {} }`)},
+			`game: init.lua: hooks are part of events now: events = { handlers = require("handlers") }.`,
+		},
+		{
+			"module returns nothing",
+			fstest.MapFS{"init.lua": file(`return { commands = require("commands") }`), "commands.lua": file(`local x = 1`)},
+			`game: commands is a boolean, but it must be a table keyed by name, like commands = { look = { forms = { ... } } }. A file loaded with require must return its table; one that returns nothing gives true.`,
+		},
+		{
+			"unknown events field",
+			fstest.MapFS{"init.lua": file(`return { events = { handler = {} } }`)},
+			`game: events has an unknown field "handler". Did you mean "handlers"?`,
+		},
+		{
+			"local plugins aren't modules",
+			fstest.MapFS{"init.lua": file(`return { commands = require("plugins.extras.commands") }`), "plugins/extras/commands.lua": file(`return {}`)},
+			`no module "plugins.extras.commands"`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := New(t.Context(), Options{
+				Name:      "Test Realm",
+				NewEngine: func() scripting.Engine { return lua.New() },
+				Plugins:   append(sources(t, nil), plugin.Source{Origin: "game", Files: tt.files, Game: true}),
+				Store:     openStore(t),
+				Log:       slog.New(slog.DiscardHandler),
+			})
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Errorf("error = %v\nwant it to contain %q", err, tt.want)
+			}
+		})
+	}
+}
+
+// File names are the plugin's own business: only what init.lua exports
+// matters.
+func TestInitNamesTheParts(t *testing.T) {
+	g := startGame(t, fstest.MapFS{
+		"init.lua": file(`
+			return {
+				commands = require("verbs.all"),
+				events = { handlers = require("reactions") },
+			}
+		`),
+		"verbs/all.lua": file(`return { wave = { execute = function(actor) actor:send("You wave.") end } }`),
+		"reactions.lua": file(`return { ["dragon:said"] = function(event) event.actor:send("Heard.") end }`),
+	})
+
+	alice := connect(t, g)
+	alice.login("Alice")
+	alice.send("wave")
+	alice.expect("You wave.")
+	alice.send("say hi")
+	alice.expect("Heard.")
 }

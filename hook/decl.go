@@ -20,7 +20,7 @@ type Field struct {
 }
 
 // Decl declares a hook or notification: what it's for and the fields its
-// event has. The plugin that runs a hook declares it, in its events.lua;
+// event has. The plugin that runs a hook declares it, in events.declare;
 // the engine declares its own.
 type Decl struct {
 	Name string
@@ -40,13 +40,13 @@ type Decl struct {
 	Prefix bool
 }
 
-// File is where the hook is declared, for messages.
-func (d Decl) File() string {
+// Where is who declares the hook, for messages: the engine or a plugin.
+func (d Decl) Where() string {
 	if d.Plugin == "" {
 		return "the engine"
 	}
 
-	return d.Plugin + "/events.lua"
+	return d.Plugin
 }
 
 // Field returns the field called name.
@@ -96,7 +96,7 @@ func (d Decl) problem(name string, event map[string]any) string {
 
 // undeclared describes running a hook that nothing declares.
 func undeclared(name string, declared []string) error {
-	return fmt.Errorf("no plugin declares the hook %q.%s The plugin that runs a hook or notification declares it in its events.lua, like return { [%q] = { desc = \"...\", fields = { actor = \"who did it\" } } }.",
+	return fmt.Errorf("no plugin declares the hook %q.%s The plugin that runs a hook or notification declares it in its events.declare, like declare = { [%q] = { desc = \"...\", fields = { actor = \"who did it\" } } }.",
 		name, command.DidYouMean(name, declared), name)
 }
 

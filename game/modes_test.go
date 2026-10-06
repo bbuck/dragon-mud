@@ -171,7 +171,7 @@ func TestPassthroughMode(t *testing.T) {
 
 func TestCharacterCreationSteps(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"hooks.lua": file(`
+		"handlers.lua": file(`
 			return {
 				["dragon:character_steps"] = function(event)
 					table.insert(event.steps, "skip_me")
@@ -307,7 +307,7 @@ func TestGameReplacesCharacterSelect(t *testing.T) {
 
 func TestNoCharactersMode(t *testing.T) {
 	_, err := gameWithout(t, nil, "characters")
-	want := `nothing defines a mode to run after a player logs in to choose or create their character. Add "characters" back to builtins in dragon.toml for dragon:characters, or define characters in game/modes.lua and have it call session:play(character).`
+	want := `nothing defines a mode to run after a player logs in to choose or create their character. Add "characters" back to builtins in dragon.toml for dragon:characters, or add a characters mode to the game's modes in init.lua and have it call session:play(character).`
 	if err == nil || err.Error() != want {
 		t.Errorf("error = %v, want %q", err, want)
 	}
@@ -315,10 +315,10 @@ func TestNoCharactersMode(t *testing.T) {
 
 func TestModeConflicts(t *testing.T) {
 	waiting := func(name string) plugin.Source {
-		return plugin.Source{Origin: name, Files: fstest.MapFS{
+		return plugin.Source{Origin: name, Files: withInit(fstest.MapFS{
 			"plugin.toml": file(`name = "` + name + `"`),
 			"modes.lua":   file(`return { waiting = { input = function() end } }`),
-		}}
+		})}
 	}
 
 	_, err := New(t.Context(), Options{
@@ -328,7 +328,7 @@ func TestModeConflicts(t *testing.T) {
 		Store:     openStore(t),
 		Log:       slog.New(slog.DiscardHandler),
 	})
-	want := `mapping/modes.lua: mode "waiting" sets input, but weather already does. Set replace = true on "waiting" in mapping/modes.lua to use only its version, or remove input from one of them. (Plugins avoid this by namespacing their modes, like "myplugin:waiting".)`
+	want := `mapping: modes.waiting sets input, but weather already does. Set replace = true on modes.waiting in mapping to use only its version, or remove input from one of them. (Plugins avoid this by namespacing their modes, like "myplugin:waiting".)`
 	if err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("error = %v, want %q", err, want)
 	}
@@ -390,12 +390,12 @@ func TestReloadEndsRemovedModes(t *testing.T) {
 
 func TestModesFileErrors(t *testing.T) {
 	tests := []struct{ name, source, want string }{
-		{"bad name", `return { ["Bad-Name"] = {} }`, `game/modes.lua: mode "Bad-Name" isn't a valid mode name.`},
-		{"reserved namespace", `return { ["dragon:editor"] = {} }`, `game/modes.lua: mode "dragon:editor" uses the "dragon:" namespace, which is reserved for the engine's built-in plugins. Use your plugin's name instead, like "game:editor".`},
-		{"login", `return { ["dragon:login"] = {} }`, `game/modes.lua: mode "dragon:login" is the engine's own login, which plugins can't define.`},
-		{"not a table", `return { waiting = true }`, `game/modes.lua: mode "waiting" must be a table such as { input = function(session, line, state) ... end }, not a boolean.`},
-		{"unknown field", `return { waiting = { inptu = function() end } }`, `game/modes.lua: mode "waiting" has an unknown field "inptu". Did you mean "input"?`},
-		{"handler not a function", `return { waiting = { enter = "hi" } }`, `game/modes.lua: mode "waiting": enter must be function(session, state) ... end, not a string.`},
+		{"bad name", `return { ["Bad-Name"] = {} }`, `game: modes["Bad-Name"] isn't a valid mode name.`},
+		{"reserved namespace", `return { ["dragon:editor"] = {} }`, `game: modes["dragon:editor"] uses the "dragon:" namespace, which is reserved for the engine's built-in plugins. Use your plugin's name instead, like "game:editor".`},
+		{"login", `return { ["dragon:login"] = {} }`, `game: modes["dragon:login"] is the engine's own login, which plugins can't define.`},
+		{"not a table", `return { waiting = true }`, `game: modes.waiting must be a table such as { input = function(session, line, state) ... end }, not a boolean.`},
+		{"unknown field", `return { waiting = { inptu = function() end } }`, `game: modes.waiting has an unknown field "inptu". Did you mean "input"?`},
+		{"handler not a function", `return { waiting = { enter = "hi" } }`, `game: modes.waiting: enter must be function(session, state) ... end, not a string.`},
 	}
 
 	for _, tt := range tests {
@@ -412,7 +412,7 @@ func TestModesFileErrors(t *testing.T) {
 
 func TestCancelledCreationDisconnects(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"hooks.lua": file(`
+		"handlers.lua": file(`
 			return { ["dragon:character_steps"] = function() return false, "The realm is closed to newcomers." end }
 		`),
 	})
@@ -434,7 +434,7 @@ func TestCancelledCreationDisconnects(t *testing.T) {
 
 func TestCreationSetsStructureAndNotifies(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"hooks.lua": file(`
+		"handlers.lua": file(`
 						local world = require("dragon.world")
 			return {
 				["dragon:booted"] = function()
@@ -480,7 +480,7 @@ func TestCreationSetsStructureAndNotifies(t *testing.T) {
 
 func TestCreationRejectsAMisplacedProperty(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
-		"hooks.lua": file(`
+		"handlers.lua": file(`
 			return { ["dragon:character_steps"] = function(event)
 				table.insert(event.steps, "oops")
 				return event

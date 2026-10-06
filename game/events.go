@@ -9,7 +9,7 @@ const (
 )
 
 // engineEvents declares the hooks and notifications the engine runs
-// itself. Plugins declare theirs in events.lua.
+// itself. Plugins declare theirs in events.declare.
 var engineEvents = []hook.Decl{
 	{
 		Name: notifyBooted,

@@ -198,7 +198,7 @@ func (s *scripts) checkSectionHooks() error {
 		chain, _ := s.hooks.Chain(hook)
 		var files []string
 		for _, h := range append(chain.Handlers, chain.Disabled...) {
-			files = append(files, h.File())
+			files = append(files, h.Where())
 		}
 		where := strings.Join(files, ", ")
 

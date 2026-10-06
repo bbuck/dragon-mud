@@ -33,6 +33,15 @@ func (f *function) Call(ctx context.Context, args ...any) (any, error) {
 	return results[0], nil
 }
 
+// Source is the file and line the function is defined at.
+func (f *function) Source() string {
+	if f.fn.Proto == nil {
+		return ""
+	}
+
+	return fmt.Sprintf("%s:%d", f.fn.Proto.SourceName, f.fn.Proto.LineDefined)
+}
+
 // CallAll invokes the Lua function with args and returns every result.
 func (f *function) CallAll(ctx context.Context, args ...any) ([]any, error) {
 	return f.call(ctx, glua.MultRet, args)

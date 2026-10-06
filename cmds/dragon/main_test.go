@@ -80,7 +80,7 @@ func TestShowHook(t *testing.T) {
 	if err := showHook(&out, r, "dragon:before_say"); err != nil {
 		t.Fatal(err)
 	}
-	want := `dragon:before_say, declared in dragon:chat/events.lua.
+	want := `dragon:before_say, declared by dragon:chat.
   Someone is about to say something.
 
 Fields:
@@ -88,7 +88,7 @@ Fields:
   target  who to (optional)
 
 Handlers, in the order they run:
-  1.  game  game/hooks.lua  load order
+  1.  game  events.handlers["dragon:before_say"] in game  load order
 `
 	if out.String() != want {
 		t.Errorf("got\n%s\nwant\n%s", out.String(), want)

@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"context"
 	"fmt"
 	"maps"
 	"slices"
@@ -11,15 +10,15 @@ import (
 	"bbuck.dev/dragon-mud/scripting"
 )
 
-// commandKeys are the fields a command entry in commands.lua may have.
+// commandKeys are the fields a command entry may have.
 var commandKeys = []string{"desc", "forms", "execute", "replace"}
 
-// slotKeys are the fields a slot type entry in slots.lua may have.
+// slotKeys are the fields a slot type entry may have.
 var slotKeys = []string{"desc", "modifiers", "resolve", "single", "replace"}
 
-// Commands loads the commands the plugin's commands.lua returns. A plugin
-// without commands.lua has no commands. Commands are returned sorted by
-// name; each command's forms keep the order they're written in.
+// Commands loads the commands the plugin exports as commands. Commands are
+// returned sorted by name; each command's forms keep the order they're
+// written in.
 //
 //	return {
 //	  say = {
@@ -31,16 +30,15 @@ var slotKeys = []string{"desc", "modifiers", "resolve", "single", "replace"}
 //	  },
 //	  dance = { execute = function(actor, args) ... end },  -- the form "dance [<text>]"
 //	}
-func (p *Plugin) Commands(ctx context.Context) ([]command.CommandDef, error) {
-	file := p.ID + "/commands.lua"
-	table, err := p.evalTable(ctx, "commands.lua", file)
+func (p *Plugin) Commands() ([]command.CommandDef, error) {
+	table, err := p.export("commands", `commands = { look = { forms = { ... } } }`)
 	if err != nil || table == nil {
 		return nil, err
 	}
 
 	var defs []command.CommandDef
 	for _, name := range slices.Sorted(maps.Keys(table)) {
-		def, err := p.commandDef(file, name, table[name])
+		def, err := p.commandDef(name, table[name])
 		if err != nil {
 			return nil, err
 		}
@@ -50,8 +48,8 @@ func (p *Plugin) Commands(ctx context.Context) ([]command.CommandDef, error) {
 	return defs, nil
 }
 
-func (p *Plugin) commandDef(file, name string, raw any) (command.CommandDef, error) {
-	where := fmt.Sprintf("%s: command %q", file, name)
+func (p *Plugin) commandDef(name string, raw any) (command.CommandDef, error) {
+	where := field("commands", name)
 
 	if raw == false {
 		return command.CommandDef{}, fmt.Errorf("%s is false. To remove a command, write %s = { replace = true } instead.", where, name)
@@ -158,7 +156,7 @@ func ParseForm(where string, raw any) (command.FormDef, error) {
 	return form, nil
 }
 
-// SlotDef is a slot type as slots.lua declares it.
+// SlotDef is a slot type as a plugin declares it.
 type SlotDef struct {
 	Name      string
 	Desc      string
@@ -174,7 +172,7 @@ type SlotDef struct {
 	Resolve scripting.Function
 }
 
-// Slots loads the slot types the plugin's slots.lua returns.
+// Slots loads the slot types the plugin exports as slots.
 //
 //	return {
 //	  exit = {
@@ -183,16 +181,15 @@ type SlotDef struct {
 //	    resolve = function(actor, text, modifiers) return exit_or_nil, "reason" end,
 //	  },
 //	}
-func (p *Plugin) Slots(ctx context.Context) ([]SlotDef, error) {
-	file := p.ID + "/slots.lua"
-	table, err := p.evalTable(ctx, "slots.lua", file)
+func (p *Plugin) Slots() ([]SlotDef, error) {
+	table, err := p.export("slots", `slots = { exit = { resolve = function(actor, text, modifiers) ... end } }`)
 	if err != nil || table == nil {
 		return nil, err
 	}
 
 	var defs []SlotDef
 	for _, name := range slices.Sorted(maps.Keys(table)) {
-		where := fmt.Sprintf("%s: slot type %q", file, name)
+		where := field("slots", name)
 		entry, ok := table[name].(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("%s must be a table such as { resolve = function(actor, text, modifiers) ... end }, not a %s.",
@@ -237,28 +234,6 @@ func (p *Plugin) Slots(ctx context.Context) ([]SlotDef, error) {
 	}
 
 	return defs, nil
-}
-
-// evalTable evaluates file, which must return a table. A missing file
-// returns nil, nil.
-func (p *Plugin) evalTable(ctx context.Context, file, scriptName string) (map[string]any, error) {
-	value, err := p.eval(ctx, file, scriptName)
-	if err != nil || value == nil {
-		return nil, err
-	}
-
-	switch v := value.(type) {
-	case map[string]any:
-		return v, nil
-	case []any:
-		if len(v) == 0 {
-			return map[string]any{}, nil
-		}
-		return nil, fmt.Errorf("%s returns a list, but it must return a table keyed by name, like return { look = { ... } }.", scriptName)
-	default:
-		return nil, fmt.Errorf("%s must return a table keyed by name, like return { look = { ... } }, but it returns a %s.",
-			scriptName, scripting.TypeName(value))
-	}
 }
 
 // checkKeys rejects fields entry doesn't allow, with a hint for known

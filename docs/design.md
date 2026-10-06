@@ -86,7 +86,7 @@ one more part of the hook declaration that already lists its fields
 (§4):
 
 ```lua
--- rooms/events.lua
+-- rooms/events.lua, exported as events.declare
 ["rooms:entered"] = {
   fields = { actor = "who arrived", room = "where", from = { "where from", optional = true } },
   audience = { "room.contents", "actor" },
@@ -111,11 +111,11 @@ handlers, for events whose plugin didn't target entities or targeted them
 differently:
 
 ```lua
--- game/wiring.lua
-return { hooks = {
+-- the game's events.wiring
+{
   ["dragon:player_connected"] = { deliver = { "actor.location.contents" } },
   ["combat:attacked"] = { deliver = { "defender.location.contents" } }, -- bystanders react too
-} }
+}
 ```
 
 A handler that calls `o:handle` itself stays possible for anything a
@@ -287,7 +287,7 @@ say = {
   'bob' here."), else the usage of commands whose first word matched, else
   "Huh?".
 - **Slot types** are registered like commands: the engine's `text`, `word`,
-  `number` and `object`, and any a plugin's `slots.lua` returns.
+  `number` and `object`, and any a plugin exports as `slots`.
   `object`'s modifiers say where an object may be: `here` (in the actor's
   room), `held` (carried), `online` (a character someone is playing) and
   `anywhere` (any object, by key or `#id` alone); with none it's
@@ -321,7 +321,7 @@ of modes**, and input goes to the top one:
    commands.
 4. Otherwise the player sees what the mode's forms accept, or "Huh?".
 
-A plugin's `modes.lua` returns its modes:
+A plugin exports its modes as `modes` from `init.lua`:
 
 ```lua
 return {
@@ -455,7 +455,7 @@ which parse it with their own forms (§2). That's how a shopkeeper handles
 can modify the payload the next one sees, or cancel with a reason. The caller
 gets back the final payload and whether it was cancelled.
 
-A plugin's `hooks.lua` returns its handlers, keyed by hook name. Hooks
+A plugin exports its handlers as `events.handlers`, keyed by hook name. Hooks
 the engine runs are named `dragon:...`, so in Lua their keys need brackets:
 `["dragon:player_connected"] = function(event) ... end`. Each is a
 function, or a table with the function and its ordering:
@@ -485,14 +485,14 @@ return {
 
 ### Declaring hooks
 
-**The plugin that runs a hook or notification declares it** in its
-`events.lua`: what it's for, and the fields its event has. The engine
+**The plugin that runs a hook or notification declares it** in
+`events.declare`: what it's for, and the fields its event has. The engine
 declares its own (`dragon:booted`, `dragon:player_connected`, ...,
 and `section:*`). A field is a description, or a table with the
 description first when it can be left out:
 
 ```lua
--- chat/events.lua
+-- chat/events.lua, exported as events.declare
 return {
   ["dragon:before_say"] = {
     desc = "Someone is about to say something. Change event.message, or cancel with a reason they'll see.",
@@ -529,8 +529,8 @@ return {
 ### Notifications (after the fact)
 
 `player_entered_room`, `mob_died`. Can't modify or cancel. Order is
-deterministic but plugins shouldn't depend on it. Handlers are declared in
-`hooks.lua` like hook handlers; what they return is ignored. A failing
+deterministic but plugins shouldn't depend on it. Handlers are in
+`events.handlers` like hook handlers; what they return is ignored. A failing
 handler is logged and the rest still run. Code sends one with
 `hooks.notify(name, event)`.
 
@@ -562,18 +562,16 @@ Input no command matches runs `dragon:unmatched_input` (`actor`, `line`,
    order itself against optional ones. Cycles are startup errors that name
    every step of the cycle. Directory order never matters.
 2. **Game wiring.** The game can reorder or disable any hook's handlers in
-   one place, `game/wiring.lua`. Only the game's plugin may have one.
+   one place, its `events.wiring`. Only the game's plugin may have one.
    Wiring is data, so it's validated at startup and the resolved order can
    be printed (`dragon hooks modify_damage`; `dragon hooks` lists every
    hook).
 
 ```lua
--- game/wiring.lua
+-- game/wiring.lua, exported as events.wiring
 return {
-  hooks = {
-    modify_damage = { order = { "game", "armor", "dragon:combat" } },
-    ["dragon:player_connected"] = { disable = { "dragon:presence" } },
-  },
+  modify_damage = { order = { "game", "armor", "dragon:combat" } },
+  ["dragon:player_connected"] = { disable = { "dragon:presence" } },
 }
 ```
 
@@ -690,11 +688,11 @@ tags alone, so `{{cap (entity .x)}}` capitalizes the name, not the markup.
 A template marks a place other plugins can add to with
 `{{section "exits"}}`. Plugins fill it by handling the hook
 `section:<view>.<section>`, so sections are ordered with `before` and
-`after`, rearranged in `game/wiring.lua`, and listed by `dragon hooks`,
+`after`, rearranged in the game's wiring, and listed by `dragon hooks`,
 like any hook:
 
 ```lua
--- mapping/hooks.lua
+-- mapping/handlers.lua
 return {
   ["section:room.exits"] = function(event)
     table.insert(event.parts, { view = "minimap", data = { room = event.data.room } })
@@ -1047,7 +1045,7 @@ else can be added without changing the engine or the modules.
 - **Modules are required, not globals:** `local world =
   require("dragon.world")`. The engine's are `dragon.game`, `dragon.world`,
   `dragon.hooks`, `dragon.forms` and `dragon.log`. Names starting `dragon.`
-  only ever reach engine modules, so a plugin's `lua/` can't shadow one,
+  only ever reach engine modules, so a plugin's files can't shadow one,
   and a misspelled one is an error listing them. Reading `world` without
   requiring it is an error that says which line to add. Lua's own
   libraries (`string`, `table`, `math`, `coroutine`) stay global.
@@ -1063,11 +1061,12 @@ else can be added without changing the engine or the modules.
 - **Each plugin has its own scope.** A plugin's files share globals of
   their own, falling back to Lua's libraries, so one plugin's globals never
   collide with another's. `require("items")` loads
-  `lua/items.lua` (or `lua/items/init.lua`) from the same plugin, once per
-  load; `require("items.find")` loads `lua/items/find.lua`. It works inside
+  `items.lua` (or `items/init.lua`) from the same plugin, once per
+  load; `require("items.find")` loads `items/find.lua`. The game can't
+  require its local plugins' files: they're plugins of their own. It works inside
   functions as well as at the top of a file. Another plugin's modules are
   out of reach; its public API comes through `plugin.require` (Milestone
-  3). Third-party Lua is copied into `lua/`: pure Lua 5.1 that sticks to
+  3). Third-party Lua is copied into the plugin: pure Lua 5.1 that sticks to
   the sandbox's libraries works, C modules don't.
 - **No game state in script globals.** State lives in objects and plugin data.
   This is what makes hot reload safe: the engine can throw away the script

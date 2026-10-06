@@ -7,24 +7,32 @@ contracts are in [design.md](design.md).
 
 ## Conventions
 
-**Every plugin file is a Lua module that returns a table.** The engine reads
-what it returns and registers it. Loading a file has no side effects, which
-keeps hot reload simple and maps cleanly to other languages
-(`export default { ... }` in JavaScript).
+**A plugin's `init.lua` returns everything it provides**, as one table.
+Its other Lua files are modules it loads with `require`, so their names
+are the plugin's own business: only what `init.lua` returns matters.
+Loading a file has no side effects, which keeps hot reload simple and maps
+cleanly to other languages (`export default { ... }` in JavaScript).
 
 ```lua
--- tasks/layout.lua
+-- mapping/init.lua
 return {
-  rebuild = {
-    desc = "Recompute map layouts",
-    args = { area = "string" },
-    execute = function(args) end,
+  commands = require("commands"),  -- what players type
+  slots = require("slots"),        -- slot types for command patterns
+  modes = require("modes"),        -- input modes: prompts, menus, editors
+  events = {
+    declare = require("events"),   -- the hooks and notifications it runs
+    handlers = require("handlers"), -- what it does when they run
   },
 }
 ```
 
+Each part is a table keyed by name. Errors name the part they're in, such
+as `commands.look` or `events.handlers["dragon:said"]`, and a function's
+file and line. Parts to come: `schema`, `tasks`, `client` (handlers for
+what the web client sends) and `routes` (HTTP handlers).
+
 **Names defined in Lua are used exactly as written.** A mode, hook or slot
-type is called what its file calls it; the engine never renames it, so the
+type is called what its key says; the engine never renames it, so the
 name in a plugin's code is the name everything else uses. Plugins should
 namespace their modes and hooks (`mapping:edit_map`, `mapping:map_drawn`)
 so they don't collide with other plugins'; the game's own plugin doesn't
@@ -38,26 +46,25 @@ tasks in `mapping` become `mapping:rebuild`, client events become
 
 ## Package layout
 
-A plugin is a directory. Every part is optional except the manifest.
+A plugin is a directory. Every part is optional except the manifest. The
+Lua files are named however the plugin likes; these are the usual names.
 
 ```
 mapping/
   plugin.toml       manifest: name, version, provides, depends, capabilities
+  init.lua          everything the plugin provides, from its other files
   commands.lua      player commands and their forms
-  slots.lua         slot types for command patterns
-  modes.lua         input modes: prompts, menus, editors (see design.md §4)
-  hooks.lua         hook and notification handlers (see design.md §4)
+  modes.lua         input modes (see design.md §4)
   events.lua        the hooks and notifications it runs, and their fields
-  lua/              the plugin's own modules, loaded with require
+  handlers.lua      hook and notification handlers (see design.md §4)
   views/            views: templates scripts send (*.txt.tmpl, *.html.tmpl)
   templates/        other templates, such as entity_tooltip.html.tmpl
-  schema.lua        data types it defines or extends
-  tasks/            CLI tasks
-  client.lua        handlers for events pushed from the web client
   web/              ES modules, CSS, assets for the game client
   admin/            builder UI extensions
-  routes.lua        HTTP handlers
 ```
+
+`require("items")` loads `items.lua` (or `items/init.lua`) from the
+plugin's directory, and `require("items.find")` loads `items/find.lua`.
 
 ### The game is a plugin
 
@@ -69,7 +76,7 @@ plugin's Lua loads. It's TOML, like `dragon.toml`.
 A game directory has the same layout under `game/`, without a manifest:
 the game's settings are in `dragon.toml`. It's the top-level
 plugin and always wins: its wiring, overrides and templates take precedence
-over every installed plugin. Only the game has a `wiring.lua`, which
+over every installed plugin. Only the game has `events.wiring`, which
 reorders or disables other plugins' hook handlers.
 
 **Local plugins** live in `game/plugins/<name>/`. They're the game's own
@@ -102,7 +109,7 @@ customize it, opting it out of engine upgrades.
 A game picks which built-ins load with `builtins` in `dragon.toml`. `dragon
 new` lists every one, and leaving the setting out loads them all. Removing
 one is how a game replaces it: leave out `presence` and announce arrivals
-from `game/hooks.lua` instead. Built-ins always load in the engine's
+from the game's own handlers instead. Built-ins always load in the engine's
 order, whatever order they're listed in.
 
 ```toml
@@ -208,7 +215,7 @@ dragon list
 
 ## Tasks
 
-Rake-style tasks, defined in `tasks/*.lua` (see Conventions).
+Tasks, exported as `tasks` from `init.lua` (see Conventions).
 
 - Invoked as `dragon <plugin>:<task>`; listed with `dragon tasks`.
 - `depends` runs prerequisites once, in order.
@@ -268,7 +275,7 @@ client.connection.on("reconnecting", handler);
 - Game actions are commands; push and request are for UI state and data.
 - Custom elements' `connectedCallback` and `disconnectedCallback` are the
   lifecycle hooks; `data-dragon-hook` covers plain elements.
-- Server side, `client.lua` returns typed handlers that run on the game loop;
+- Server side, the plugin's `client` part holds typed handlers that run on the game loop;
   `session:push(name, data)` sends events to a player's client.
 - Client input is validated and rate-limited; the session always comes from
   the server.

@@ -9,7 +9,7 @@ import (
 // from the same database reads them back.
 func TestPropertiesSurviveARestart(t *testing.T) {
 	files := fstest.MapFS{
-		"hooks.lua": file(`
+		"handlers.lua": file(`
 						local world = require("dragon.world")
 			return {
 				["dragon:booted"] = function()

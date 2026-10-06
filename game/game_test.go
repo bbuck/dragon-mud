@@ -2,7 +2,9 @@ package game
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"path/filepath"
 	"strings"
@@ -124,10 +126,45 @@ func sources(t *testing.T, gameFiles fstest.MapFS) []plugin.Source {
 		sources = append(sources, plugin.Source{Origin: name, Files: files, Builtin: true})
 	}
 	if gameFiles != nil {
-		sources = append(sources, plugin.Source{Origin: "game", Files: gameFiles, Game: true})
+		sources = append(sources, plugin.Source{Origin: "game", Files: withInit(gameFiles), Game: true})
 	}
 
 	return sources
+}
+
+// withInit returns files with an init.lua that exports its commands.lua,
+// slots.lua, modes.lua, events.lua (declarations), handlers.lua and
+// wiring.lua, unless files has its own. It's made when it's read, so tests
+// that change files and reload get one that matches. Tests of init.lua
+// itself write their own.
+func withInit(files fstest.MapFS) fs.FS {
+	return initFS{files}
+}
+
+type initFS struct{ files fstest.MapFS }
+
+func (f initFS) Open(name string) (fs.File, error) {
+	if _, ok := f.files[plugin.InitFile]; ok || name != plugin.InitFile {
+		return f.files.Open(name)
+	}
+
+	var exports, events []string
+	for _, name := range []string{"commands", "slots", "modes"} {
+		if _, ok := f.files[name+".lua"]; ok {
+			exports = append(exports, fmt.Sprintf("%s = require(%q)", name, name))
+		}
+	}
+	for _, part := range [][2]string{{"events", "declare"}, {"handlers", "handlers"}, {"wiring", "wiring"}} {
+		if _, ok := f.files[part[0]+".lua"]; ok {
+			events = append(events, fmt.Sprintf("%s = require(%q)", part[1], part[0]))
+		}
+	}
+	if len(events) > 0 {
+		exports = append(exports, "events = { "+strings.Join(events, ", ")+" }")
+	}
+
+	generated := fstest.MapFS{name: {Data: []byte("return { " + strings.Join(exports, ", ") + " }")}}
+	return generated.Open(name)
 }
 
 func openStore(t *testing.T) *store.Store {
@@ -649,8 +686,8 @@ func TestCreateWithOptions(t *testing.T) {
 // oneRoom is a game where every player starts in the same room, for tests
 // of things players do to each other.
 var oneRoom = fstest.MapFS{
-	"hooks.lua": file(`return require("room")`),
-	"lua/room.lua": file(`
+	"handlers.lua": file(`return require("room")`),
+	"room.lua": file(`
 		local world = require("dragon.world")
 		return {
 			["dragon:booted"] = function()
@@ -795,7 +832,7 @@ func TestBadCommandsFileIsExplained(t *testing.T) {
 	_, err := newGame(t, fstest.MapFS{
 		"commands.lua": {Data: []byte(`return { jump = { froms = {} } }`)},
 	})
-	want := `game/commands.lua: command "jump" has an unknown field "froms". Did you mean "forms"? Allowed fields: desc, forms, execute, replace.`
+	want := `game: commands.jump has an unknown field "froms". Did you mean "forms"? Allowed fields: desc, forms, execute, replace.`
 	if err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("error = %v\nwant it to contain %q", err, want)
 	}

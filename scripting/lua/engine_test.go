@@ -317,3 +317,16 @@ func TestCallAllReturnsEveryResult(t *testing.T) {
 		t.Errorf("second call returned %d results; the stack leaked", len(results))
 	}
 }
+
+func TestFunctionSource(t *testing.T) {
+	e := New()
+	defer e.Close()
+
+	v, err := e.Eval(context.Background(), "game/handlers.lua", "local x = 1\n\nreturn function() end")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := v.(scripting.Function).Source(); got != "game/handlers.lua:3" {
+		t.Errorf("Source() = %q", got)
+	}
+}

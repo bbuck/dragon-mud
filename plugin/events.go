@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"context"
 	"fmt"
 	"maps"
 	"regexp"
@@ -14,18 +13,18 @@ import (
 
 var fieldNameRx = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 
-// eventKeys are the fields a declaration in events.lua may have, and
+// eventKeys are the fields a declaration may have, and
 // fieldKeys the named fields of a field written as a table.
 var (
 	eventKeys = []string{"desc", "fields", "extra"}
 	fieldKeys = []string{"optional"}
 )
 
-// Events loads the declarations the plugin's events.lua returns, sorted by
-// hook name: the hooks and notifications the plugin runs, and the fields
+// Declarations loads what the plugin exports as events.declare, sorted by
+// event name: the hooks and notifications the plugin runs, and the fields
 // their events have.
 //
-//	return {
+//	declare = {
 //	  ["mapping:map_drawn"] = {
 //	    desc = "A map was drawn for a player.",
 //	    fields = {
@@ -34,19 +33,18 @@ var (
 //	    },
 //	  },
 //	}
-func (p *Plugin) Events(ctx context.Context) ([]hook.Decl, error) {
-	file := p.ID + "/events.lua"
-	table, err := p.evalTable(ctx, "events.lua", file)
+func (p *Plugin) Declarations() ([]hook.Decl, error) {
+	table, err := p.export("events.declare", `declare = { ["mapping:map_drawn"] = { fields = { actor = "who it was drawn for" } } }`)
 	if err != nil || table == nil {
 		return nil, err
 	}
 
 	var decls []hook.Decl
 	for _, name := range slices.Sorted(maps.Keys(table)) {
-		where := fmt.Sprintf("%s: %s", file, name)
+		where := field("events.declare", name)
 		switch {
 		case strings.HasPrefix(name, "section:"):
-			return nil, fmt.Errorf("%s: the engine declares section hooks, so plugins don't. Remove it, and add to the section from hooks.lua.", where)
+			return nil, fmt.Errorf("%s: the engine declares section hooks, so plugins don't. Remove it, and add to the section with a handler.", where)
 		case !hookNameRx.MatchString(name):
 			return nil, fmt.Errorf("%s isn't a valid hook name. Hook names are lowercase words joined by underscores, with your plugin's name in front, like mapping:map_drawn.", where)
 		case strings.HasPrefix(name, BuiltinPrefix) && !strings.HasPrefix(p.ID, BuiltinPrefix):

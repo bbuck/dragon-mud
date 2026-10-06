@@ -2,7 +2,7 @@
 --
 -- Each key is a hook or notification the engine or a plugin runs, and each
 -- value is the function that handles it. A game turns these off, or changes
--- the order handlers run in, from game/wiring.lua.
+-- the order handlers run in, with wiring in its init.lua.
 
 local game = require("dragon.game")
 

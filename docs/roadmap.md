@@ -68,7 +68,11 @@ over telnet and the web and talk to each other.
 ## Milestone 3: Plugins for real
 
 - [x] Local plugins in `game/plugins/<name>/`.
-- [x] `require` for a plugin's own modules in `lua/`.
+- [x] `require` for a plugin's own modules.
+- [x] Manifests are `plugin.toml`, read without running the plugin; the
+      game's settings are `dragon.toml`.
+- [x] `init.lua` returns everything a plugin provides, so file names are
+      the plugin's own business.
 - [ ] Full manifest: provides, depends, capabilities.
 - [ ] `plugin.require` for plugin APIs. First use: `dragon:chat` offers
       `chat.say(actor, message, target)` so games stop reusing its `say`
@@ -85,7 +89,7 @@ over telnet and the web and talk to each other.
       plugin provides (commands and forms, slot types, hook handlers, the
       hooks and notifications it runs, and later messages, schema and
       tasks), so a game author knows what they can add to, replace or wire
-      from `game/`. The hooks a plugin runs come from its `events.lua`.
+      from `game/`. The hooks a plugin runs come from its `events.declare`.
       The same data generates each plugin's reference docs.
 
 ## Milestone 4: World

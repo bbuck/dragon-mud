@@ -91,8 +91,8 @@ func (s *scripts) addMode(def plugin.ModeDef) error {
 	}
 
 	conflict := func(what string) error {
-		return fmt.Errorf("%s: mode %q sets %s, but %s already does. Set replace = true on %q in %s to use only its version, or remove %s from one of them. (Plugins avoid this by namespacing their modes, like %q.)",
-			def.File, def.Name, what, m.owners[what], def.Name, def.File, what, "myplugin:"+def.Name)
+		return fmt.Errorf("%s: %s sets %s, but %s already does. Set replace = true on %s in %s to use only its version, or remove %s from one of them. (Plugins avoid this by namespacing their modes, like %q.)",
+			def.Plugin, def.Path, what, m.owners[what], def.Path, def.Plugin, what, "myplugin:"+def.Name)
 	}
 
 	for _, h := range plugin.ModeHandlers {
@@ -128,7 +128,7 @@ func (s *scripts) addMode(def plugin.ModeDef) error {
 // checkModes checks what the engine needs from the loaded modes.
 func (s *scripts) checkModes() error {
 	if s.charactersMode() == "" {
-		return fmt.Errorf("nothing defines a mode to run after a player logs in to choose or create their character. Add %q back to builtins in dragon.toml for %s, or define %s in game/modes.lua and have it call session:play(character).",
+		return fmt.Errorf("nothing defines a mode to run after a player logs in to choose or create their character. Add %q back to builtins in dragon.toml for %s, or add a %s mode to the game's modes in init.lua and have it call session:play(character).",
 			"characters", modeBuiltinCharacters, modeCharacters)
 	}
 

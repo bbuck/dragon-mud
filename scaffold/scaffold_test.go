@@ -30,7 +30,7 @@ func TestNewCreatesLoadableGame(t *testing.T) {
 		t.Errorf("builtins = %q, want every built-in %q", cfg.Builtins, builtin.Names)
 	}
 
-	for _, name := range []string{"game/commands.lua", "game/hooks.lua", ".gitignore"} {
+	for _, name := range []string{"game/init.lua", "game/commands.lua", "game/handlers.lua", ".gitignore"} {
 		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
 			t.Errorf("missing %s: %v", name, err)
 		}

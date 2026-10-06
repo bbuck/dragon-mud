@@ -7,7 +7,7 @@ import (
 )
 
 var shop = fstest.MapFS{
-	"hooks.lua": file(`
+	"handlers.lua": file(`
 				local forms = require("dragon.forms")
 		local shop = forms.new {
 			{ "buy <count:number> <item>", function(actor, args, who)
@@ -76,7 +76,7 @@ func TestFormSetErrors(t *testing.T) {
 	}{
 		"not a list": {
 			hooks: `forms.new("buy <item>")`,
-			want:  `game/hooks.lua:2: dragon.forms.new: takes a list of forms, like forms.new { { "buy <item>", function(actor, args) ... end } }, not a string.`,
+			want:  `game/handlers.lua:2: dragon.forms.new: takes a list of forms, like forms.new { { "buy <item>", function(actor, args) ... end } }, not a string.`,
 		},
 		"empty": {
 			hooks: `forms.new {}`,
@@ -95,7 +95,7 @@ func TestFormSetErrors(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			_, err := newGame(t, fstest.MapFS{
-				"hooks.lua": file("local forms = require(\"dragon.forms\")\n" + tc.hooks + "\nreturn {}"),
+				"handlers.lua": file("local forms = require(\"dragon.forms\")\n" + tc.hooks + "\nreturn {}"),
 			})
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("error = %v, want it to contain %q", err, tc.want)

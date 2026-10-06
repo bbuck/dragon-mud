@@ -39,9 +39,16 @@ type Handler struct {
 	Fn scripting.Function
 }
 
-// File is where the handler is declared, for messages.
-func (h Handler) File() string {
-	return h.Plugin + "/hooks.lua"
+// Where is where the handler is defined, for messages: its file and line
+// when the scripting language knows them.
+func (h Handler) Where() string {
+	if h.Fn != nil {
+		if source := h.Fn.Source(); source != "" {
+			return source
+		}
+	}
+
+	return fmt.Sprintf("events.handlers[%q] in %s", h.Hook, h.Plugin)
 }
 
 // Wiring is how the game rearranges one hook's handlers.
@@ -67,10 +74,6 @@ type Config struct {
 
 	// Wiring is keyed by hook name.
 	Wiring map[string]Wiring
-
-	// WiringFile is where Wiring came from, for messages, such as
-	// "game/wiring.lua".
-	WiringFile string
 }
 
 // Chain is a hook's handlers in the order they run.
@@ -87,11 +90,10 @@ type Chain struct {
 
 // Registry holds every hook's chain and declaration.
 type Registry struct {
-	chains     map[string]*Chain
-	decls      map[string]Decl
-	prefixes   []Decl
-	plugins    []string
-	wiringFile string
+	chains   map[string]*Chain
+	decls    map[string]Decl
+	prefixes []Decl
+	plugins  []string
 }
 
 // Result is what running a hook decided.
@@ -109,10 +111,6 @@ type Result struct {
 // New orders every hook's handlers. A cycle in before and after, or wiring
 // that doesn't match the handlers, is an error that says how to fix it.
 func New(cfg Config) (*Registry, error) {
-	if cfg.WiringFile == "" {
-		cfg.WiringFile = "the game's wiring.lua"
-	}
-
 	loadIndex := make(map[string]int, len(cfg.Plugins))
 	for i, id := range cfg.Plugins {
 		loadIndex[id] = i
@@ -125,13 +123,13 @@ func New(cfg Config) (*Registry, error) {
 		}
 		for _, other := range byHook[h.Hook] {
 			if other.Plugin == h.Plugin {
-				return nil, fmt.Errorf("%s: two handlers for %q; a plugin has one handler per hook", h.File(), h.Hook)
+				return nil, fmt.Errorf("%s: two handlers for %q; a plugin has one handler per hook", h.Where(), h.Hook)
 			}
 		}
 		byHook[h.Hook] = append(byHook[h.Hook], h)
 	}
 
-	r := &Registry{chains: make(map[string]*Chain), decls: make(map[string]Decl), plugins: cfg.Plugins, wiringFile: cfg.WiringFile}
+	r := &Registry{chains: make(map[string]*Chain), decls: make(map[string]Decl), plugins: cfg.Plugins}
 	for _, d := range cfg.Decls {
 		if d.Prefix {
 			r.prefixes = append(r.prefixes, d)
@@ -139,7 +137,7 @@ func New(cfg Config) (*Registry, error) {
 		}
 		if other, ok := r.decls[d.Name]; ok {
 			return nil, fmt.Errorf("%s and %s both declare %q. A hook has one declaration, from the plugin that runs it; rename one of them, with its plugin's name in front, like %q.",
-				other.File(), d.File(), d.Name, d.Plugin+":"+localName(d.Name))
+				other.Where(), d.Where(), d.Name, d.Plugin+":"+localName(d.Name))
 		}
 		r.decls[d.Name] = d
 	}
@@ -147,8 +145,8 @@ func New(cfg Config) (*Registry, error) {
 
 	for _, name := range slices.Sorted(maps.Keys(cfg.Wiring)) {
 		if _, ok := byHook[name]; !ok {
-			return nil, fmt.Errorf("%s: hooks.%s is wired, but no plugin handles %q.%s Remove it, or add a handler to a plugin's hooks.lua.",
-				cfg.WiringFile, name, name, command.DidYouMean(name, names))
+			return nil, fmt.Errorf("%s[%q] is wired, but no plugin handles %q.%s Remove it, or add a handler to a plugin's events.handlers.",
+				WiringWhere, name, name, command.DidYouMean(name, names))
 		}
 	}
 
@@ -163,9 +161,9 @@ func New(cfg Config) (*Registry, error) {
 
 		var err error
 		if wired {
-			err = chain.wire(handlers, wiring, cfg.WiringFile)
+			err = chain.wire(handlers, wiring)
 		} else {
-			chain.Handlers, err = sortHandlers(name, handlers, cfg.WiringFile)
+			chain.Handlers, err = sortHandlers(name, handlers)
 		}
 		if err != nil {
 			return nil, err
@@ -178,8 +176,8 @@ func New(cfg Config) (*Registry, error) {
 }
 
 // wire applies the game's wiring to handlers, which are in load order.
-func (c *Chain) wire(handlers []Handler, w Wiring, file string) error {
-	where := fmt.Sprintf("%s: hooks.%s", file, c.Name)
+func (c *Chain) wire(handlers []Handler, w Wiring) error {
+	where := fmt.Sprintf("%s[%q]", WiringWhere, c.Name)
 
 	plugins := make([]string, len(handlers))
 	byPlugin := make(map[string]Handler, len(handlers))
@@ -211,7 +209,7 @@ func (c *Chain) wire(handlers []Handler, w Wiring, file string) error {
 		}
 
 		var err error
-		c.Handlers, err = sortHandlers(c.Name, enabled, file)
+		c.Handlers, err = sortHandlers(c.Name, enabled)
 		return err
 	}
 
@@ -250,7 +248,7 @@ func (c *Chain) wire(handlers []Handler, w Wiring, file string) error {
 
 // sortHandlers orders handlers, which are in load order, by their before
 // and after. Handlers with nothing between them keep load order.
-func sortHandlers(name string, handlers []Handler, wiringFile string) ([]Handler, error) {
+func sortHandlers(name string, handlers []Handler) ([]Handler, error) {
 	index := make(map[string]int, len(handlers))
 	for i, h := range handlers {
 		index[h.Plugin] = i
@@ -273,7 +271,7 @@ func sortHandlers(name string, handlers []Handler, wiringFile string) ([]Handler
 	for i, h := range handlers {
 		for _, id := range h.After {
 			if id == h.Plugin {
-				return nil, fmt.Errorf("%s: %s handler says after = %q, its own plugin. Remove it.", h.File(), name, id)
+				return nil, fmt.Errorf("%s: %s handler says after = %q, its own plugin. Remove it.", h.Where(), name, id)
 			}
 			if j, ok := index[id]; ok {
 				addEdge(j, i, fmt.Sprintf("%s says after %s", h.Plugin, id))
@@ -281,7 +279,7 @@ func sortHandlers(name string, handlers []Handler, wiringFile string) ([]Handler
 		}
 		for _, id := range h.Before {
 			if id == h.Plugin {
-				return nil, fmt.Errorf("%s: %s handler says before = %q, its own plugin. Remove it.", h.File(), name, id)
+				return nil, fmt.Errorf("%s: %s handler says before = %q, its own plugin. Remove it.", h.Where(), name, id)
 			}
 			if j, ok := index[id]; ok {
 				addEdge(i, j, fmt.Sprintf("%s says before %s", h.Plugin, id))
@@ -301,7 +299,7 @@ func sortHandlers(name string, handlers []Handler, wiringFile string) ([]Handler
 			}
 		}
 		if next < 0 {
-			return nil, cycleError(name, handlers, edges, done, why, wiringFile)
+			return nil, cycleError(name, handlers, edges, done, why)
 		}
 
 		done[next] = true
@@ -315,7 +313,7 @@ func sortHandlers(name string, handlers []Handler, wiringFile string) ([]Handler
 }
 
 // cycleError describes one cycle among the handlers not yet sorted.
-func cycleError(name string, handlers []Handler, edges [][]int, done []bool, why map[[2]int]string, wiringFile string) error {
+func cycleError(name string, handlers []Handler, edges [][]int, done []bool, why map[[2]int]string) error {
 	// Every unsorted handler has an unsorted predecessor, so walking
 	// backwards from any of them must revisit one.
 	preds := make([][]int, len(handlers))
@@ -351,8 +349,8 @@ func cycleError(name string, handlers []Handler, edges [][]int, done []bool, why
 		plugins[i] = fmt.Sprintf("%q", handlers[from].Plugin)
 	}
 
-	return fmt.Errorf("hook %q: handlers can't be ordered because they go in a circle: %s. Remove one of those before/after entries, or set the order yourself in %s: hooks = { %s = { order = { %s } } }.",
-		name, strings.Join(reasons, ", "), wiringFile, name, strings.Join(plugins, ", "))
+	return fmt.Errorf("hook %q: handlers can't be ordered because they go in a circle: %s. Remove one of those before/after entries, or set the order yourself in %s: [%q] = { order = { %s } }.",
+		name, strings.Join(reasons, ", "), WiringWhere, name, strings.Join(plugins, ", "))
 }
 
 // Chain returns the chain for the hook name.
@@ -413,10 +411,8 @@ func (r *Registry) Check(name string, event map[string]any) error {
 	return nil
 }
 
-// WiringFile is where the game's wiring is, for messages.
-func (r *Registry) WiringFile() string {
-	return r.wiringFile
-}
+// WiringWhere is where the game's wiring is, for messages.
+const WiringWhere = "the game's events.wiring"
 
 // Names returns every hook with handlers, sorted.
 func (r *Registry) Names() []string {
@@ -459,12 +455,12 @@ func (r *Registry) Run(ctx context.Context, name string, payload map[string]any)
 		case nil:
 		case map[string]any:
 			if problem := d.problem(name, v); problem != "" {
-				return result, fmt.Errorf("%s: the %s handler returned an event that %s Change the event it was given and return that.", h.File(), name, problem)
+				return result, fmt.Errorf("%s: the %s handler returned an event that %s Change the event it was given and return that.", h.Where(), name, problem)
 			}
 			result.Payload = v
 		case bool:
 			if v {
-				return result, fmt.Errorf("%s: the %s handler returned true. %s", h.File(), name, returnsHelp)
+				return result, fmt.Errorf("%s: the %s handler returned true. %s", h.Where(), name, returnsHelp)
 			}
 			result.Cancelled = true
 			result.By = h.Plugin
@@ -472,13 +468,13 @@ func (r *Registry) Run(ctx context.Context, name string, payload map[string]any)
 				reason, ok := values[1].(string)
 				if !ok {
 					return result, fmt.Errorf("%s: the %s handler cancelled with a %s as its reason; the reason must be a string, such as return false, \"The door is locked.\"",
-						h.File(), name, scripting.TypeName(values[1]))
+						h.Where(), name, scripting.TypeName(values[1]))
 				}
 				result.Reason = reason
 			}
 			return result, nil
 		default:
-			return result, fmt.Errorf("%s: the %s handler returned a %s. %s", h.File(), name, scripting.TypeName(first), returnsHelp)
+			return result, fmt.Errorf("%s: the %s handler returned a %s. %s", h.Where(), name, scripting.TypeName(first), returnsHelp)
 		}
 	}
 

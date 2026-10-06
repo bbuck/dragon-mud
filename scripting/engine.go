@@ -47,7 +47,7 @@ type Engine interface {
 	// plugin's script modules in files. A module name's first part, such as
 	// "dragon" in "dragon.world", is reserved for modules: require never
 	// looks in files for it. dir describes where files are, such as
-	// "game/lua", for script names and error messages.
+	// "game", for script names and error messages.
 	Scope(dir string, files fs.FS, modules []Module) (Scope, error)
 
 	// Close releases the engine's resources.
@@ -90,4 +90,8 @@ type Function interface {
 	// CallAll is Call returning every result, for functions that return
 	// several values, such as a value and an error message.
 	CallAll(ctx context.Context, args ...any) ([]any, error)
+
+	// Source is where the function is defined, such as
+	// "game/handlers.lua:12", for messages; "" when that isn't known.
+	Source() string
 }

@@ -16,7 +16,7 @@ local hooks = require("dragon.hooks")
 -- Each action runs a hook before it, which other plugins use to change it
 -- or stop it, and a notification after it, for reacting to it: an NPC
 -- answers dragon:said, so its reply comes after the line it answers. The
--- hooks are declared in events.lua.
+-- hooks are declared in events.lua, which init.lua exports as events.declare.
 
 -- before runs the hook, telling the actor why if a handler cancelled. It
 -- returns the event as the handlers left it, or nil if one cancelled.

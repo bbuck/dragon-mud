@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"context"
 	"fmt"
 	"maps"
 	"regexp"
@@ -20,19 +19,21 @@ var modeNameRx = regexp.MustCompile(`^([a-z][a-z0-9_-]*:)?[a-z][a-z0-9_]*$`)
 // LoginMode is the engine's own login mode. No plugin defines or pushes it.
 const LoginMode = BuiltinPrefix + "login"
 
-// modeKeys are the fields a mode entry in modes.lua may have.
+// modeKeys are the fields a mode entry may have.
 var modeKeys = []string{"desc", "forms", "input", "enter", "leave", "resume", "passthrough", "replace"}
 
 // ModeHandlers are the functions a mode may define, in the order they're
 // described in docs.
 var ModeHandlers = []string{"enter", "input", "resume", "leave"}
 
-// ModeDef is an input mode as modes.lua declares it.
+// ModeDef is an input mode as a plugin declares it.
 type ModeDef struct {
-	Name    string
-	Desc    string
-	Plugin  string
-	File    string
+	Name   string
+	Desc   string
+	Plugin string
+
+	// Path is where the plugin exports it, such as modes.waiting.
+	Path    string
 	Replace bool
 
 	// Passthrough is nil when the definition doesn't say.
@@ -44,8 +45,7 @@ type ModeDef struct {
 	Forms []command.FormDef
 }
 
-// Modes loads the input modes the plugin's modes.lua returns, sorted by
-// name.
+// Modes loads the input modes the plugin exports as modes, sorted by name.
 //
 //	return {
 //	  confirm = {
@@ -57,16 +57,15 @@ type ModeDef struct {
 //	  },
 //	  editor = { input = function(session, line, state) ... end },
 //	}
-func (p *Plugin) Modes(ctx context.Context) ([]ModeDef, error) {
-	file := p.ID + "/modes.lua"
-	table, err := p.evalTable(ctx, "modes.lua", file)
+func (p *Plugin) Modes() ([]ModeDef, error) {
+	table, err := p.export("modes", `modes = { confirm = { input = function(session, line, state) ... end } }`)
 	if err != nil || table == nil {
 		return nil, err
 	}
 
 	var defs []ModeDef
 	for _, name := range slices.Sorted(maps.Keys(table)) {
-		def, err := p.modeDef(file, name, table[name])
+		def, err := p.modeDef(name, table[name])
 		if err != nil {
 			return nil, err
 		}
@@ -76,9 +75,9 @@ func (p *Plugin) Modes(ctx context.Context) ([]ModeDef, error) {
 	return defs, nil
 }
 
-func (p *Plugin) modeDef(file, name string, raw any) (ModeDef, error) {
-	where := fmt.Sprintf("%s: mode %q", file, name)
-	def := ModeDef{Name: name, Plugin: p.ID, File: file, Handlers: map[string]scripting.Function{}}
+func (p *Plugin) modeDef(name string, raw any) (ModeDef, error) {
+	where := field("modes", name)
+	def := ModeDef{Name: name, Plugin: p.ID, Path: where, Handlers: map[string]scripting.Function{}}
 
 	switch {
 	case !modeNameRx.MatchString(name):

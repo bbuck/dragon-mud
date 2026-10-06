@@ -9,12 +9,12 @@
 -- then this file, so your game has the last word. Run `dragon hooks` to see
 -- every hook, and `dragon hooks dragon:before_say` to see one hook's fields
 -- and the order its handlers run in. To turn another plugin's handler off or
--- reorder them, return a table from game/wiring.lua:
+-- reorder them, add wiring to events in init.lua:
 --
---   return { hooks = { ["dragon:player_connected"] = { disable = { "dragon:presence" } } } }
+--   wiring = { ["dragon:player_connected"] = { disable = { "dragon:presence" } } }
 
 local world = require("dragon.world")
-local look = require("look") -- lua/look.lua
+local look = require("look") -- look.lua
 
 return {
 	-- A notification sent once when the server starts, before anyone can

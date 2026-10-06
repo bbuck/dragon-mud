@@ -15,6 +15,7 @@ type fn string
 
 func (f fn) Call(context.Context, ...any) (any, error)      { return nil, nil }
 func (f fn) CallAll(context.Context, ...any) ([]any, error) { return nil, nil }
+func (f fn) Source() string                                 { return "" }
 
 var _ scripting.Function = fn("")
 

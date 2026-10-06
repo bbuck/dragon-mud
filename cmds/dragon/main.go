@@ -263,7 +263,7 @@ func hookNames(hooks *hook.Registry) []string {
 func listHooks(out io.Writer, hooks *hook.Registry) error {
 	names := hookNames(hooks)
 	if len(names) == 0 {
-		fmt.Fprintln(out, "No plugin declares or handles any hooks yet. Declare the ones a plugin runs in its events.lua, and add handlers in hooks.lua.")
+		fmt.Fprintln(out, "No plugin declares or handles any hooks yet. Declare the ones a plugin runs in its events.declare, and add handlers in events.handlers.")
 		return nil
 	}
 
@@ -314,7 +314,7 @@ func showHook(out io.Writer, hooks *hook.Registry, name string) error {
 	if declared {
 		where := "by the engine"
 		if d.Plugin != "" {
-			where = "in " + d.File()
+			where = "by " + d.Plugin
 		}
 		fmt.Fprintf(out, "%s, declared %s.\n", name, where)
 		if d.Desc != "" {
@@ -346,7 +346,7 @@ func showHook(out io.Writer, hooks *hook.Registry, name string) error {
 
 	fmt.Fprintln(out)
 	if !handled {
-		fmt.Fprintln(out, "No plugin handles it yet. Add a handler in a plugin's hooks.lua.")
+		fmt.Fprintln(out, "No plugin handles it yet. Add a handler in a plugin's events.handlers.")
 		return nil
 	}
 
@@ -357,19 +357,19 @@ func showHook(out io.Writer, hooks *hook.Registry, name string) error {
 		if why == "" && !c.Wired {
 			why = "load order"
 		}
-		fmt.Fprintf(w, "  %d.\t%s\t%s\t%s\n", i+1, h.Plugin, h.File(), why)
+		fmt.Fprintf(w, "  %d.\t%s\t%s\t%s\n", i+1, h.Plugin, h.Where(), why)
 	}
 	w.Flush()
 
 	if c.Wired {
-		fmt.Fprintf(out, "\nThe order is set in %s.\n", hooks.WiringFile())
+		fmt.Fprintf(out, "\nThe order is set in %s.\n", hook.WiringWhere)
 	}
 	if len(c.Disabled) > 0 {
 		plugins := make([]string, len(c.Disabled))
 		for i, h := range c.Disabled {
 			plugins[i] = h.Plugin
 		}
-		fmt.Fprintf(out, "\nDisabled in %s: %s\n", hooks.WiringFile(), strings.Join(plugins, ", "))
+		fmt.Fprintf(out, "\nDisabled in %s: %s\n", hook.WiringWhere, strings.Join(plugins, ", "))
 	}
 
 	return nil

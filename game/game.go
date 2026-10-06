@@ -299,7 +299,7 @@ func (g *Game) loadInto(ctx context.Context, s *scripts) error {
 		chain, _ := s.hooks.Chain(name)
 		var files []string
 		for _, h := range chain.Handlers {
-			files = append(files, h.File())
+			files = append(files, h.Where())
 		}
 		g.log.Warn("no plugin declares "+name+", so its handlers never run; it may be misspelled, or from a plugin the game doesn't load."+command.DidYouMean(name, s.hooks.Declared()),
 			"hook", name, "handlers", strings.Join(files, ", "))
@@ -325,7 +325,11 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ho
 	s.origins[p.ID] = src.Origin
 	s.loading = p.ID
 
-	slots, err := p.Slots(ctx)
+	if err := p.Load(ctx); err != nil {
+		return err
+	}
+
+	slots, err := p.Slots()
 	if err != nil {
 		return err
 	}
@@ -335,7 +339,7 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ho
 		}
 	}
 
-	cmds, err := p.Commands(ctx)
+	cmds, err := p.Commands()
 	if err != nil {
 		return err
 	}
@@ -345,7 +349,7 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ho
 		}
 	}
 
-	modes, err := p.Modes(ctx)
+	modes, err := p.Modes()
 	if err != nil {
 		return err
 	}
@@ -355,28 +359,23 @@ func (g *Game) loadPlugin(ctx context.Context, s *scripts, src plugin.Source, ho
 		}
 	}
 
-	handlers, err := p.Hooks(ctx)
+	handlers, err := p.Handlers()
 	if err != nil {
 		return err
 	}
 	hooks.Plugins = append(hooks.Plugins, p.ID)
 	hooks.Handlers = append(hooks.Handlers, handlers...)
 
-	decls, err := p.Events(ctx)
+	decls, err := p.Declarations()
 	if err != nil {
 		return err
 	}
 	hooks.Decls = append(hooks.Decls, decls...)
 
-	switch {
-	case src.Game:
-		if hooks.Wiring, err = p.Wiring(ctx); err != nil {
+	if src.Game {
+		if hooks.Wiring, err = p.Wiring(); err != nil {
 			return err
 		}
-		hooks.WiringFile = p.WiringFile()
-	case p.HasWiring():
-		return fmt.Errorf("%s: only the game's own plugin can wire hooks. A plugin orders its handlers with before and after in hooks.lua, like [\"dragon:before_say\"] = { after = { \"dragon:chat\" }, handler = function(event) ... end }.",
-			p.WiringFile())
 	}
 
 	views, err := addTemplates(p, plugin.ViewsDir, s.views)

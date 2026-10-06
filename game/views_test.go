@@ -231,7 +231,7 @@ var clickable = fstest.MapFS{
 			} },
 		}
 	`),
-	"hooks.lua": file(`
+	"handlers.lua": file(`
 		return {
 			["dragon:get_tooltip"] = function(event)
 				if event.entity:get("name") == "secret" then return false end
@@ -458,7 +458,7 @@ func TestNestedViews(t *testing.T) {
 		"views/chat/shout.html.tmpl":  file(`<b>{{entity .actor}}</b> shouts {{section "volume"}}!`),
 		"views/.hidden/junk.txt.tmpl": file(`ignored`),
 		"views/chat/loud.txt.tmpl":    file(`VERY`),
-		"hooks.lua": file(`return { ["section:chat/shout.volume"] = function(event)
+		"handlers.lua": file(`return { ["section:chat/shout.volume"] = function(event)
 			table.insert(event.parts, { view = "chat/loud" })
 			return event
 		end }`),

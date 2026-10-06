@@ -23,7 +23,7 @@
 --   end,
 --
 -- Order steps against other plugins' with before and after, and rearrange
--- or disable them from game/wiring.lua, like any hook. Run
+-- or disable them in the game's wiring, like any hook. Run
 -- `dragon hooks dragon:character_steps` to see the order.
 --
 -- A step mode gets the draft as state.draft and ends with

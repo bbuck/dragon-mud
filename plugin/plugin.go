@@ -8,7 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"path"
 	"regexp"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 
@@ -16,8 +18,9 @@ import (
 	"bbuck.dev/dragon-mud/scripting"
 )
 
-// ModulesDir holds a plugin's own Lua modules, loaded with require.
-const ModulesDir = "lua"
+// InitFile is the plugin's entry point. It returns a table of what the
+// plugin provides, built from its other files with require.
+const InitFile = "init.lua"
 
 // LocalDir is the directory in the game's own plugin that holds the game's
 // local plugins: plugins that are part of the game, not installed.
@@ -46,7 +49,7 @@ type Source struct {
 	Builtin bool
 
 	// Game marks the game's own plugin, the only one that may wire other
-	// plugins' hooks.
+	// plugins' events.
 	Game bool
 }
 
@@ -58,10 +61,13 @@ type Plugin struct {
 	Manifest Manifest
 
 	files fs.FS
+	game  bool
 
-	// scope evaluates the plugin's files, with a require for its lua/
-	// modules.
+	// scope evaluates the plugin's files, with a require for its modules.
 	scope scripting.Scope
+
+	// exports is what init.lua returned.
+	exports map[string]any
 }
 
 // ManifestFile is the plugin's manifest. It's data, read without running
@@ -80,7 +86,7 @@ const GameID = "game"
 // are theirs alone, given its ID.
 func Open(ctx context.Context, engine scripting.Engine, src Source, own func(id string) []scripting.Module) (*Plugin, error) {
 	fsys := src.Files
-	p := &Plugin{files: fsys}
+	p := &Plugin{files: fsys, game: src.Game}
 
 	if src.Game {
 		if p.exists(ManifestFile) || p.exists("plugin.lua") {
@@ -104,30 +110,171 @@ func Open(ctx context.Context, engine scripting.Engine, src Source, own func(id 
 		}
 	}
 
-	modules, err := fs.Sub(fsys, ModulesDir)
-	if err != nil {
-		return nil, err
+	// The game's local plugins are their own plugins, not its modules.
+	modules := fsys
+	if src.Game {
+		modules = hideDir{fsys, LocalDir}
 	}
 	var mods []scripting.Module
 	if own != nil {
 		mods = own(p.ID)
 	}
-	if p.scope, err = engine.Scope(p.ID+"/"+ModulesDir, modules, mods); err != nil {
+	var err error
+	if p.scope, err = engine.Scope(p.ID, modules, mods); err != nil {
 		return nil, err
 	}
 
 	return p, nil
 }
 
-// eval evaluates file from the plugin in its scope. A missing file
-// returns nil, nil.
-func (p *Plugin) eval(ctx context.Context, file, scriptName string) (any, error) {
-	source, err := p.read(file)
-	if err != nil || source == "" {
-		return nil, err
+// Load runs init.lua and checks the shape of what it returns. A plugin
+// without one provides nothing from Lua, such as one that only has views.
+//
+//	return {
+//	  commands = require("commands"),
+//	  slots = require("slots"),
+//	  modes = require("modes"),
+//	  events = {
+//	    declare = require("events"),
+//	    handlers = require("handlers"),
+//	    wiring = require("wiring"), -- the game's own plugin only
+//	  },
+//	}
+func (p *Plugin) Load(ctx context.Context) error {
+	source, err := p.read(InitFile)
+	if err != nil {
+		return err
+	}
+	if source == "" {
+		p.exports = map[string]any{}
+		if unloaded := p.rootScripts(); len(unloaded) > 0 {
+			return fmt.Errorf("there's no %s, so nothing loads %s. A plugin's %s returns what it provides, built from its other files, like return { commands = require(\"commands\") }.",
+				InitFile, andList(unloaded), InitFile)
+		}
+		return nil
 	}
 
-	return p.scope.Eval(ctx, scriptName, source)
+	value, err := p.scope.Eval(ctx, p.ID+"/"+InitFile, source)
+	if err != nil {
+		return err
+	}
+	exports, err := asTable(InitFile, value, `return { commands = require("commands") }`)
+	if err != nil {
+		return err
+	}
+	if exports == nil {
+		return fmt.Errorf("%s returns nothing. It returns a table of what the plugin provides, like return { commands = require(\"commands\") }.", InitFile)
+	}
+	if err := checkKeys(InitFile, exports, exportKeys, map[string]string{
+		"hooks":  `hooks are part of events now: events = { handlers = require("handlers") }.`,
+		"wiring": `wiring is part of events now: events = { wiring = require("wiring") }.`,
+	}); err != nil {
+		return err
+	}
+
+	events, err := asTable("events", exports["events"], `events = { handlers = require("handlers") }`)
+	if err != nil {
+		return err
+	}
+	if err := checkKeys("events", events, eventsKeys, nil); err != nil {
+		return err
+	}
+	if _, ok := events["wiring"]; ok && !p.game {
+		return errors.New(`events.wiring: only the game's own plugin can wire events. A plugin orders its handlers with before and after, like ["dragon:before_say"] = { after = { "dragon:chat" }, handler = function(event) ... end }.`)
+	}
+
+	p.exports = exports
+	return nil
+}
+
+// export returns the table at path in what init.lua returned, such as
+// "commands" or "events.handlers", or nil if there's none. shape is an
+// example of what belongs there, for messages.
+func (p *Plugin) export(path, shape string) (map[string]any, error) {
+	var value any = p.exports
+	for part := range strings.SplitSeq(path, ".") {
+		table, _ := value.(map[string]any)
+		value = table[part]
+	}
+
+	return asTable(path, value, shape)
+}
+
+// asTable returns value as a table keyed by name, or nil if it's nil. An
+// empty Lua table converts to an empty list, so that's a table too.
+func asTable(where string, value any, shape string) (map[string]any, error) {
+	switch v := value.(type) {
+	case nil:
+		return nil, nil
+	case map[string]any:
+		return v, nil
+	case []any:
+		if len(v) == 0 {
+			return map[string]any{}, nil
+		}
+		return nil, fmt.Errorf("%s is a list, but it must be a table keyed by name, like %s.", where, shape)
+	case bool:
+		return nil, fmt.Errorf("%s is a boolean, but it must be a table keyed by name, like %s. A file loaded with require must return its table; one that returns nothing gives true.", where, shape)
+	default:
+		return nil, fmt.Errorf("%s must be a table keyed by name, like %s, not a %s.", where, shape, scripting.TypeName(value))
+	}
+}
+
+// rootScripts lists the .lua files at the top of the plugin.
+func (p *Plugin) rootScripts() []string {
+	entries, _ := fs.ReadDir(p.files, ".")
+	var names []string
+	for _, e := range entries {
+		if !e.IsDir() && path.Ext(e.Name()) == ".lua" {
+			names = append(names, e.Name())
+		}
+	}
+
+	return names
+}
+
+// field is the path to key in the table at base, written as Lua would:
+// commands.look, or events.handlers["dragon:before_say"].
+func field(base, key string) string {
+	if !identRx.MatchString(key) {
+		return fmt.Sprintf("%s[%q]", base, key)
+	}
+	if base == "" {
+		return key
+	}
+
+	return base + "." + key
+}
+
+var identRx = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+// exportKeys are the fields init.lua's table may have, and eventsKeys
+// those of its events.
+var (
+	exportKeys = []string{"commands", "slots", "modes", "events"}
+	eventsKeys = []string{"declare", "handlers", "wiring"}
+)
+
+// hideDir is fsys without the directory dir.
+type hideDir struct {
+	fsys fs.FS
+	dir  string
+}
+
+func (h hideDir) Open(name string) (fs.File, error) {
+	if name == h.dir || strings.HasPrefix(name, h.dir+"/") {
+		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
+	}
+
+	return h.fsys.Open(name)
+}
+
+func andList(items []string) string {
+	if len(items) == 1 {
+		return items[0]
+	}
+
+	return strings.Join(items[:len(items)-1], ", ") + " and " + items[len(items)-1]
 }
 
 // read returns file's contents, or "" if the plugin has no such file.

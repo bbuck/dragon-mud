@@ -24,6 +24,8 @@ func (f fn) CallAll(ctx context.Context, args ...any) ([]any, error) {
 	return f(args...)
 }
 
+func (f fn) Source() string { return "" }
+
 // tag returns a handler function that appends name to the payload's "seen"
 // list and returns the payload.
 func tag(name string) fn {
@@ -125,9 +127,8 @@ func TestCycleIsExplained(t *testing.T) {
 	game.After = []string{"armor"}
 
 	_, err := New(Config{
-		Plugins:    plugins,
-		Handlers:   []Handler{armor, shields, game},
-		WiringFile: "game/wiring.lua",
+		Plugins:  plugins,
+		Handlers: []Handler{armor, shields, game},
 	})
 	if err == nil {
 		t.Fatal("expected an error")
@@ -138,7 +139,7 @@ func TestCycleIsExplained(t *testing.T) {
 		"go in a circle",
 		"armor says after shields",
 		"shields says after armor",
-		`game/wiring.lua: hooks = { hit = { order = {`,
+		`the game's events.wiring: ["hit"] = { order = {`,
 	} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error %q doesn't mention %q", err, want)
@@ -200,7 +201,7 @@ func TestWiringErrors(t *testing.T) {
 		{
 			"unknown hook",
 			map[string]Wiring{"hti": {Disable: []string{"armor"}}},
-			[]string{"game/wiring.lua: hooks.hti is wired", `no plugin handles "hti"`, `Did you mean "hit"?`},
+			[]string{`the game's events.wiring["hti"] is wired`, `no plugin handles "hti"`, `Did you mean "hit"?`},
 		},
 		{
 			"unknown plugin",
@@ -226,7 +227,7 @@ func TestWiringErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := New(Config{Plugins: plugins, Handlers: handlers, Wiring: tt.wiring, WiringFile: "game/wiring.lua"})
+			_, err := New(Config{Plugins: plugins, Handlers: handlers, Wiring: tt.wiring})
 			if err == nil {
 				t.Fatal("expected an error")
 			}
@@ -241,7 +242,7 @@ func TestWiringErrors(t *testing.T) {
 
 func TestOneHandlerPerPlugin(t *testing.T) {
 	_, err := New(Config{Plugins: plugins, Handlers: []Handler{handler("hit", "armor"), handler("hit", "armor")}})
-	if err == nil || !strings.Contains(err.Error(), "armor/hooks.lua: two handlers") {
+	if err == nil || !strings.Contains(err.Error(), `events.handlers["hit"] in armor: two handlers`) {
 		t.Errorf("got %v", err)
 	}
 }
@@ -312,7 +313,7 @@ func TestRunRejectsBadReturns(t *testing.T) {
 		returns []any
 		want    string
 	}{
-		{"true", []any{true}, "armor/hooks.lua: the hit handler returned true. A hook handler returns nothing"},
+		{"true", []any{true}, `events.handlers["hit"] in armor: the hit handler returned true. A hook handler returns nothing`},
 		{"string", []any{"ok"}, "returned a string"},
 		{"reason", []any{false, 3.0}, "cancelled with a number as its reason"},
 	}
@@ -403,7 +404,7 @@ func TestEventsMatchTheirDeclaration(t *testing.T) {
 		{"prefix", "section:room.exits", map[string]any{"data": 1}, ""},
 		{"prefix checks", "section:room.exits", map[string]any{"data": 1, "parts": 2}, `has a field "parts"`},
 		{"undeclared", "dragon:before_sya", nil,
-			`no plugin declares the hook "dragon:before_sya". Did you mean "dragon:before_say"? The plugin that runs a hook or notification declares it in its events.lua`},
+			`no plugin declares the hook "dragon:before_sya". Did you mean "dragon:before_say"? The plugin that runs a hook or notification declares it in its events.declare`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -431,7 +432,7 @@ func TestHandlersReturnDeclaredFields(t *testing.T) {
 	}
 
 	_, err = r.Run(context.Background(), "hit", map[string]any{"damage": 1})
-	want := `armor/hooks.lua: the hit handler returned an event that has a field "damge", which hit doesn't have. Did you mean "damage"?`
+	want := `events.handlers["hit"] in armor: the hit handler returned an event that has a field "damge", which hit doesn't have. Did you mean "damage"?`
 	if err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("got %v\nwant it to contain %q", err, want)
 	}
@@ -442,7 +443,7 @@ func TestOneDeclarationPerHook(t *testing.T) {
 		{Name: "hit", Plugin: "armor"},
 		{Name: "hit", Plugin: "shields"},
 	}})
-	want := `armor/events.lua and shields/events.lua both declare "hit". A hook has one declaration, from the plugin that runs it; rename one of them, with its plugin's name in front, like "shields:hit".`
+	want := `armor and shields both declare "hit". A hook has one declaration, from the plugin that runs it; rename one of them, with its plugin's name in front, like "shields:hit".`
 	if err == nil || err.Error() != want {
 		t.Errorf("got %v\nwant %q", err, want)
 	}

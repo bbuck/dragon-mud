@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"context"
 	"fmt"
 	"maps"
 	"regexp"
@@ -17,36 +16,32 @@ var (
 	sectionHookRx = regexp.MustCompile(`^section:[a-z][a-z0-9_]*(/[a-z][a-z0-9_]*)*\.[a-z][a-z0-9_]*$`)
 )
 
-// hookKeys are the fields a handler entry in hooks.lua may have.
+// hookKeys are the fields a handler entry may have.
 var hookKeys = []string{"handler", "before", "after"}
 
-// wiringKeys are the fields wiring.lua may have, and wiredHookKeys the
-// fields of each hook under hooks.
-var (
-	wiringKeys    = []string{"hooks"}
-	wiredHookKeys = []string{"order", "disable"}
-)
+// wiredHookKeys are the fields wiring may set for each event.
+var wiredHookKeys = []string{"order", "disable"}
 
-// Hooks loads the handlers the plugin's hooks.lua returns, sorted by hook
-// name. Each is a function, or a table with the function and ordering:
+// Handlers loads the handlers the plugin exports as events.handlers,
+// sorted by event name. Each is a function, or a table with the function
+// and ordering:
 //
-//	return {
+//	handlers = {
 //	  ["dragon:player_connected"] = function(event) ... end,
 //	  ["dragon:before_say"] = {
 //	    after = { "dragon:chat" },
 //	    handler = function(event) ... end,
 //	  },
 //	}
-func (p *Plugin) Hooks(ctx context.Context) ([]hook.Handler, error) {
-	file := p.ID + "/hooks.lua"
-	table, err := p.evalTable(ctx, "hooks.lua", file)
+func (p *Plugin) Handlers() ([]hook.Handler, error) {
+	table, err := p.export("events.handlers", `handlers = { ["dragon:said"] = function(event) ... end }`)
 	if err != nil || table == nil {
 		return nil, err
 	}
 
 	var handlers []hook.Handler
 	for _, name := range slices.Sorted(maps.Keys(table)) {
-		where := fmt.Sprintf("%s: %s", file, name)
+		where := field("events.handlers", name)
 		if strings.HasPrefix(name, "section:") && !sectionHookRx.MatchString(name) || !strings.HasPrefix(name, "section:") && !hookNameRx.MatchString(name) {
 			return nil, fmt.Errorf("%s isn't a valid hook name. Hook names are lowercase words joined by underscores, with an optional namespace, like can_move or mapping:map_changed, or section:<view>.<section> to add to a view's section, like section:room.exits or section:chat/say.badges.", where)
 		}
@@ -81,41 +76,23 @@ func (p *Plugin) Hooks(ctx context.Context) ([]hook.Handler, error) {
 	return handlers, nil
 }
 
-// Wiring loads the game's wiring.lua: how it rearranges other plugins'
-// hook handlers. A missing wiring.lua returns nil.
+// Wiring loads how the game rearranges other plugins' handlers, which it
+// exports as events.wiring, keyed by event name. Only the game's own plugin
+// has wiring; Load checks that.
 //
-//	return {
-//	  hooks = {
-//	    ["dragon:before_say"] = { order = { "game", "dragon:chat" } },
-//	    ["dragon:player_connected"] = { disable = { "dragon:presence" } },
-//	  },
+//	wiring = {
+//	  ["dragon:before_say"] = { order = { "game", "dragon:chat" } },
+//	  ["dragon:player_connected"] = { disable = { "dragon:presence" } },
 //	}
-func (p *Plugin) Wiring(ctx context.Context) (map[string]hook.Wiring, error) {
-	file := p.WiringFile()
-	table, err := p.evalTable(ctx, "wiring.lua", file)
-	if err != nil || table == nil {
+func (p *Plugin) Wiring() (map[string]hook.Wiring, error) {
+	hooks, err := p.export("events.wiring", `wiring = { ["dragon:player_connected"] = { disable = { "dragon:presence" } } }`)
+	if err != nil || hooks == nil {
 		return nil, err
-	}
-	if err := checkKeys(file, table, wiringKeys, nil); err != nil {
-		return nil, err
-	}
-
-	raw, ok := table["hooks"]
-	if !ok {
-		return nil, nil
-	}
-	hooks, ok := raw.(map[string]any)
-	if list, isList := raw.([]any); isList && len(list) == 0 {
-		hooks, ok = map[string]any{}, true
-	}
-	if !ok {
-		return nil, fmt.Errorf("%s: hooks must be a table keyed by hook name, like hooks = { [\"dragon:before_say\"] = { order = { ... } } }, not a %s.",
-			file, scripting.TypeName(raw))
 	}
 
 	wiring := make(map[string]hook.Wiring, len(hooks))
 	for _, name := range slices.Sorted(maps.Keys(hooks)) {
-		where := fmt.Sprintf("%s: hooks.%s", file, name)
+		where := field("events.wiring", name)
 		entry, ok := hooks[name].(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("%s must be a table like { order = { ... } } or { disable = { ... } }, not a %s.",
@@ -139,16 +116,6 @@ func (p *Plugin) Wiring(ctx context.Context) (map[string]hook.Wiring, error) {
 	}
 
 	return wiring, nil
-}
-
-// WiringFile is where the plugin's wiring is, for messages.
-func (p *Plugin) WiringFile() string {
-	return p.ID + "/wiring.lua"
-}
-
-// HasWiring reports whether the plugin has a wiring.lua.
-func (p *Plugin) HasWiring() bool {
-	return p.exists("wiring.lua")
 }
 
 // pluginList reads an optional list of plugin ids.
