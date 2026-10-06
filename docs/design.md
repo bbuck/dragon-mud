@@ -1232,6 +1232,7 @@ check sits where Lua can't reach it.
 | `game`             | The game loop, events and world ownership.              |
 | `world`            | Objects in memory: ids, parents, locations, properties. |
 | `schema`           | Types plugins declare for objects, and their fields.    |
+| `gametest`         | `dragon test`: Lua tests with scripted sessions.        |
 | `command`          | Form patterns, slot types and the input parser.         |
 | `hook`             | Hook chains, notifications, ordering.                   |
 | `plugin`           | Plugin loading, manifests and dependency sorting.       |

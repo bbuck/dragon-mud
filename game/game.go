@@ -185,6 +185,9 @@ type scripts struct {
 	// origins maps each loaded plugin's id to where it came from.
 	origins map[string]string
 
+	// game is the game's own plugin, if it has one.
+	game *plugin.Plugin
+
 	// tasks are every plugin's tasks, by full name.
 	tasks map[string]plugin.TaskDef
 
@@ -309,6 +312,9 @@ func (g *Game) loadInto(ctx context.Context, s *scripts) error {
 		}
 		s.origins[p.ID] = src.Origin
 		plugins = append(plugins, p)
+		if p.ID == plugin.GameID {
+			s.game = p
+		}
 	}
 
 	engineAPIs, err := builtin.APIs()
@@ -626,6 +632,9 @@ func (g *Game) handleEvent(ctx context.Context, e loopEvent) {
 
 	case taskEvent:
 		g.runTask(e)
+
+	case evalEvent:
+		g.eval(e)
 	}
 }
 

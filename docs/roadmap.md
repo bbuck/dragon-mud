@@ -95,7 +95,8 @@ over telnet and the web and talk to each other.
       wait for the admin API (Milestone 5).
 - [ ] `dragon add/update/remove/list`, `dragon.lock`, vendoring.
 - [ ] Import maps, plugin JS, the `dragon` client API, client events.
-- [ ] `dragon test` with scripted sessions.
+- [x] `dragon test` with scripted sessions. Conformance suites for APIs
+      are still to come.
 - [ ] Plugin introspection: `dragon plugin <name>` shows everything a
       plugin provides (commands and forms, slot types, hook handlers, the
       hooks and notifications it runs, and later messages, schema and

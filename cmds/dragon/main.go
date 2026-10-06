@@ -50,6 +50,8 @@ Usage:
   dragon events [<name>] [-dir <directory>]    list events, or show one's fields
                                                and the order its handlers run in
   dragon tasks [-dir <directory>]              list the tasks plugins provide
+  dragon test [-dir <directory>] [-run <regexp>]
+                                               run the game's tests
   dragon <plugin>:<task> [-dir <directory>] [args...]
                                                run a task, after the tasks it
                                                depends on
@@ -76,6 +78,8 @@ func main() {
 		fmt.Print(usage)
 	case "tasks":
 		err = runTasks(os.Args[2:], os.Stdout)
+	case "test":
+		err = runTest(os.Args[2:], os.Stdout)
 	default:
 		if strings.Contains(os.Args[1], ":") {
 			err = runTask(os.Args[1], os.Args[2:], os.Stdout)

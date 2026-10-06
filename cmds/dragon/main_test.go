@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"bbuck.dev/dragon-mud/event"
+	"bbuck.dev/dragon-mud/scaffold"
 )
 
 func TestPluginSourcesLoadsListedBuiltinsInEngineOrder(t *testing.T) {
@@ -108,5 +109,21 @@ Handlers, in the order they run:
 	}
 	if want := "dragon:befor_say   game (not declared, so never run)"; !strings.Contains(out.String(), want) {
 		t.Errorf("got\n%s\nwant it to contain %s", out.String(), want)
+	}
+}
+
+// The tests dragon new writes pass against the game it writes.
+func TestNewGamesTestsPass(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "mygame")
+	if err := scaffold.New(dir, scaffold.Data{Name: "My Game"}); err != nil {
+		t.Fatal(err)
+	}
+
+	var out strings.Builder
+	if err := runTest([]string{"-dir", dir}, &out); err != nil {
+		t.Fatalf("%v\n%s", err, out.String())
+	}
+	if !strings.Contains(out.String(), "3 passed, 0 failed") {
+		t.Errorf("got\n%s", out.String())
 	}
 }

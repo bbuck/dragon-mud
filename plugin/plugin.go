@@ -232,6 +232,13 @@ func Open(ctx context.Context, engine scripting.Engine, src Source, own func(id 
 	return p, nil
 }
 
+// Eval runs source in the plugin's scope, where it can require the
+// plugin's modules, and returns what it returns. name identifies it in
+// errors.
+func (p *Plugin) Eval(ctx context.Context, name, source string) (any, error) {
+	return p.scope.Eval(ctx, name, source)
+}
+
 // Loaded reports whether init.lua has run.
 func (p *Plugin) Loaded() bool {
 	return p.exports != nil

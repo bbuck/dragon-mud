@@ -64,6 +64,7 @@ mapping/
     events.lua      the events it sends, and their fields
     handlers.lua    handlers for events (see design.md §4)
   views/            views: templates scripts send (*.txt.tmpl, *.html.tmpl)
+  tests/            tests dragon test runs (*_test.lua)
   templates/        other templates, such as entity_tooltip.html.tmpl
   web/              ES modules, CSS, assets for the game client
   admin/            builder UI extensions
@@ -309,8 +310,8 @@ plugin.
   the API defers it until it's called.
 - Each API module is loaded when the game starts, so a broken one fails
   then, not when something first imports it.
-- Each API has a written contract and a **conformance test suite**:
-  `dragon test --conformance dragon:rooms@1`.
+- Each API will have a written contract and a **conformance test
+  suite**: `dragon test --conformance dragon:rooms@1` (see Testing).
 
 Prefer extending to replacing. Replace a plugin only for a genuinely
 different model (rooms on a grid instead of a graph).
@@ -427,6 +428,53 @@ values onto `dragon:items`:
 ```sh
 dragon import-diku:import area/midgaard.are --map import/rom.toml
 ```
+
+## Testing
+
+`dragon test` runs the tests in `game/tests/` and in each local plugin's
+`tests/`. A test file's name ends in `_test.lua`, and it returns a table
+of tests; other files in `tests/` are helpers the tests `require`.
+
+```lua
+-- game/tests/chat_test.lua
+return {
+  ["say reaches the room"] = function(t)
+    local alice, bob = t:connect(), t:connect()
+    alice:login("Alice")
+    bob:login("Bob")
+    alice:expect("Bob has arrived.")
+
+    bob:send("say hi")
+    alice:expect('Bob says, "hi"')
+  end,
+}
+```
+
+- **Every test gets a fresh game**: the game's plugins, an empty world
+  and a database of its own, with `dragon:booted` sent as when the server
+  starts. Tests play it the way players do, so they test the game as
+  telnet and the web see it.
+- **`t:connect()`** opens a session at the login prompt. A session's
+  `p:send(line)` types a line; `p:expect(text[, seconds])` waits (2
+  seconds by default) for output containing `text`, with color codes
+  removed, after whatever the last `expect` matched, and fails with
+  everything received if it never comes; `p:expect_without(text,
+  forbidden...)` also fails if a forbidden text arrives first;
+  `p:login(name)` makes an account called `name` through the engine's
+  login, returning where the game's character select takes over;
+  `p:output()` lists every line so far; `p:disconnect()` closes it.
+- **`t:eval(code)`** runs Lua in the game's own plugin, where it can
+  `require` the game's modules and the engine's, to set up the world or
+  look at it. It returns what the code returns, with objects as their
+  ids. Tests themselves run in a Lua state of their own, so the game is
+  reached only through sessions and `t:eval`.
+- A failing assertion or Lua error fails the test with its file and line.
+  `dragon test -run <regexp>` runs only the tests whose names match, and
+  `dragon test` exits with an error when any test fails.
+- `dragon new` writes `game/tests/tavern_test.lua`, which tests the game it
+  makes.
+- To come: conformance suites for APIs (`dragon test --conformance
+  dragon:rooms@1`), and tests for installed plugins.
 
 ## Web client
 
