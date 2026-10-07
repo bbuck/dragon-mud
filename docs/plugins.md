@@ -507,7 +507,14 @@ return {
     results can be piped while warnings still reach the terminal. Both
     join their arguments with spaces.
 
-  A task that raises an error fails, and `dragon` exits with it.
+  - `task:fail(message[, code])` stops the task when it can't succeed
+    ("there's no area called riverside"): `dragon` prints `message` on
+    stderr, with no stack trace, and exits with `code`, 1 to 125 and 1
+    by default. Tasks after it don't run, and catching its error with
+    `pcall` doesn't undo it.
+
+  A task that raises an error (`error(...)`, or a bug) fails too, with the
+  error's file and line, and `dragon` exits with status 1.
 - **`depends`** runs prerequisites first, each once, in the order listed,
   named in full as written. Prerequisites get no `args`. A missing task
   or a circle is a startup error.

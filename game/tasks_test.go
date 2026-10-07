@@ -2,6 +2,7 @@ package game
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -294,5 +295,45 @@ func TestTaskObject(t *testing.T) {
 	}
 	if want := []string{"warn: checking 0", "world:fill river", "warn: 2 rooms have no exits"}; !slices.Equal(lines, want) {
 		t.Errorf("printed %q, want %q", lines, want)
+	}
+}
+
+func TestTaskFail(t *testing.T) {
+	g := startGame(t, taskFiles(`
+		return {
+			missing = function(task) task:fail("there's no area called " .. task.args[1], 3) end,
+			plain = function(task) task:fail("can't") end,
+			caught = function(task)
+				pcall(function() task:fail("nope", 4) end)
+				task:print("carried on")
+			end,
+			badcode = function(task) task:fail("x", 200) end,
+			after = { depends = { "plain" }, execute = function(task) task:print("ran") end },
+		}
+	`))
+
+	var failed *TaskFailed
+	_, err := runTaskLines(t, g, "missing", "riverside")
+	if !errors.As(err, &failed) || failed.Message != "there's no area called riverside" || failed.Code != 3 || failed.Task != "missing" {
+		t.Errorf("missing: %#v", err)
+	}
+	if _, err := runTaskLines(t, g, "plain"); !errors.As(err, &failed) || failed.Code != 1 {
+		t.Errorf("plain: %#v", err)
+	}
+
+	// Catching fail's error doesn't undo it.
+	lines, err := runTaskLines(t, g, "caught")
+	if !errors.As(err, &failed) || failed.Code != 4 || !slices.Equal(lines, []string{"carried on"}) {
+		t.Errorf("caught: %v, %q", err, lines)
+	}
+
+	// A prerequisite failing stops what depends on it.
+	lines, err = runTaskLines(t, g, "after")
+	if !errors.As(err, &failed) || failed.Task != "plain" || len(lines) != 0 {
+		t.Errorf("after: %v, %q", err, lines)
+	}
+
+	if _, err := runTaskLines(t, g, "badcode"); err == nil || errors.As(err, &failed) || !strings.Contains(err.Error(), "task:fail's exit code must be 1 to 125, not 200") {
+		t.Errorf("badcode: %v", err)
 	}
 }

@@ -119,7 +119,12 @@ func main() {
 		err = runTask(os.Args[1], os.Args[2:], os.Stdout, os.Stderr)
 	}
 
-	if err != nil {
+	var failed *game.TaskFailed
+	switch {
+	case errors.As(err, &failed):
+		fmt.Fprintln(os.Stderr, failed.Message)
+		os.Exit(failed.Code)
+	case err != nil:
 		fmt.Fprintln(os.Stderr, "dragon:", err)
 		os.Exit(1)
 	}

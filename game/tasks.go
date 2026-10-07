@@ -17,6 +17,20 @@ import (
 // ErrNoTask is returned by RunTask for a task no plugin has.
 var ErrNoTask = errors.New("there's no task")
 
+// TaskFailed is returned by RunTask when a task calls task:fail: it can't
+// succeed, for a reason it gives, as opposed to a bug raising an error.
+type TaskFailed struct {
+	Task    string
+	Message string
+
+	// Code is the exit status dragon ends with, 1 to 125.
+	Code int
+}
+
+func (f *TaskFailed) Error() string {
+	return f.Message
+}
+
 // taskEvent asks the loop to run a task and the tasks it depends on.
 type taskEvent struct {
 	ctx  context.Context
@@ -170,7 +184,13 @@ func (g *Game) runTasks(e taskEvent) error {
 		if t.Name == e.name {
 			run.args = e.args
 		}
-		if _, err := t.Execute.Call(e.ctx, scripting.Handle{Type: g.taskType, Key: run}); err != nil {
+		_, err := t.Execute.Call(e.ctx, scripting.Handle{Type: g.taskType, Key: run})
+		// A task that called fail has failed, even if it caught the
+		// error fail raised.
+		if run.failed != nil {
+			return run.failed
+		}
+		if err != nil {
 			return fmt.Errorf("task %s failed: %w", t.Name, err)
 		}
 	}
@@ -183,6 +203,9 @@ type taskRun struct {
 	name string
 	args []string
 	out  TaskOutput
+
+	// failed is set once the task calls fail.
+	failed *TaskFailed
 }
 
 // makeTaskType is the object a task's execute gets.
@@ -192,6 +215,10 @@ type taskRun struct {
 //	task.name             the task's full name
 //	task:print(...)       a line on stdout: the task's results
 //	task:warn(...)        a line on stderr: problems and progress
+//	task:fail(message[, code])
+//	                      stop: the task can't succeed. dragon prints
+//	                      message on stderr and exits with code, 1 by
+//	                      default
 func (g *Game) makeTaskType() *scripting.Type {
 	run := func(key any) *taskRun { return key.(*taskRun) }
 	line := func(args scripting.Args) string {
@@ -229,6 +256,24 @@ func (g *Game) makeTaskType() *scripting.Type {
 			"warn": func(key any, args scripting.Args) (any, error) {
 				run(key).out.Warn(line(args))
 				return nil, nil
+			},
+			"fail": func(key any, args scripting.Args) (any, error) {
+				message, err := args.String(0)
+				if err != nil {
+					return nil, fmt.Errorf("%w; task:fail takes the reason the task can't succeed, like task:fail(\"there's no area called riverside\")", err)
+				}
+				code := 1
+				if args.Len() > 1 && args[1] != nil {
+					if code, err = args.Int(1); err != nil {
+						return nil, err
+					}
+					if code < 1 || code > 125 {
+						return nil, fmt.Errorf("task:fail's exit code must be 1 to 125, not %d: 0 means success, and shells give higher codes their own meanings", code)
+					}
+				}
+				r := run(key)
+				r.failed = &TaskFailed{Task: r.name, Message: message, Code: code}
+				return nil, errors.New("task:fail: " + message)
 			},
 		},
 		String: func(key any) string { return "task " + run(key).name },
