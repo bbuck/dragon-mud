@@ -661,7 +661,13 @@ client.hook("mapping-pin", { mounted(el) {}, removed(el) {} });
 - Game actions are commands; push and request are for UI state and data.
 - `on`, `onMessage` and `connection.on` return a function that stops
   listening. `onMessage` gets each feed message of a view, as the element
-  added to the feed, after it's added.
+  added to the feed, after it's added: it's for reacting to the feed, like
+  styling or annotating a message. View data never leaves the server, so a
+  template can leave things out. For data, a plugin sends exactly what it
+  wants with `session:push`, from its own handlers for the events
+  involved, and listens with `client.on`, rather than reading it out of
+  the feed's HTML. Open: whether reading the feed should be discouraged
+  outright.
 - Custom elements' `connectedCallback` and `disconnectedCallback` are the
   lifecycle hooks; `client.hook(name, ...)` gives the same to plain
   elements with `data-dragon-hook="name"`.
