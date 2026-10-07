@@ -135,12 +135,11 @@ type Extension struct {
 }
 
 // EngineFields are fields every type has, because the engine reads them:
-// templates name an object with name, and use proper and article to write
+// templates name an object with name, and use article to write
 // "the" and "a" (docs/design.md §5).
 var EngineFields = []Field{
-	{Name: "article", Kind: String, Desc: `the article that replaces "a" or "an" before its name, like "some", or "" for none`},
+	{Name: "article", Kind: Any, Desc: `false for a proper name, which never takes an article; or the article that replaces "a" or "an" before its name, like "some"`},
 	{Name: "name", Kind: String, Desc: "what it's called, without an article"},
-	{Name: "proper", Kind: Boolean, Desc: "true when its name never takes an article, as for people"},
 }
 
 // Registry is every declared type.

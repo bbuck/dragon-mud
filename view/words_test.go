@@ -9,7 +9,7 @@ func TestArticles(t *testing.T) {
 		"keeper": Entity{"id": "k", "name": "bartender"},
 		"elf":    Entity{"id": "e", "name": "elf"},
 		"water":  Entity{"id": "w", "name": "water", "article": "some"},
-		"alice":  Entity{"id": "a", "name": "Alice", "proper": true},
+		"alice":  Entity{"id": "a", "name": "Alice", "article": false},
 		"sword":  Entity{"id": "s", "name": "sword", "article": ""},
 	}
 

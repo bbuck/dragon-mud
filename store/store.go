@@ -59,6 +59,12 @@ var migrations = []string{
 	`
 	ALTER TABLE objects ADD COLUMN types TEXT; -- JSON list of schema types
 	`,
+	`
+	-- proper = true is article = false now.
+	INSERT OR REPLACE INTO properties (object, name, value)
+		SELECT object, 'article', 'false' FROM properties WHERE name = 'proper' AND value = 'true';
+	DELETE FROM properties WHERE name = 'proper';
+	`,
 }
 
 // Store is a game's database.

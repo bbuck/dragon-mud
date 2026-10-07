@@ -204,7 +204,7 @@ return {
   a `type` and `default`. Types are `any` (the default), `string`,
   `text`, `number`, `integer`, `boolean`, `object`, `list` and `table`,
   and every one also takes nil. Every type also has the fields the
-  engine reads: `name`, `proper` and `article` (design.md §5).
+  engine reads: `name` and `article` (design.md §5).
 - **Names are as written**, like events: plugins namespace their types
   (`items:item`), and `dragon:` is for built-ins. Two plugins declaring
   one type is a startup error.

@@ -145,3 +145,27 @@ func TestNewerSchemaRefused(t *testing.T) {
 		t.Error("opened a database from a newer engine")
 	}
 }
+
+// A database from before article = false replaced proper = true is
+// migrated.
+func TestProperBecomesArticle(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "world.db")
+	s := open(t, path)
+	w := load(t, s)
+	alice := w.Create()
+	must(t, alice.Set("name", "Alice"))
+	must(t, alice.Set("proper", true))
+	save(t, s, w)
+	if _, err := s.db.Exec(`PRAGMA user_version = 4`); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+
+	alice2, _ := load(t, open(t, path)).Get(alice.ID())
+	if v, ok := alice2.GetOwn("article"); !ok || v != false {
+		t.Errorf("article = %v, %v", v, ok)
+	}
+	if _, ok := alice2.GetOwn("proper"); ok {
+		t.Error("proper is still there")
+	}
+}

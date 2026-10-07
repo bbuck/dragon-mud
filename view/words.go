@@ -17,9 +17,10 @@ import (
 //	{{the .x}}   the bartender       {{The .x}}   The bartender
 //	{{a .x}}     a bartender         {{A .x}}     A bartender
 //
-// An object with proper = true never gets an article ("Alice"). Its
-// article property, if set, replaces "a" or "an" ("some water", or ""
-// for none); otherwise a name starting with a vowel gets "an". The name
+// An object whose article property is false has a proper name, which
+// never gets an article ("Alice"). A string article replaces "a" or "an"
+// ("some water", or "" for none); otherwise a name starting with a vowel
+// gets "an". The name
 // is the entity, clickable like {{entity}}.
 //
 //	{{cap x}}    first letter upper case: {{cap .message}}
@@ -30,9 +31,10 @@ import (
 // {{cap (entity .x)}} capitalizes the name, not the markup.
 
 // article is the article e takes: definite for "the", or "a"/"an"/its
-// article property; "" for a proper name or an empty article.
+// article property; "" for a proper name (article = false) or an empty
+// article.
 func article(e Entity, definite bool) string {
-	if proper, _ := e["proper"].(bool); proper {
+	if a, ok := e["article"].(bool); ok && !a {
 		return ""
 	}
 	if definite {
