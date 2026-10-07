@@ -42,16 +42,18 @@ func installFlags(name string, args []string) (dir string, yes bool, arg string,
 	return *dirFlag, *yesFlag, arg, nil
 }
 
-// runAdd installs a plugin, after showing what it asks for.
+// runAdd adds a plugin to dragon.toml's dependencies and installs it,
+// with what it depends on, after showing what each asks for.
 func runAdd(args []string, in io.Reader, out io.Writer) error {
 	dir, yes, spec, err := installFlags("add", args)
 	if err != nil {
 		return err
 	}
 	if spec == "" {
-		return errors.New("usage: dragon add <source>[@version], like dragon add github.com/usera/mapping@v1.2.0")
+		return errors.New("usage: dragon add <source>[@version], like dragon add github.com/johns/rooms@1.8")
 	}
-	if _, err := config.Load(dir); err != nil {
+	cfg, err := config.Load(dir)
+	if err != nil {
 		return err
 	}
 
@@ -59,47 +61,81 @@ func runAdd(args []string, in io.Reader, out io.Writer) error {
 	defer stop()
 
 	source, version := install.Spec(spec)
-	locked, err := install.Add(ctx, install.Options{Dir: dir, Confirm: confirmer(in, out, yes, source)}, source, version)
-	if err != nil {
+	constraint := ""
+	if version != "" {
+		if constraint, err = install.Constraint(version); err != nil {
+			return err
+		}
+	} else if constraint, err = install.Newest(ctx, source); err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "Installed %s %s in %s/%s.\n", locked.Name, locked.Version, install.Dir, locked.Name)
+
+	// Install with the new constraint, and put dragon.toml back as it was
+	// if that fails.
+	old, had := cfg.Dependencies[source]
+	if err := config.SetDependency(dir, source, constraint); err != nil {
+		return err
+	}
+	if err := syncPlugins(ctx, dir, install.Options{Update: []string{source}}, in, out, yes); err != nil {
+		if had {
+			config.SetDependency(dir, source, old)
+		} else {
+			config.RemoveDependency(dir, source)
+		}
+		return err
+	}
 
 	return reportUnmet(dir, out)
 }
 
-// runUpdate reinstalls a plugin at a new version.
+// runUpdate moves installed plugins to the newest versions their
+// constraints allow: one plugin, with a version to change its constraint
+// in dragon.toml, or every plugin.
 func runUpdate(args []string, in io.Reader, out io.Writer) error {
 	dir, yes, spec, err := installFlags("update", args)
 	if err != nil {
 		return err
 	}
-	if spec == "" {
-		return errors.New("usage: dragon update <plugin>[@version]")
-	}
-	if _, err := config.Load(dir); err != nil {
+	cfg, err := config.Load(dir)
+	if err != nil {
 		return err
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	name, version := install.Spec(spec)
-	before, after, err := install.Update(ctx, install.Options{Dir: dir, Confirm: confirmer(in, out, yes, name)}, name, version)
-	if err != nil {
-		return err
+	opts := install.Options{UpdateAll: spec == ""}
+	if spec != "" {
+		name, version := install.Spec(spec)
+		source, err := sourceOf(dir, cfg, name)
+		if err != nil {
+			return err
+		}
+		opts.Update = []string{source}
+		if version != "" {
+			if _, direct := cfg.Dependencies[source]; !direct {
+				return fmt.Errorf("%s is installed because other plugins depend on it, so their constraints pick its version. Add it to dragon.toml with dragon add %s@%s to choose one yourself.", name, source, version)
+			}
+			constraint, err := install.Constraint(version)
+			if err != nil {
+				return err
+			}
+			if err := config.SetDependency(dir, source, constraint); err != nil {
+				return err
+			}
+		}
 	}
-	if before.Version == after.Version && before.Hash == after.Hash {
-		fmt.Fprintf(out, "%s is at %s already.\n", after.Name, after.Version)
-	} else {
-		fmt.Fprintf(out, "Updated %s from %s to %s.\n", after.Name, before.Version, after.Version)
+
+	if err := syncPlugins(ctx, dir, opts, in, out, yes); err != nil {
+		return err
 	}
 
 	return reportUnmet(dir, out)
 }
 
-// runRemove deletes an installed plugin.
-func runRemove(args []string, out io.Writer) error {
+// runRemove removes a plugin from dragon.toml's dependencies and uninstalls
+// it, with anything it alone needed.
+func runRemove(args []string, in io.Reader, out io.Writer) error {
 	dir, _, name, err := installFlags("remove", args)
 	if err != nil {
 		return err
@@ -107,17 +143,86 @@ func runRemove(args []string, out io.Writer) error {
 	if name == "" {
 		return errors.New("usage: dragon remove <plugin>")
 	}
-	if _, err := config.Load(dir); err != nil {
-		return err
-	}
-
-	removed, err := install.Remove(dir, name)
+	cfg, err := config.Load(dir)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "Removed %s %s.\n", removed.Name, removed.Version)
+
+	source, err := sourceOf(dir, cfg, name)
+	if err != nil {
+		return err
+	}
+	if _, direct := cfg.Dependencies[source]; !direct {
+		lock, _ := install.ReadLock(dir)
+		p, _ := lock.Source(source)
+		return fmt.Errorf("%s is installed because %s depends on it, not dragon.toml, so it goes when they do.", name, strings.Join(p.RequiredBy, " and "))
+	}
+	if err := config.RemoveDependency(dir, source); err != nil {
+		return err
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if err := syncPlugins(ctx, dir, install.Options{}, in, out, true); err != nil {
+		config.SetDependency(dir, source, cfg.Dependencies[source])
+		return err
+	}
 
 	return reportUnmet(dir, out)
+}
+
+// sourceOf finds the source of an installed plugin, given its name or
+// source, or a dependency in dragon.toml that isn't installed yet.
+func sourceOf(dir string, cfg config.Config, nameOrSource string) (string, error) {
+	lock, err := install.ReadLock(dir)
+	if err != nil {
+		return "", err
+	}
+	if p, _, ok := lock.Find(nameOrSource); ok {
+		return p.Source, nil
+	}
+	if _, ok := cfg.Dependencies[nameOrSource]; ok {
+		return nameOrSource, nil
+	}
+
+	return "", install.NotInstalled(lock, nameOrSource)
+}
+
+// syncPlugins installs what dragon.toml's dependencies resolve to, and says what
+// changed.
+func syncPlugins(ctx context.Context, dir string, opts install.Options, in io.Reader, out io.Writer, yes bool) error {
+	cfg, err := config.Load(dir)
+	if err != nil {
+		return err
+	}
+	opts.Dir = dir
+	if opts.Dependencies, err = cfg.Constraints(); err != nil {
+		return err
+	}
+	opts.Confirm = confirmer(in, out, yes)
+
+	changes, err := install.Sync(ctx, opts)
+	if err != nil {
+		return err
+	}
+	if len(changes) == 0 {
+		fmt.Fprintln(out, "Every plugin is installed and up to date.")
+		return nil
+	}
+	for _, c := range changes {
+		switch {
+		case c.Before == nil:
+			fmt.Fprintf(out, "Installed %s %s in %s/%s.\n", c.Name, c.After.Version, install.Dir, c.Name)
+		case c.After == nil:
+			fmt.Fprintf(out, "Removed %s %s.\n", c.Name, c.Before.Version)
+		case c.Before.Version == c.After.Version:
+			fmt.Fprintf(out, "Reinstalled %s %s.\n", c.Name, c.After.Version)
+		default:
+			fmt.Fprintf(out, "Updated %s from %s to %s.\n", c.Name, c.Before.Version, c.After.Version)
+		}
+	}
+
+	return nil
 }
 
 // runList lists the installed plugins.
@@ -127,62 +232,77 @@ func runList(args []string, out io.Writer) error {
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
-	if _, err := config.Load(*dir); err != nil {
+	cfg, err := config.Load(*dir)
+	if err != nil {
+		return err
+	}
+	deps, err := cfg.Constraints()
+	if err != nil {
 		return err
 	}
 
-	lock, err := install.Verify(*dir)
+	lock, err := install.Verify(*dir, deps)
 	if err != nil {
 		return err
 	}
 	if len(lock.Plugins) == 0 {
-		fmt.Fprintln(out, "No plugins are installed. Install one with dragon add <source>, like dragon add github.com/usera/mapping.")
+		fmt.Fprintln(out, "No plugins are installed. Install one with dragon add <source>, like dragon add github.com/johns/rooms.")
 		return nil
 	}
 
 	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Plugin\tVersion\tSource\tCapabilities")
+	fmt.Fprintln(w, "Plugin\tVersion\tSource\tNeeded by\tCapabilities")
 	for _, p := range lock.Plugins {
 		caps := "none"
 		if m, err := plugin.ReadManifest(os.DirFS(filepath.Join(*dir, install.Dir, p.Name))); err == nil && len(m.Capabilities) > 0 {
 			caps = strings.Join(m.Capabilities, ", ")
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", p.Name, p.Version, p.Source, caps)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", p.Name, p.Version, p.Source, strings.Join(p.RequiredBy, ", "), caps)
 	}
 
 	return w.Flush()
 }
 
-// confirmer shows what a plugin asks for and asks whether to install it,
-// unless yes is set. For an update, it only asks when the new version asks
-// for capabilities the old one didn't.
-func confirmer(in io.Reader, out io.Writer, yes bool, source string) func(plugin.Manifest, *plugin.Manifest) (bool, error) {
-	return func(m plugin.Manifest, before *plugin.Manifest) (bool, error) {
-		caps := m.Capabilities
-		if before != nil {
-			caps = install.NewCapabilities(m, before)
-			if len(caps) == 0 {
-				return true, nil
+// confirmer shows what installing will change and asks whether to go
+// ahead, unless yes is set. It asks only when a plugin is new, or a new
+// version asks for capabilities the old one didn't.
+func confirmer(in io.Reader, out io.Writer, yes bool) func([]install.Change) (bool, error) {
+	return func(changes []install.Change) (bool, error) {
+		ask := false
+		for _, c := range changes {
+			if c.After == nil {
+				continue
 			}
-			fmt.Fprintf(out, "%s %s asks for capabilities the installed version doesn't:\n", m.Name, m.Version)
-		} else {
-			fmt.Fprintf(out, "%s %s, from %s, ", m.Name, m.Version, source)
-			if len(caps) == 0 {
-				fmt.Fprintln(out, "asks for no capabilities: it uses only game features.")
-			} else {
-				fmt.Fprintln(out, "asks for these capabilities:")
+			var caps []string
+			switch {
+			case c.Before == nil:
+				caps = c.Manifest.Capabilities
+				fmt.Fprintf(out, "%s %s, from %s, ", c.Name, c.After.Version, c.Source)
+				if len(caps) == 0 {
+					fmt.Fprintln(out, "asks for no capabilities: it uses only game features.")
+				} else {
+					fmt.Fprintln(out, "asks for these capabilities:")
+				}
+				ask = true
+			default:
+				caps = install.NewCapabilities(*c.Manifest, c.Old)
+				if len(caps) == 0 {
+					continue
+				}
+				fmt.Fprintf(out, "%s %s asks for capabilities %s doesn't:\n", c.Name, c.After.Version, c.Before.Version)
+				ask = true
 			}
+			w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
+			for _, cap := range caps {
+				fmt.Fprintf(w, "  %s\t%s\n", cap, plugin.CapabilityDescs[cap])
+			}
+			w.Flush()
 		}
-		w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
-		for _, c := range caps {
-			fmt.Fprintf(w, "  %s\t%s\n", c, plugin.CapabilityDescs[c])
-		}
-		w.Flush()
 
-		if yes {
+		if !ask || yes {
 			return true, nil
 		}
-		fmt.Fprint(out, "Install it? [y/N] ")
+		fmt.Fprint(out, "Install? [y/N] ")
 		answer, err := bufio.NewReader(in).ReadString('\n')
 		if err != nil && !errors.Is(err, io.EOF) {
 			return false, err
@@ -203,7 +323,7 @@ func reportUnmet(dir string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	sources, err := pluginSources(dir, cfg.Builtins)
+	sources, err := pluginSources(dir, cfg)
 	if err != nil {
 		return err
 	}

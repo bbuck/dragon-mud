@@ -7,13 +7,14 @@ import (
 	"strings"
 	"testing"
 
+	"bbuck.dev/dragon-mud/config"
 	"bbuck.dev/dragon-mud/event"
 	"bbuck.dev/dragon-mud/install"
 	"bbuck.dev/dragon-mud/scaffold"
 )
 
 func TestPluginSourcesLoadsListedBuiltinsInEngineOrder(t *testing.T) {
-	sources, err := pluginSources(t.TempDir(), []string{"presence", "chat"})
+	sources, err := pluginSources(t.TempDir(), config.Config{Builtins: []string{"presence", "chat"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +39,7 @@ func TestPluginSourcesLoadsLocalPluginsBeforeTheGame(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sources, err := pluginSources(dir, []string{"chat"})
+	sources, err := pluginSources(dir, config.Config{Builtins: []string{"chat"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +160,7 @@ func TestPluginSourcesLoadsInstalledPlugins(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sources, err := pluginSources(dir, []string{"chat"})
+	sources, err := pluginSources(dir, config.Config{Builtins: []string{"chat"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +178,7 @@ func TestPluginSourcesLoadsInstalledPlugins(t *testing.T) {
 	}
 
 	write("plugins/zookeeper/init.lua", "return {}")
-	if _, err := pluginSources(dir, []string{"chat"}); err == nil || !strings.Contains(err.Error(), "plugins/zookeeper has changed") {
+	if _, err := pluginSources(dir, config.Config{Builtins: []string{"chat"}}); err == nil || !strings.Contains(err.Error(), "plugins/zookeeper has changed") {
 		t.Errorf("changed plugin: %v", err)
 	}
 }

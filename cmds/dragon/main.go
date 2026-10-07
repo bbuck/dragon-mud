@@ -56,10 +56,12 @@ Usage:
   dragon test [-dir <directory>] [-run <regexp>]
                                                run the game's tests
   dragon add <source>[@version] [-dir <directory>] [-y]
-                                               install a plugin from git, like
-                                               github.com/usera/mapping@v1.2.0
-  dragon update <plugin>[@version] [-dir <directory>] [-y]
-                                               change an installed plugin's version
+                                               add a plugin to dragon.toml and
+                                               install it from git, like
+                                               github.com/johns/rooms@1.8
+  dragon update [<plugin>[@version]] [-dir <directory>] [-y]
+                                               update every plugin, or one, to
+                                               the newest version allowed
   dragon remove <plugin> [-dir <directory>]    uninstall a plugin
   dragon list [-dir <directory>]               list the installed plugins
   dragon <task> [-dir <directory>] [args...]
@@ -99,7 +101,7 @@ func main() {
 	case "update":
 		err = runUpdate(os.Args[2:], os.Stdin, os.Stdout)
 	case "remove":
-		err = runRemove(os.Args[2:], os.Stdout)
+		err = runRemove(os.Args[2:], os.Stdin, os.Stdout)
 	case "list":
 		err = runList(os.Args[2:], os.Stdout)
 	case "plugin":
@@ -223,7 +225,7 @@ func runServe(args []string) error {
 // run. loaded, if not nil, is told how many objects the world has once
 // it's loaded. close closes the database.
 func openGame(ctx context.Context, dir string, cfg config.Config, log *slog.Logger, loaded func(objects int)) (g *game.Game, close func() error, err error) {
-	sources, err := pluginSources(dir, cfg.Builtins)
+	sources, err := pluginSources(dir, cfg)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -287,7 +289,7 @@ func runEvents(args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	sources, err := pluginSources(*dir, cfg.Builtins)
+	sources, err := pluginSources(*dir, cfg)
 	if err != nil {
 		return err
 	}
@@ -451,8 +453,9 @@ func showEvent(out io.Writer, events *event.Registry, name string) error {
 // plugins in game/plugins, then the game's own plugin. Installed and local
 // plugins are each in directory name order, moved after the plugins that
 // provide the APIs they depend on. Installed plugins must match
-// dragon.lock.
-func pluginSources(dir string, builtins []string) ([]plugin.Source, error) {
+// dragon.lock, and dragon.lock the game's dependencies.
+func pluginSources(dir string, cfg config.Config) ([]plugin.Source, error) {
+	builtins := cfg.Builtins
 	var sources []plugin.Source
 	for _, name := range builtin.Names {
 		if !slices.Contains(builtins, name) {
@@ -469,7 +472,11 @@ func pluginSources(dir string, builtins []string) ([]plugin.Source, error) {
 		})
 	}
 
-	lock, err := install.Verify(dir)
+	deps, err := cfg.Constraints()
+	if err != nil {
+		return nil, err
+	}
+	lock, err := install.Verify(dir, deps)
 	if err != nil {
 		return nil, err
 	}

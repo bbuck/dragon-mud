@@ -40,7 +40,7 @@ func runPlugin(args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	sources, err := pluginSources(*dir, cfg.Builtins)
+	sources, err := pluginSources(*dir, cfg)
 	if err != nil {
 		return err
 	}

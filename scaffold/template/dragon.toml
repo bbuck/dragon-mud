@@ -14,6 +14,12 @@ builtins = [
 {{- end}}
 ]
 
+# Plugins this game installs: where each comes from and the versions it
+# accepts. dragon add writes these, and dragon.lock pins what they resolve
+# to, along with the plugins they need.
+# [dependencies]
+# "github.com/johns/rooms" = "^1.8"
+
 [telnet]
 enabled = true
 address = ":4000"

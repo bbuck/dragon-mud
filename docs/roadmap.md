@@ -94,8 +94,9 @@ over telnet and the web and talk to each other.
 - [x] Tasks (`dragon <task>`, `dragon tasks`), named as written with
       rake-style namespaces, offline. Live tasks
       wait for the admin API (Milestone 5).
-- [x] `dragon add/update/remove/list`, `dragon.lock`, vendoring. Installing
-      doesn't fetch dependencies: they name APIs, not plugins.
+- [x] `dragon add/update/remove/list`, `dragon.lock`, vendoring.
+      `[dependencies]` in `dragon.toml` and `plugin.toml` list sources and
+      constraints, resolved together into `dragon.lock`.
 - [x] Import maps, plugin JS, the `dragon` client API, client events.
 - [x] `dragon test` with scripted sessions. Conformance suites for APIs
       are still to come.

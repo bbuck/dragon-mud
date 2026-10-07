@@ -43,7 +43,7 @@ func TestManifestErrors(t *testing.T) {
 		{"no name", false, fstest.MapFS{"plugin.toml": file(`version = "1.0.0"`)}, `plugin.toml needs the plugin's name, like name = "mapping".`},
 		{"bad name", false, fstest.MapFS{"plugin.toml": file(`name = "Extra Things"`)}, `plugin.toml: name "Extra Things" isn't a valid plugin name.`},
 		{"named game", false, fstest.MapFS{"plugin.toml": file(`name = "game"`)}, `plugin.toml: name "game" is the game's own plugin.`},
-		{"unknown setting", false, fstest.MapFS{"plugin.toml": file("name = \"extra\"\nverison = \"1.0.0\"")}, `plugin.toml: unknown setting "verison". Did you mean "version"? A manifest has name, version, provides, depends and capabilities.`},
+		{"unknown setting", false, fstest.MapFS{"plugin.toml": file("name = \"extra\"\nverison = \"1.0.0\"")}, `plugin.toml: unknown setting "verison". Did you mean "version"? A manifest has name, version, provides, depends, capabilities and dependencies.`},
 		{"unknown capability", false, fstest.MapFS{"plugin.toml": file("name = \"extra\"\ncapabilities = [\"taks\"]")}, `plugin.toml: capabilities: there's no capability "taks". Did you mean "tasks"? Capabilities: tasks, live_tasks, store, sql, web_client, client_events, web_routes and admin_ui.`},
 		{"capability twice", false, fstest.MapFS{"plugin.toml": file("name = \"extra\"\ncapabilities = [\"tasks\", \"tasks\"]")}, `plugin.toml: capabilities lists "tasks" twice. Remove one.`},
 		{"not toml", false, fstest.MapFS{"plugin.toml": file(`name = extra`)}, `plugin.toml: toml: line 1`},

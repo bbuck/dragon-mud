@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -44,75 +45,157 @@ func repo(t *testing.T, versions []string, files []map[string]string) string {
 	return dir
 }
 
-func greeter(t *testing.T) string {
-	return repo(t, []string{"v0.1.0", "v0.2.0", "not-a-version"}, []map[string]string{
-		{"plugin.toml": "name = \"greeter\"\nversion = \"0.1.0\"\n", "init.lua": "return {}\n"},
-		{"plugin.toml": "name = \"greeter\"\nversion = \"0.2.0\"\ncapabilities = [\"tasks\"]\n"},
+// world makes two plugin repositories: rooms, at v1.0.0, v1.1.0 and
+// v2.0.0, and mapping, at v0.1.0, which depends on rooms ^1.0 and asks
+// for the tasks capability.
+func world(t *testing.T) (rooms, mapping string) {
+	rooms = repo(t, []string{"v1.0.0", "v1.1.0", "v2.0.0", "not-a-version"}, []map[string]string{
+		{"plugin.toml": "name = \"rooms\"\nversion = \"1.0.0\"\n", "init.lua": "return {}\n"},
+		{"plugin.toml": "name = \"rooms\"\nversion = \"1.1.0\"\n"},
+		{"plugin.toml": "name = \"rooms\"\nversion = \"2.0.0\"\n"},
 		{"README.md": "unreleased\n"},
 	})
+	mapping = repo(t, []string{"v0.1.0"}, []map[string]string{
+		{"plugin.toml": "name = \"mapping\"\nversion = \"0.1.0\"\ncapabilities = [\"tasks\"]\n[dependencies]\n\"" + rooms + "\" = \"^1.0\"\n"},
+	})
+
+	return rooms, mapping
 }
 
-func TestAddInstallsTheNewestVersion(t *testing.T) {
-	src, game := greeter(t), t.TempDir()
+func deps(t *testing.T, pairs ...string) map[string]plugin.Constraint {
+	t.Helper()
 
-	locked, err := Add(context.Background(), Options{Dir: game}, src, "")
+	d := make(map[string]plugin.Constraint)
+	for i := 0; i < len(pairs); i += 2 {
+		c, err := plugin.ParseConstraint(pairs[i+1])
+		if err != nil {
+			t.Fatal(err)
+		}
+		d[pairs[i]] = c
+	}
+
+	return d
+}
+
+func sync(t *testing.T, opts Options) []Change {
+	t.Helper()
+
+	changes, err := Sync(context.Background(), opts)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if locked.Name != "greeter" || locked.Version != "v0.2.0" || len(locked.Commit) != 40 || !strings.HasPrefix(locked.Hash, "sha256:") {
-		t.Errorf("locked = %+v", locked)
+
+	return changes
+}
+
+func installed(t *testing.T, game string) map[string]Locked {
+	t.Helper()
+
+	lock, err := ReadLock(game)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(game, Dir, "greeter", ".git")); !os.IsNotExist(err) {
+	m := make(map[string]Locked)
+	for _, p := range lock.Plugins {
+		m[p.Name] = p
+	}
+
+	return m
+}
+
+func TestSyncInstallsDependencies(t *testing.T) {
+	rooms, mapping := world(t)
+	game := t.TempDir()
+
+	changes := sync(t, Options{Dir: game, Dependencies: deps(t, mapping, "^0.1")})
+	if len(changes) != 2 {
+		t.Fatalf("changes = %+v", changes)
+	}
+
+	got := installed(t, game)
+	if got["mapping"].Version != "v0.1.0" || !slices.Equal(got["mapping"].RequiredBy, []string{GameRequires}) {
+		t.Errorf("mapping = %+v", got["mapping"])
+	}
+	if got["rooms"].Version != "v1.1.0" || got["rooms"].Source != rooms || !slices.Equal(got["rooms"].RequiredBy, []string{"mapping"}) || len(got["rooms"].Commit) != 40 {
+		t.Errorf("rooms = %+v", got["rooms"])
+	}
+	if _, err := os.Stat(filepath.Join(game, Dir, "rooms", ".git")); !os.IsNotExist(err) {
 		t.Error("the plugin's .git directory was copied")
 	}
-	if _, err := os.Stat(filepath.Join(game, Dir, "greeter", "README.md")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(game, Dir, "rooms", "README.md")); !os.IsNotExist(err) {
 		t.Error("installed files past the newest tag")
 	}
-
-	lock, err := Verify(game)
-	if err != nil {
+	entries, _ := os.ReadDir(filepath.Join(game, Dir))
+	if len(entries) != 2 {
+		t.Errorf("plugins/ has %d entries, want rooms and mapping", len(entries))
+	}
+	if _, err := Verify(game, deps(t, mapping, "^0.1")); err != nil {
 		t.Fatal(err)
 	}
-	if len(lock.Plugins) != 1 || lock.Plugins[0] != locked {
-		t.Errorf("lock = %+v", lock)
+
+	// Nothing changed, so nothing happens.
+	if changes := sync(t, Options{Dir: game, Dependencies: deps(t, mapping, "^0.1")}); len(changes) != 0 {
+		t.Errorf("a second sync changed %+v", changes)
 	}
-	entries, _ := os.ReadDir(filepath.Join(game, Dir))
-	if len(entries) != 1 {
-		t.Errorf("plugins/ has %d entries, want just greeter", len(entries))
+
+	// Removing mapping removes rooms, which only mapping needed.
+	changes = sync(t, Options{Dir: game})
+	if len(changes) != 2 || changes[0].After != nil || changes[1].After != nil {
+		t.Errorf("changes = %+v", changes)
+	}
+	if entries, _ := os.ReadDir(filepath.Join(game, Dir)); len(entries) != 0 {
+		t.Errorf("plugins/ still has %d entries", len(entries))
+	}
+	if _, err := os.Stat(filepath.Join(game, LockFile)); !os.IsNotExist(err) {
+		t.Error("dragon.lock is left with nothing installed")
 	}
 }
 
-func TestAddAVersion(t *testing.T) {
-	src, game := greeter(t), t.TempDir()
+// Locked versions stay while every constraint allows them, until updated.
+func TestSyncKeepsLockedVersions(t *testing.T) {
+	rooms, _ := world(t)
+	game := t.TempDir()
 
-	locked, err := Add(context.Background(), Options{Dir: game}, src, "v0.1.0")
-	if err != nil || locked.Version != "v0.1.0" {
-		t.Fatalf("locked %+v, %v", locked, err)
+	sync(t, Options{Dir: game, Dependencies: deps(t, rooms, "=1.0.0")})
+	sync(t, Options{Dir: game, Dependencies: deps(t, rooms, "^1.0")})
+	if v := installed(t, game)["rooms"].Version; v != "v1.0.0" {
+		t.Errorf("relaxing the constraint moved rooms to %s", v)
 	}
 
-	_, err = Add(context.Background(), Options{Dir: game}, src, "")
-	if err == nil || !strings.Contains(err.Error(), "is installed already, as greeter v0.1.0. Run dragon update greeter") {
-		t.Errorf("adding twice: %v", err)
+	changes := sync(t, Options{Dir: game, Dependencies: deps(t, rooms, "^1.0"), Update: []string{rooms}})
+	if v := installed(t, game)["rooms"].Version; v != "v1.1.0" || len(changes) != 1 || changes[0].Before.Version != "v1.0.0" {
+		t.Errorf("updating rooms: %s, %+v", v, changes)
 	}
 
-	_, err = Add(context.Background(), Options{Dir: t.TempDir()}, src, "v0.3.0")
-	if err == nil || !strings.Contains(err.Error(), "has no version v0.3.0.") || !strings.Contains(err.Error(), "Versions: v0.2.0, v0.1.0.") {
-		t.Errorf("missing version: %v", err)
+	sync(t, Options{Dir: game, Dependencies: deps(t, rooms, "^2.0")})
+	if v := installed(t, game)["rooms"].Version; v != "v2.0.0" {
+		t.Errorf("a constraint the locked version breaks left rooms at %s", v)
+	}
+}
+
+func TestSyncConflicts(t *testing.T) {
+	rooms, mapping := world(t)
+
+	_, err := Sync(context.Background(), Options{Dir: t.TempDir(), Dependencies: deps(t, rooms, "^2.0", mapping, "^0.1")})
+	want := "no version of " + rooms + " is accepted by everything that needs it: dragon.toml wants ^2.0, mapping wants ^1.0. Its versions are v2.0.0, v1.1.0, v1.0.0."
+	if err == nil || !strings.Contains(err.Error(), want) {
+		t.Errorf("err = %v\nwant it to contain %q", err, want)
 	}
 }
 
 func TestDeclining(t *testing.T) {
-	src, game := greeter(t), t.TempDir()
+	_, mapping := world(t)
+	game := t.TempDir()
 
-	var shown plugin.Manifest
-	_, err := Add(context.Background(), Options{Dir: game, Confirm: func(m plugin.Manifest, before *plugin.Manifest) (bool, error) {
-		shown = m
+	var shown []Change
+	_, err := Sync(context.Background(), Options{Dir: game, Dependencies: deps(t, mapping, "^0.1"), Confirm: func(changes []Change) (bool, error) {
+		shown = changes
 		return false, nil
-	}}, src, "")
+	}})
 	if err != ErrDeclined {
 		t.Fatalf("err = %v", err)
 	}
-	if shown.Name != "greeter" || shown.Capabilities[0] != "tasks" {
+	if len(shown) != 2 || shown[0].Manifest == nil {
 		t.Errorf("confirm was shown %+v", shown)
 	}
 	entries, _ := os.ReadDir(filepath.Join(game, Dir))
@@ -124,68 +207,68 @@ func TestDeclining(t *testing.T) {
 	}
 }
 
-func TestUpdateAndRemove(t *testing.T) {
-	src, game := greeter(t), t.TempDir()
-	if _, err := Add(context.Background(), Options{Dir: game}, src, "v0.1.0"); err != nil {
-		t.Fatal(err)
-	}
-
-	var added []string
-	before, after, err := Update(context.Background(), Options{Dir: game, Confirm: func(m plugin.Manifest, old *plugin.Manifest) (bool, error) {
-		added = NewCapabilities(m, old)
-		return true, nil
-	}}, "greeter", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if before.Version != "v0.1.0" || after.Version != "v0.2.0" || len(added) != 1 || added[0] != "tasks" {
-		t.Errorf("before %s, after %s, new capabilities %v", before.Version, after.Version, added)
-	}
-	if _, err := Verify(game); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := Remove(game, src); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(filepath.Join(game, Dir, "greeter")); !os.IsNotExist(err) {
-		t.Error("remove left plugins/greeter")
-	}
-	if _, err := Remove(game, "greeter"); err == nil || !strings.Contains(err.Error(), "greeter isn't installed, and no plugins are") {
-		t.Errorf("removing twice: %v", err)
-	}
-}
-
 func TestVerify(t *testing.T) {
-	src, game := greeter(t), t.TempDir()
-	if _, err := Add(context.Background(), Options{Dir: game}, src, ""); err != nil {
-		t.Fatal(err)
+	rooms, mapping := world(t)
+	game := t.TempDir()
+	sync(t, Options{Dir: game, Dependencies: deps(t, mapping, "^0.1")})
+
+	tests := []struct {
+		deps map[string]plugin.Constraint
+		want string
+	}{
+		{deps(t, mapping, "^0.1", rooms, "^2.0"), "dragon.toml accepts " + rooms + " ^2.0, but v1.1.0 is installed. Run dragon update rooms."},
+		{deps(t, mapping, "^0.1", "example.com/other", "^1.0"), "dragon.toml depends on example.com/other, which isn't installed."},
+		{nil, "mapping is installed for dragon.toml, which no longer depends on " + mapping + "."},
+	}
+	for _, tt := range tests {
+		if _, err := Verify(game, tt.deps); err == nil || !strings.Contains(err.Error(), tt.want) {
+			t.Errorf("err = %v\nwant it to contain %q", err, tt.want)
+		}
 	}
 
-	if err := os.WriteFile(filepath.Join(game, Dir, "greeter", "init.lua"), []byte("return { changed = true }"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(game, Dir, "rooms", "init.lua"), []byte("return { changed = true }"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Verify(game); err == nil || !strings.Contains(err.Error(), "plugins/greeter has changed since dragon add installed greeter v0.2.0") {
+	if _, err := Verify(game, deps(t, mapping, "^0.1")); err == nil || !strings.Contains(err.Error(), "plugins/rooms has changed since dragon add installed rooms v1.1.0") {
 		t.Errorf("changed files: %v", err)
 	}
 
-	os.RemoveAll(filepath.Join(game, Dir, "greeter"))
-	if _, err := Verify(game); err == nil || !strings.Contains(err.Error(), "dragon.lock lists greeter, but plugins/greeter is missing") {
+	// A changed plugin is reinstalled by the next sync.
+	sync(t, Options{Dir: game, Dependencies: deps(t, mapping, "^0.1")})
+	if _, err := Verify(game, deps(t, mapping, "^0.1")); err != nil {
+		t.Errorf("after reinstalling: %v", err)
+	}
+
+	os.RemoveAll(filepath.Join(game, Dir, "rooms"))
+	if _, err := Verify(game, deps(t, mapping, "^0.1")); err == nil || !strings.Contains(err.Error(), "dragon.lock lists rooms, but plugins/rooms is missing") {
 		t.Errorf("missing plugin: %v", err)
 	}
 
 	os.Remove(filepath.Join(game, LockFile))
+	os.RemoveAll(filepath.Join(game, Dir, "mapping"))
 	os.MkdirAll(filepath.Join(game, Dir, "stray"), 0o755)
-	if _, err := Verify(game); err == nil || !strings.Contains(err.Error(), "plugins/stray isn't in dragon.lock, so dragon add didn't install it") {
+	if _, err := Verify(game, nil); err == nil || !strings.Contains(err.Error(), "plugins/stray isn't in dragon.lock, so dragon add didn't install it") {
 		t.Errorf("stray plugin: %v", err)
 	}
 }
 
 func TestNoTags(t *testing.T) {
 	src := repo(t, []string{"draft"}, []map[string]string{{"plugin.toml": "name = \"x\"\n"}})
-	_, err := Add(context.Background(), Options{Dir: t.TempDir()}, src, "")
+	_, err := Sync(context.Background(), Options{Dir: t.TempDir(), Dependencies: deps(t, src, "^1.0")})
 	if err == nil || !strings.Contains(err.Error(), "has no version tags, like v1.0.0") {
 		t.Errorf("err = %v", err)
+	}
+}
+
+func TestNewestAndConstraint(t *testing.T) {
+	rooms, _ := world(t)
+	if c, err := Newest(context.Background(), rooms); err != nil || c != "^2.0" {
+		t.Errorf("Newest = %q, %v", c, err)
+	}
+	for in, want := range map[string]string{"1.8": "^1.8", "v1.8": "^1.8", "~1.8": "~1.8", "=1.8.2": "=1.8.2"} {
+		if got, err := Constraint(in); err != nil || got != want {
+			t.Errorf("Constraint(%q) = %q, %v", in, got, err)
+		}
 	}
 }
 
@@ -193,6 +276,8 @@ func TestSpec(t *testing.T) {
 	tests := []struct{ in, source, version string }{
 		{"github.com/usera/mapping", "github.com/usera/mapping", ""},
 		{"github.com/usera/mapping@v1.2.0", "github.com/usera/mapping", "v1.2.0"},
+		{"github.com/johns/rooms@1.8", "github.com/johns/rooms", "1.8"},
+		{"github.com/johns/rooms@^1.8", "github.com/johns/rooms", "^1.8"},
 		{"git@github.com:usera/mapping.git", "git@github.com:usera/mapping.git", ""},
 		{"mapping@1.2", "mapping", "1.2"},
 	}

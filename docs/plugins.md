@@ -57,7 +57,8 @@ names.
 
 ```
 mapping/
-  plugin.toml       manifest: name, version, provides, depends, capabilities
+  plugin.toml       manifest: name, version, provides, depends,
+                    capabilities, dependencies
   init.lua          everything the plugin provides, from its modules
   lua/              modules, loaded with require
     commands.lua    player commands and their forms
@@ -365,41 +366,63 @@ need no capability: every plugin has them, and so do world scripts
 
 ## Distribution
 
+There's no registry, so a dependency is a place and the versions
+accepted: where git can fetch the plugin, and a constraint. The game lists
+its own in `dragon.toml`, and a plugin lists the plugins it needs in its
+`plugin.toml`, the same way:
+
+```toml
+# dragon.toml, or a plugin's plugin.toml
+[dependencies]
+"github.com/johns/rooms" = "^1.8"
+"github.com/usera/mapping" = "~0.2"
+```
+
 ```sh
-dragon add github.com/usera/mapping[@v1.2.0]
-dragon update mapping[@v1.3.0]
-dragon remove mapping
+dragon add github.com/johns/rooms[@1.8]   # add to dragon.toml and install
+dragon update [rooms[@2.0]]               # newest versions allowed, of all or one
+dragon remove rooms                       # remove from dragon.toml and uninstall
 dragon list
 ```
 
-- **Any git host.** A source is a path fetched over HTTPS
-  (`github.com/usera/mapping`), or a URL, SSH address or local path git
-  can clone. Versions are tags of one to three numbers, with or without a
-  `v` (`v1.2.0`); `dragon add` installs the newest unless given one, and
-  other tags, including pre-releases, are ignored.
+- **Sources** are paths fetched over HTTPS (`github.com/johns/rooms`), or
+  URLs, SSH addresses or local paths git can clone. Versions are tags of
+  one to three numbers, with or without a `v` (`v1.2.0`); other tags,
+  including pre-releases, are ignored. Constraints are Cargo's, as for
+  APIs.
+- **`dragon add`** writes the dependency into `dragon.toml`, changing only
+  that line: `@1.8` becomes `"^1.8"`, `@~1.8` and `@=1.8.2` are kept as
+  written, and no version means a caret on the newest. Then it installs.
+- **Installing resolves the whole tree**: the game's dependencies, theirs,
+  and so on, one version of each source, the newest every plugin that
+  needs it accepts. A version already in `dragon.lock` stays as long as
+  every constraint still allows it, so adding one plugin doesn't upgrade
+  the rest; `dragon update` moves everything, or one plugin, to the newest
+  allowed. Constraints no version satisfies are an error naming who wants
+  what. Plugins nothing needs any more are removed.
 - **Installed plugins are vendored** into `plugins/<name>/`, named by
   their manifest, without their git history, and committed with the game.
-  They load after the built-ins and before the game's local plugins.
-- **`dragon.lock`** records each one's source, tag, commit and a hash of
-  its files. The server won't start if `plugins/` doesn't match: a
-  changed file, a missing plugin or a directory `dragon add` didn't
-  install is an error saying what to do. To change an installed plugin,
-  move it to `game/plugins/` and it's a local plugin.
-- **`dragon add` shows the capabilities** a plugin asks for, with what
-  each lets it do, and asks before installing (`-y` doesn't ask).
-  `dragon update` asks only when the new version wants capabilities the
-  installed one didn't. `update` and `remove` take a plugin's name or
-  source.
-- **Dependencies aren't fetched.** `[depends]` names APIs, not where to
-  get a plugin providing one, so after installing, `dragon add` lists any
-  API the game's plugins depend on that nothing provides, or provides at
-  the wrong version, and the game won't start until it's fixed. One
-  version of each plugin per game.
-- A plugin's identity is its source; its short name comes from the
-  manifest. Two installed plugins with the same name, or one named like a
-  local plugin, is an error. (Aliases in the game config may come later.)
-- A searchable index, which could map APIs to the plugins providing them,
-  can come later.
+  They load after the built-ins and before the game's local plugins, each
+  after the plugins providing the APIs it depends on.
+- **`dragon.lock`** records each installed plugin's source, tag, commit, a
+  hash of its files, and what needs it (`dragon.toml`, or other plugins).
+  The server won't start if `plugins/` doesn't match the lock, or the lock
+  doesn't satisfy `dragon.toml`, with an error saying what to run. To
+  change an installed plugin, move it to `game/plugins/`, where it's a
+  local plugin.
+- **`dragon add` shows the capabilities** each new plugin asks for, with
+  what each lets it do, and asks before installing (`-y` doesn't ask).
+  `dragon update` asks only when a new version wants capabilities the
+  installed one didn't. `dragon remove` refuses a plugin that's only
+  installed because another needs it.
+- **`[dependencies]` and `[depends]` are different things.**
+  `[dependencies]` says which plugins to install; `[depends]` says which
+  APIs a plugin uses, whoever provides them. A plugin can depend on the
+  `dragon:rooms` API and leave the game to choose which plugin provides
+  it.
+- Two installed plugins with the same name, or one named like a local
+  plugin, is an error. (Aliases in the game config may come later.)
+- A searchable index can come later.
 
 ## Tasks
 

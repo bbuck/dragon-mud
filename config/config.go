@@ -5,6 +5,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -30,6 +31,12 @@ type Config struct {
 	// the "dragon:" prefix. They always load in builtin.Names order,
 	// whatever order they're listed in.
 	Builtins []string `toml:"builtins"`
+
+	// Dependencies are the plugins the game installs, by where they come
+	// from, each with the versions it accepts: "github.com/johns/rooms" =
+	// "^1.8". dragon add writes them; dragon.lock pins what they resolved
+	// to.
+	Dependencies map[string]string `toml:"dependencies"`
 
 	Telnet Telnet `toml:"telnet"`
 	Web    Web    `toml:"web"`
@@ -95,6 +102,23 @@ type Web struct {
 // Toggle turns part of the web server on or off.
 type Toggle struct {
 	Enabled bool `toml:"enabled"`
+}
+
+// Constraints returns the versions each dependency accepts.
+func (c Config) Constraints() (map[string]plugin.Constraint, error) {
+	constraints := make(map[string]plugin.Constraint, len(c.Dependencies))
+	for _, source := range slices.Sorted(maps.Keys(c.Dependencies)) {
+		if strings.TrimSpace(source) == "" {
+			return nil, errors.New(`[dependencies] has an entry with no source. Each is where a plugin comes from and the versions the game accepts, like "github.com/johns/rooms" = "^1.8".`)
+		}
+		constraint, err := plugin.ParseConstraint(c.Dependencies[source])
+		if err != nil {
+			return nil, fmt.Errorf("[dependencies] %q: %v", source, err)
+		}
+		constraints[source] = constraint
+	}
+
+	return constraints, nil
 }
 
 // Default returns the configuration used for anything dragon.toml leaves
@@ -164,6 +188,9 @@ func (c Config) Validate() error {
 	}
 
 	if err := validateBuiltins(c.Builtins); err != nil {
+		return err
+	}
+	if _, err := c.Constraints(); err != nil {
 		return err
 	}
 

@@ -54,6 +54,11 @@ type Manifest struct {
 	// Depends lists the APIs the plugin uses, and which versions.
 	Depends map[string]Dependency `toml:"-"`
 
+	// Dependencies are the plugins this one needs installed, by where
+	// they come from, each with the versions it accepts, as in the game's
+	// dragon.toml. dragon add installs them with the plugin.
+	Dependencies map[string]Constraint `toml:"-"`
+
 	// Capabilities are the system features the plugin may use, such as
 	// tasks. Game features (the world, events, messages) need none.
 	Capabilities []string `toml:"-"`
@@ -536,6 +541,7 @@ func ReadManifest(fsys fs.FS) (Manifest, error) {
 		Provides     map[string]string `toml:"provides"`
 		Depends      map[string]any    `toml:"depends"`
 		Capabilities []any             `toml:"capabilities"`
+		Dependencies map[string]string `toml:"dependencies"`
 	}
 	meta, err := toml.Decode(source, &raw)
 	if err != nil {
@@ -567,11 +573,19 @@ func ReadManifest(fsys fs.FS) (Manifest, error) {
 	if m.Capabilities, err = readCapabilities(raw.Capabilities); err != nil {
 		return Manifest{}, fmt.Errorf("%s: %w", ManifestFile, err)
 	}
+	m.Dependencies = make(map[string]Constraint, len(raw.Dependencies))
+	for _, source := range slices.Sorted(maps.Keys(raw.Dependencies)) {
+		c, err := ParseConstraint(raw.Dependencies[source])
+		if err != nil {
+			return Manifest{}, fmt.Errorf("%s: dependencies.%q: %v", ManifestFile, source, err)
+		}
+		m.Dependencies[source] = c
+	}
 
 	return m, nil
 }
 
-var manifestKeys = []string{"name", "version", "provides", "depends", "capabilities"}
+var manifestKeys = []string{"name", "version", "provides", "depends", "capabilities", "dependencies"}
 
 // readCapabilities checks capabilities: a list of known capability names,
 // each once.

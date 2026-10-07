@@ -43,7 +43,14 @@ type Locked struct {
 
 	// Hash is a hash of the installed files; see Hash.
 	Hash string `toml:"hash"`
+
+	// RequiredBy says why it's installed: "dragon.toml" for the game's
+	// own dependencies, and the names of the plugins that depend on it.
+	RequiredBy []string `toml:"required_by"`
 }
+
+// GameRequires is how RequiredBy names the game's dragon.toml.
+const GameRequires = "dragon.toml"
 
 // Lock is the contents of dragon.lock.
 type Lock struct {
@@ -95,6 +102,17 @@ func WriteLock(dir string, lock Lock) error {
 	}
 
 	return os.WriteFile(path, buf.Bytes(), 0o644)
+}
+
+// Source returns the installed plugin from source.
+func (l Lock) Source(source string) (Locked, bool) {
+	for _, p := range l.Plugins {
+		if p.Source == source {
+			return p, true
+		}
+	}
+
+	return Locked{}, false
 }
 
 // Find returns the installed plugin with the name or source given, as
