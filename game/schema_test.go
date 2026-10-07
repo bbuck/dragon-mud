@@ -39,27 +39,27 @@ const itemSchema = `
 // try runs fn in a task and prints what it returned, or its error.
 const tryTasks = `
 	local world = require("dragon.world")
-	local function try(out, fn)
+	local function try(task, fn)
 		local ok, result = pcall(fn)
-		if ok then out(tostring(result)) else out("error: " .. tostring(result)) end
+		if ok then task:print(tostring(result)) else task:print("error: " .. tostring(result)) end
 	end
 	return {
-		run = function(args, out)
+		run = function(task)
 			local bag = world.create({ types = { "items:item", "items:container" }, properties = { name = "bag" } })
 			local loose = world.create({ properties = { anything = "goes" } })
-			try(out, function() return bag:get("weight") end)
-			try(out, function() return bag:get("capacity") end)
-			try(out, function() bag:set("weight", 2.5) return bag:get("weight") end)
-			try(out, function() bag:set("descrition", "a sack") end)
-			try(out, function() bag:set("weight", "heavy") end)
-			try(out, function() return bag:get("colour") end)
-			try(out, function() loose:set("colour", "red") return loose:get("colour") end)
-			try(out, function() return table.concat(bag.types, ",") end)
-			try(out, function() return bag:has_type("items:container") end)
+			try(task, function() return bag:get("weight") end)
+			try(task, function() return bag:get("capacity") end)
+			try(task, function() bag:set("weight", 2.5) return bag:get("weight") end)
+			try(task, function() bag:set("descrition", "a sack") end)
+			try(task, function() bag:set("weight", "heavy") end)
+			try(task, function() return bag:get("colour") end)
+			try(task, function() loose:set("colour", "red") return loose:get("colour") end)
+			try(task, function() return table.concat(bag.types, ",") end)
+			try(task, function() return bag:has_type("items:container") end)
 			local small = world.create({ parent = bag })
-			try(out, function() return table.concat(small.types, ",") end)
-			try(out, function() small:set("capacty", 2) end)
-			try(out, function() world.create({ types = { "items:iten" } }) end)
+			try(task, function() return table.concat(small.types, ",") end)
+			try(task, function() small:set("capacty", 2) end)
+			try(task, function() world.create({ types = { "items:iten" } }) end)
 		end,
 	}
 `
@@ -99,17 +99,17 @@ func TestChangingTypesChecksProperties(t *testing.T) {
 	g := schemaGame(t, itemSchema, `
 		local world = require("dragon.world")
 		return {
-			run = function(args, out)
+			run = function(task)
 				local rock = world.create({ properties = { weight = 3, colour = "grey" } })
 				local ok, err = pcall(function() rock:add_type("items:item") end)
-				out(tostring(ok), tostring(err))
+				task:print(tostring(ok), tostring(err))
 				rock:delete("colour")
 				rock:add_type("items:item")
-				out(table.concat(rock.types, ","))
+				task:print(table.concat(rock.types, ","))
 				rock:set("description", "A grey rock.")
 				rock:remove_type("items:item")
 				rock:set("colour", "grey")
-				out(rock:get("colour"))
+				task:print(rock:get("colour"))
 			end,
 		}
 	`)
@@ -134,12 +134,12 @@ func TestSchemaExtensions(t *testing.T) {
 	g, err := newGameWithPlugins(t, fstest.MapFS{
 		"init.lua": file(`return {
 			schema = { types = { room = { fields = { description = "what it looks like" } } } },
-			tasks = { run = function(args, out)
+			tasks = { run = function(task)
 				local room = require("dragon.world").create({ types = { "room" } })
 				room:set("mapping.coords", { x = 1, y = 2 })
-				out(room:get("mapping.coords").x)
+				task:print(room:get("mapping.coords").x)
 				local ok, err = pcall(function() room:set("coords", {}) end)
-				out(err)
+				task:print(err)
 			end },
 		}`),
 	}, mapping)
@@ -253,10 +253,10 @@ func TestUndeclaredTypesAreUnchecked(t *testing.T) {
 	stop()
 
 	g = startGameWith(t, db, fstest.MapFS{
-		"init.lua": file(`return { tasks = { run = function(args, out)
+		"init.lua": file(`return { tasks = { run = function(task)
 			local rock = require("dragon.world").keyed("rock")
 			rock:set("colour", "grey")
-			out(table.concat(rock.types, ","), rock:get("colour"))
+			task:print(table.concat(rock.types, ","), rock:get("colour"))
 		end } }`),
 	})
 	lines, err := runTaskLines(t, g, "run")
@@ -272,18 +272,18 @@ func TestSafeReads(t *testing.T) {
 	g := schemaGame(t, itemSchema, `
 		local world = require("dragon.world")
 		return {
-			run = function(args, out)
+			run = function(task)
 				local bag = world.create({ types = { "items:item" } })
 				local loose = world.create({})
-				out(tostring(bag:try_get("colour")), tostring(loose:try_get("colour")))
-				out(bag:get_or("colour", "grey"), loose:get_or("colour", "grey"))
+				task:print(tostring(bag:try_get("colour")), tostring(loose:try_get("colour")))
+				task:print(bag:get_or("colour", "grey"), loose:get_or("colour", "grey"))
 				-- A field's default is its value, so it wins.
-				out(bag:get_or("weight", 9))
-				out(bag:get_or("description", "plain"))
-				out(loose:get_or_set("colour", "red"), loose:get("colour"), loose:get_or_set("colour", "blue"))
-				out(bag:get_or_set("description", "A sack."), bag:get("description"))
+				task:print(bag:get_or("weight", 9))
+				task:print(bag:get_or("description", "plain"))
+				task:print(loose:get_or_set("colour", "red"), loose:get("colour"), loose:get_or_set("colour", "blue"))
+				task:print(bag:get_or_set("description", "A sack."), bag:get("description"))
 				local ok, err = pcall(function() bag:get_or_set("colour", "red") end)
-				out(tostring(ok), err)
+				task:print(tostring(ok), err)
 			end,
 		}
 	`)
@@ -330,12 +330,12 @@ func TestTypedListsAndMaps(t *testing.T) {
 	`, `
 		local world = require("dragon.world")
 		return {
-			run = function(args, out)
+			run = function(task)
 				local hall = world.create({ types = { "room" } })
 				local cellar = world.create({})
 				local function try(fn)
 					local ok, err = pcall(fn)
-					out(ok and "ok" or tostring(err))
+					task:print(ok and "ok" or tostring(err))
 				end
 				try(function() hall:set("tags", { "dusty", "dark" }) end)
 				try(function() hall:set("tags", { "dusty", 3 }) end)

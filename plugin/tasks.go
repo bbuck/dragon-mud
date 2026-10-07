@@ -47,8 +47,8 @@ type TaskDef struct {
 	// in order.
 	Depends []string
 
-	// Execute is called as execute(args, out): args are the words after
-	// the task's name on the command line, and out(...) prints a line.
+	// Execute is called as execute(task), with the task object: its
+	// args, and print and warn for its output.
 	Execute scripting.Function
 }
 
@@ -66,16 +66,16 @@ func (p *Plugin) Namespace() string {
 // keyed by its name, or a table in a list with its name inside.
 //
 //	tasks = {
-//	  seed = function(args, out) ... end,             -- dragon seed
+//	  seed = function(task) ... end,             -- dragon seed
 //	  {
 //	    namespace = "mapping",
 //	    tasks = {
-//	      clear = function(args, out) ... end,         -- dragon mapping:clear
+//	      clear = function(task) ... end,         -- dragon mapping:clear
 //	      {
 //	        name = "rebuild",                          -- dragon mapping:rebuild
 //	        desc = "Redraw every map.",
 //	        depends = { "mapping:clear" },
-//	        execute = function(args, out) ... end,
+//	        execute = function(task) ... end,
 //	      },
 //	      { namespace = { "areas", "river" }, tasks = { ... } }, -- mapping:areas:river:...
 //	    },
@@ -109,7 +109,7 @@ func (p *Plugin) Tasks() ([]TaskDef, error) {
 // taskGroup reads the tasks in a group's tasks table, at where, under the
 // namespace parts.
 func (p *Plugin) taskGroup(where string, namespace []string, raw any, defs *[]TaskDef) error {
-	const shape = `tasks = { seed = function(args, out) ... end, { namespace = "mapping", tasks = { ... } } }`
+	const shape = `tasks = { seed = function(task) ... end, { namespace = "mapping", tasks = { ... } } }`
 
 	var entries map[string]any
 	switch v := raw.(type) {
@@ -131,7 +131,7 @@ func (p *Plugin) taskGroup(where string, namespace []string, raw any, defs *[]Ta
 			at := fmt.Sprintf("%s[%s]", where, key)
 			entry, ok := value.(map[string]any)
 			if !ok {
-				return fmt.Errorf("%s must be a task like { name = \"seed\", execute = function(args, out) ... end }, or a group like { namespace = \"mapping\", tasks = { ... } }, not a %s.", at, scripting.TypeName(value))
+				return fmt.Errorf("%s must be a task like { name = \"seed\", execute = function(task) ... end }, or a group like { namespace = \"mapping\", tasks = { ... } }, not a %s.", at, scripting.TypeName(value))
 			}
 			if _, isGroup := entry["namespace"]; isGroup {
 				if err := p.taskNamespace(at, namespace, entry, defs); err != nil {
@@ -163,7 +163,7 @@ func (p *Plugin) taskGroup(where string, namespace []string, raw any, defs *[]Ta
 				return err
 			}
 		default:
-			return fmt.Errorf("%s must be a function(args, out), or a table like { desc = \"...\", execute = function(args, out) ... end }, not a %s.", at, scripting.TypeName(value))
+			return fmt.Errorf("%s must be a function(task), or a table like { desc = \"...\", execute = function(task) ... end }, not a %s.", at, scripting.TypeName(value))
 		}
 	}
 
@@ -223,7 +223,7 @@ func (p *Plugin) task(where string, namespace []string, name string, entry map[s
 		return fmt.Errorf("%s: dragon is reserved for the engine's built-in plugins. Name the task something else.", where)
 	}
 	if err := checkKeys(where, entry, taskKeys, map[string]string{
-		"run":  "tasks call execute now: execute = function(args, out) ... end.",
+		"run":  "tasks call execute now: execute = function(task) ... end.",
 		"live": "live tasks run inside the running game through the admin API, which isn't built yet. Remove live = true; the task runs offline, against the game's database.",
 	}); err != nil {
 		return err
@@ -232,7 +232,7 @@ func (p *Plugin) task(where string, namespace []string, name string, entry map[s
 	def := TaskDef{Name: strings.Join(append(slices.Clone(namespace), name), ":"), Namespace: strings.Join(namespace, ":"), Plugin: p.ID, Path: where}
 	fn, ok := entry["execute"].(scripting.Function)
 	if !ok {
-		return fmt.Errorf("%s needs execute = function(args, out) ... end, the function the task runs.", where)
+		return fmt.Errorf("%s needs execute = function(task) ... end, the function the task runs.", where)
 	}
 	def.Execute = fn
 

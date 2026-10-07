@@ -24,7 +24,10 @@ func runTaskLines(t *testing.T, g *Game, name string, args ...string) ([]string,
 	t.Helper()
 
 	var lines []string
-	err := g.RunTask(context.Background(), name, args, func(line string) { lines = append(lines, line) })
+	err := g.RunTask(context.Background(), name, args, TaskOutput{
+		Print: func(line string) { lines = append(lines, line) },
+		Warn:  func(line string) { lines = append(lines, "warn: "+line) },
+	})
 
 	return lines, err
 }
@@ -33,14 +36,14 @@ func TestTaskRunsAfterItsDependencies(t *testing.T) {
 	g := startGame(t, taskFiles(`
 		local world = require("dragon.world")
 		return {
-			clear = function(args, out) out("clearing", #args) end,
-			plant = { depends = { "clear" }, execute = function(args, out) out("planting") end },
+			clear = function(task) task:print("clearing", #task.args) end,
+			plant = { depends = { "clear" }, execute = function(task) task:print("planting") end },
 			seed = {
 				desc = "Make the starting room.",
 				depends = { "clear", "plant" },
-				execute = function(args, out)
-					world.create({ key = "start", properties = { name = args[1] } })
-					out("seeded", args[1], args[2])
+				execute = function(task)
+					world.create({ key = "start", properties = { name = task.args[1] } })
+					task:print("seeded", task.args[1], task.args[2])
 				end,
 			},
 		}
@@ -125,12 +128,12 @@ func TestTaskDefinitionErrors(t *testing.T) {
 		{
 			"no run",
 			`return { seed = { desc = "Seeds." } }`,
-			`tasks.seed needs execute = function(args, out) ... end`,
+			`tasks.seed needs execute = function(task) ... end`,
 		},
 		{
 			"old run key",
 			`return { seed = { run = function() end } }`,
-			`tasks.seed: tasks call execute now: execute = function(args, out) ... end.`,
+			`tasks.seed: tasks call execute now: execute = function(task) ... end.`,
 		},
 		{
 			"reserved namespace",
@@ -223,20 +226,20 @@ capabilities = ["sql", "tasks"]`
 func TestTaskNamespaces(t *testing.T) {
 	g := startGame(t, taskFiles(`
 		return {
-			seed = function(args, out) out("seed") end,
+			seed = function(task) task:print("seed") end,
 			{
 				namespace = "world",
 				tasks = {
-					reset = function(args, out) out("world:reset") end,
+					reset = function(task) task:print("world:reset") end,
 					{
 						name = "fill",
 						desc = "Fill the world.",
 						depends = { "world:reset", "seed" },
-						execute = function(args, out) out("world:fill") end,
+						execute = function(task) task:print("world:fill") end,
 					},
 					{
 						namespace = { "areas", "river" },
-						tasks = { { name = "flood", execute = function(args, out) out("world:areas:river:flood") end } },
+						tasks = { { name = "flood", execute = function(task) task:print("world:areas:river:flood") end } },
 					},
 				},
 			},
@@ -262,5 +265,34 @@ func TestTaskNamesAcrossPlugins(t *testing.T) {
 	want := `mapping and game both have a task called seed. Task names are as written, so rename one, or put it in a namespace of its plugin's own, like game:seed.`
 	if err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("error = %v\nwant it to contain %q", err, want)
+	}
+}
+
+func TestTaskObject(t *testing.T) {
+	g := startGame(t, taskFiles(`
+		return {
+			{
+				namespace = "world",
+				tasks = {
+					check = function(task) task:warn("checking", #task.args) end,
+					{
+						name = "fill",
+						depends = { "world:check" },
+						execute = function(task)
+							task:print(task.name, task.args[1])
+							task:warn("2 rooms have no exits")
+						end,
+					},
+				},
+			},
+		}
+	`))
+
+	lines, err := runTaskLines(t, g, "world:fill", "river")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"warn: checking 0", "world:fill river", "warn: 2 rooms have no exits"}; !slices.Equal(lines, want) {
+		t.Errorf("printed %q, want %q", lines, want)
 	}
 }

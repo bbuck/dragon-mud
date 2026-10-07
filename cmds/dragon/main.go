@@ -116,7 +116,7 @@ func main() {
 			os.Exit(2)
 		}
 		// Anything else is a task's name.
-		err = runTask(os.Args[1], os.Args[2:], os.Stdout)
+		err = runTask(os.Args[1], os.Args[2:], os.Stdout, os.Stderr)
 	}
 
 	if err != nil {

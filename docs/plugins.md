@@ -464,18 +464,18 @@ namespace the way rake does. Groups nest.
 local world = require("dragon.world")
 
 return {
-  seed = function(args, out) ... end,             -- dragon seed
+  seed = function(task) ... end,                  -- dragon seed
   {
     namespace = "mapping",
     tasks = {
-      clear = function(args, out) ... end,         -- dragon mapping:clear
+      clear = function(task) ... end,              -- dragon mapping:clear
       {
         name = "rebuild",                          -- dragon mapping:rebuild
         desc = "Redraw every map.",
         depends = { "mapping:clear", "rooms:check" },
-        execute = function(args, out)
+        execute = function(task)
           ...
-          out("Drew", count, "maps.")
+          task:print("Drew", count, "maps.")
         end,
       },
       { namespace = { "areas", "river" }, tasks = { ... } }, -- mapping:areas:river:...
@@ -497,11 +497,17 @@ return {
 - **Namespaces are the plugin's choice**: a game can write its own `chat`
   tasks. `dragon` is reserved for built-ins. Two plugins with a task of
   the same name is a startup error that suggests a namespace.
-- **`execute(args, out)`**: `args` is a list of the words after the task's
-  name (`dragon mapping:rebuild riverside` gives `{ "riverside" }`), and
-  `out(...)` prints a line, its arguments joined by spaces. dragon's own
-  flags (`-dir`) come before the task's words. A task that raises an error
-  fails, and `dragon` exits with it.
+- **`execute(task)`** gets the task object:
+  - `task.args` lists the words after the task's name
+    (`dragon mapping:rebuild riverside` gives `{ "riverside" }`). dragon's
+    own flags (`-dir`) come before them.
+  - `task.name` is its full name.
+  - `task:print(...)` writes a line on stdout, the task's results, and
+    `task:warn(...)` a line on stderr, for problems and progress, so
+    results can be piped while warnings still reach the terminal. Both
+    join their arguments with spaces.
+
+  A task that raises an error fails, and `dragon` exits with it.
 - **`depends`** runs prerequisites first, each once, in the order listed,
   named in full as written. Prerequisites get no `args`. A missing task
   or a circle is a startup error.

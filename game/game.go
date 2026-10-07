@@ -145,6 +145,7 @@ type Game struct {
 	sessionType *scripting.Type
 	accountType *scripting.Type
 	formType    *scripting.Type
+	taskType    *scripting.Type
 
 	// resolving is true while slot resolvers run; the world is read-only.
 	resolving bool
@@ -269,6 +270,7 @@ func fromOptions(opts Options) *Game {
 	g.sessionType = g.makeSessionType()
 	g.accountType = g.makeAccountType()
 	g.formType = g.formSetType()
+	g.taskType = g.makeTaskType()
 	if g.hasher == nil {
 		g.hasher = auth.NewHasher(auth.DefaultParams, hashConcurrency)
 	}

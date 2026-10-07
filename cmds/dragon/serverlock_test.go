@@ -42,7 +42,7 @@ func TestServerLock(t *testing.T) {
 		t.Errorf("second server: %v", err)
 	}
 	var out strings.Builder
-	if err := runTask("seed", []string{"-dir", dir}, &out); err == nil || !strings.Contains(err.Error(), "a task run from the command line changes the database underneath it") {
+	if err := runTask("seed", []string{"-dir", dir}, &out, &out); err == nil || !strings.Contains(err.Error(), "a task run from the command line changes the database underneath it") {
 		t.Errorf("task: %v", err)
 	}
 

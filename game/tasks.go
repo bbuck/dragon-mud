@@ -22,7 +22,7 @@ type taskEvent struct {
 	ctx  context.Context
 	name string
 	args []string
-	out  func(string)
+	out  TaskOutput
 	done chan error
 }
 
@@ -122,12 +122,19 @@ func Tasks(ctx context.Context, opts Options) ([]plugin.TaskDef, error) {
 	return tasks, nil
 }
 
+// TaskOutput is where a task's lines go: Print for its results, which
+// dragon prints on stdout, and Warn for problems and progress, on stderr.
+type TaskOutput struct {
+	Print func(line string)
+	Warn  func(line string)
+}
+
 // RunTask runs the task name, after the tasks it depends on, on the game
 // loop, which must be running. args are the words after the task's name
-// on the command line; out prints what the task says. Each task runs
-// until it returns or ctx ends, with no deadline of its own, and what the
-// tasks change is saved together once they've all run.
-func (g *Game) RunTask(ctx context.Context, name string, args []string, out func(string)) error {
+// on the command line. Each task runs until it returns or ctx ends, with
+// no deadline of its own, and what the tasks change is saved together
+// once they've all run.
+func (g *Game) RunTask(ctx context.Context, name string, args []string, out TaskOutput) error {
 	e := taskEvent{ctx: ctx, name: name, args: args, out: out, done: make(chan error, 1)}
 	g.post(e)
 
@@ -158,11 +165,36 @@ func (g *Game) runTasks(e taskEvent) error {
 		return err
 	}
 
-	words := make([]any, len(e.args))
-	for i, arg := range e.args {
-		words[i] = arg
+	for _, t := range order {
+		run := &taskRun{name: t.Name, out: e.out}
+		if t.Name == e.name {
+			run.args = e.args
+		}
+		if _, err := t.Execute.Call(e.ctx, scripting.Handle{Type: g.taskType, Key: run}); err != nil {
+			return fmt.Errorf("task %s failed: %w", t.Name, err)
+		}
 	}
-	out := scripting.Func(func(args scripting.Args) (any, error) {
+
+	return nil
+}
+
+// taskRun is one task running, which its task object refers to.
+type taskRun struct {
+	name string
+	args []string
+	out  TaskOutput
+}
+
+// makeTaskType is the object a task's execute gets.
+//
+//	task.args             the words after the task's name on the command
+//	                      line; none for a task run as a prerequisite
+//	task.name             the task's full name
+//	task:print(...)       a line on stdout: the task's results
+//	task:warn(...)        a line on stderr: problems and progress
+func (g *Game) makeTaskType() *scripting.Type {
+	run := func(key any) *taskRun { return key.(*taskRun) }
+	line := func(args scripting.Args) string {
 		parts := make([]string, args.Len())
 		for i := range parts {
 			switch v := args[i].(type) {
@@ -174,19 +206,31 @@ func (g *Game) runTasks(e taskEvent) error {
 				parts[i] = fmt.Sprint(v)
 			}
 		}
-		e.out(strings.Join(parts, " "))
-		return nil, nil
-	})
-
-	for _, t := range order {
-		args := []any{}
-		if t.Name == e.name {
-			args = words
-		}
-		if _, err := t.Execute.Call(e.ctx, args, out); err != nil {
-			return fmt.Errorf("task %s failed: %w", t.Name, err)
-		}
+		return strings.Join(parts, " ")
 	}
 
-	return nil
+	return &scripting.Type{
+		Name: "task",
+		Fields: map[string]scripting.Field{
+			"args": func(key any) (any, error) {
+				words := []any{}
+				for _, w := range run(key).args {
+					words = append(words, w)
+				}
+				return words, nil
+			},
+			"name": func(key any) (any, error) { return run(key).name, nil },
+		},
+		Methods: map[string]scripting.Method{
+			"print": func(key any, args scripting.Args) (any, error) {
+				run(key).out.Print(line(args))
+				return nil, nil
+			},
+			"warn": func(key any, args scripting.Args) (any, error) {
+				run(key).out.Warn(line(args))
+				return nil, nil
+			},
+		},
+		String: func(key any) string { return "task " + run(key).name },
+	}
 }

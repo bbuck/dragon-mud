@@ -52,7 +52,7 @@ func runTasks(args []string, out io.Writer) error {
 	}
 
 	if len(tasks) == 0 {
-		fmt.Fprintln(out, `No plugin the game loads has any tasks. A plugin adds them as tasks in its init.lua, like tasks = { seed = function(args, out) ... end }.`)
+		fmt.Fprintln(out, `No plugin the game loads has any tasks. A plugin adds them as tasks in its init.lua, like tasks = { seed = function(task) ... end }.`)
 		return nil
 	}
 
@@ -93,9 +93,10 @@ func runTasks(args []string, out io.Writer) error {
 }
 
 // runTask runs the task name with the game's database, outside the
-// running game. Flags before the task's own arguments are dragon's;
+// running game. What the task prints goes to out, and its warnings to
+// errOut. Flags before the task's own arguments are dragon's;
 // everything from the first argument that isn't one is the task's.
-func runTask(name string, args []string, out io.Writer) error {
+func runTask(name string, args []string, out, errOut io.Writer) error {
 	flags := flag.NewFlagSet(name, flag.ContinueOnError)
 	dir := flags.String("dir", ".", "the game directory")
 	if err := flags.Parse(args); err != nil {
@@ -129,7 +130,10 @@ func runTask(name string, args []string, out io.Writer) error {
 	ran := make(chan error, 1)
 	go func() { ran <- g.Run(ctx) }()
 
-	err = g.RunTask(ctx, name, flags.Args(), func(line string) { fmt.Fprintln(out, line) })
+	err = g.RunTask(ctx, name, flags.Args(), game.TaskOutput{
+		Print: func(line string) { fmt.Fprintln(out, line) },
+		Warn:  func(line string) { fmt.Fprintln(errOut, line) },
+	})
 	if errors.Is(err, game.ErrNoTask) {
 		if hint := command.DidYouMean(name, commands); hint != "" {
 			err = fmt.Errorf("%w There's no command called %s either.%s", err, name, hint)
