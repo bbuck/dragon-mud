@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"maps"
+	"net/url"
 	"path"
 	"regexp"
 	"slices"
@@ -46,6 +47,19 @@ type Web struct {
 
 	// Main is true when web/ has main.mjs, which every page loads.
 	Main bool
+}
+
+// URL is where the files are served: under the plugin's id and their
+// hash, so a URL never changes what it serves and browsers can cache it
+// for good.
+func (w Web) URL() string {
+	return "/plugins/" + url.PathEscape(w.Plugin) + "/" + w.Hash + "/"
+}
+
+// Names are the names the files are imported and found by: the
+// plugin's namespace, and each API it provides.
+func (w Web) Names() []string {
+	return append([]string{w.Namespace}, w.APIs...)
 }
 
 // Web returns what the plugin serves to the web client, or nil when it has

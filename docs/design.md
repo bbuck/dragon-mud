@@ -691,6 +691,9 @@ its key, else "something". In text that's all; in HTML it's a clickable
 `<dragon-entity>` (§6). Write the element yourself to choose its text:
 `<dragon-entity ref="{{.actor.id}}">the {{.actor.name}}</dragon-entity>`.
 
+**`{{asset "mapping/icons/door.png"}}`** writes the URL of a file in a
+plugin's `web/` directory (plugins.md, "Web client").
+
 **`{{command "go north" "north"}}`** writes a link that runs a command. In
 text it's the label (`north`), which is what a telnet player reads and
 types; in HTML, including text shown on the web, it's a `<dragon-command>`

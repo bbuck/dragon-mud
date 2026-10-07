@@ -377,6 +377,8 @@ func (g *Game) loadInto(ctx context.Context, s *scripts) error {
 			"event", name, "handlers", strings.Join(files, ", "))
 	}
 	s.views.SetSections(g.sectionParts)
+	s.views.SetAssets(s.assetURL)
+	s.templates.SetAssets(s.assetURL)
 
 	return s.checkSectionHooks()
 }

@@ -124,3 +124,36 @@ func TestClientCapabilities(t *testing.T) {
 		t.Errorf("web = %+v", web)
 	}
 }
+
+// {{asset}} writes the URL of a plugin's web file, by the name the import
+// map gives the plugin's files.
+func TestAssetHelper(t *testing.T) {
+	mapping := localPlugin("mapping", `capabilities = ["web_client"]`, fstest.MapFS{
+		"web/icons/door.png":   file("png"),
+		"views/door.txt.tmpl":  file(`A door.`),
+		"views/door.html.tmpl": file(`<img src="{{asset "mapping/icons/door.png"}}">`),
+		"views/bad.txt.tmpl":   file(`{{asset "maping/icons/door.png"}}`),
+	})
+	g, err := newGameWithPlugins(t, fstest.MapFS{
+		"lua/commands.lua": file(`return {
+			door = { forms = { { "door", function(actor) actor:send("door", {}) end } } },
+			bad = { forms = { { "bad", function(actor) actor:send("bad", {}) end } } },
+		}`),
+	}, mapping)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runGame(t, g)
+	alice := connect(t, g)
+	alice.login("Alice")
+
+	alice.send("door")
+	m := alice.await("the door", func(m message.Message) bool { return m.Kind == "door" })
+	want := `<img src="` + g.Web()[0].URL() + `icons/door.png">`
+	if m.HTML != want {
+		t.Errorf("HTML = %s, want %s", m.HTML, want)
+	}
+
+	alice.send("bad")
+	alice.expect(`{{asset "maping/icons/door.png"}}: no plugin serves web files as maping/. Did you mean "mapping"?`)
+}

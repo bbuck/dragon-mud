@@ -632,6 +632,11 @@ the loaded plugins:
 - The hash in the path is of the files' contents, so browsers cache them
   for good and a change gets a new URL. A page loaded before a reload
   still gets the current files, uncached.
+- **`{{asset "mapping/icons/door.png"}}`** in a template writes a web
+  file's URL, for what the import map can't reach, like `<img src>`: the
+  first part names the plugin as the import map does, by its name or an
+  API it provides, and the rest is the file in its `web/`. A file that
+  isn't there is an error naming it.
 - Only a plugin's `web/` directory is served.
 - No CDNs (`script-src 'self'`, plus the page's own import map by its
   hash); vendor dependencies into `web/vendor/`.

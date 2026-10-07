@@ -7,7 +7,6 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
-	"net/url"
 	"path"
 	"sync"
 	"time"
@@ -32,13 +31,6 @@ type head struct {
 	Modules       []string
 }
 
-// pluginURL is where a plugin's web files are served: under its id and the
-// hash of their contents, so a URL never changes what it serves and
-// browsers can cache it for good.
-func pluginURL(w plugin.Web) string {
-	return "/plugins/" + url.PathEscape(w.Plugin) + "/" + w.Hash + "/"
-}
-
 // pageHead builds the page's head for the plugins' web files. The import
 // map names each plugin's files for its namespace and for each API it
 // provides, so code imports an API without knowing which plugin
@@ -47,10 +39,9 @@ func pageHead(plugins []plugin.Web) head {
 	imports := map[string]string{"dragon": clientModule}
 	var h head
 	for _, w := range plugins {
-		base := pluginURL(w)
-		imports[w.Namespace+"/"] = base
-		for _, api := range w.APIs {
-			imports[api+"/"] = base
+		base := w.URL()
+		for _, name := range w.Names() {
+			imports[name+"/"] = base
 		}
 		for _, style := range w.Styles {
 			h.Styles = append(h.Styles, base+style)

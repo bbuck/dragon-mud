@@ -75,6 +75,9 @@ type Templates struct {
 
 	sectionFunc SectionFunc
 
+	// assetFunc finds the URL of a plugin's web file, for {{asset}}.
+	assetFunc func(path string) (string, error)
+
 	// rendering is the views being rendered: the one sent, then any part
 	// of a section in it.
 	rendering []string
@@ -132,6 +135,7 @@ func (t *Templates) textFuncs() texttemplate.FuncMap {
 	maps.Copy(funcs, articleFuncs(textEntity))
 	maps.Copy(funcs, caseFuncs(false))
 	funcs["section"] = func(name string) (string, error) { return t.section(modeText, name) }
+	funcs["asset"] = t.asset
 	return funcs
 }
 
@@ -142,6 +146,7 @@ func (t *Templates) markedFuncs() texttemplate.FuncMap {
 	maps.Copy(funcs, articleFuncs(markedEntity))
 	maps.Copy(funcs, caseFuncs(false))
 	funcs["section"] = func(name string) (string, error) { return t.section(modeMarked, name) }
+	funcs["asset"] = t.asset
 	return funcs
 }
 
@@ -152,7 +157,23 @@ func (t *Templates) htmlFuncs() htmltemplate.FuncMap {
 	maps.Copy(funcs, articleFuncs(htmlEntity))
 	maps.Copy(funcs, caseFuncs(true))
 	funcs["section"] = t.sectionHTML
+	funcs["asset"] = t.asset
 	return funcs
+}
+
+// SetAssets sets how {{asset "mapping/icons/door.png"}} finds the URL of a
+// file in a plugin's web/ directory: by the name the import map gives the
+// plugin's files, its namespace or an API it provides, then the path.
+func (t *Templates) SetAssets(f func(path string) (string, error)) {
+	t.assetFunc = f
+}
+
+func (t *Templates) asset(path string) (string, error) {
+	if t.assetFunc == nil {
+		return "", fmt.Errorf("{{asset %q}}: no plugin serves web files", path)
+	}
+
+	return t.assetFunc(path)
 }
 
 // Add parses f, replacing any template already added with its name and

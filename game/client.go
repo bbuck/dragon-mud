@@ -3,9 +3,12 @@ package game
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"regexp"
 	"slices"
+	"strings"
 
+	"bbuck.dev/dragon-mud/command"
 	"bbuck.dev/dragon-mud/message"
 	"bbuck.dev/dragon-mud/plugin"
 	"bbuck.dev/dragon-mud/scripting"
@@ -123,4 +126,31 @@ func (g *Game) sessionPush(key any, args scripting.Args) (any, error) {
 	p.s.Send(message.ClientEvent(name, data))
 
 	return nil, nil
+}
+
+// assetURL finds the URL of a file in a plugin's web/ directory, for
+// {{asset "mapping/icons/door.png"}}: the first part of the path names the
+// plugin, by its namespace or an API it provides, as the import map does.
+func (s *scripts) assetURL(path string) (string, error) {
+	name, file, ok := strings.Cut(path, "/")
+	var names []string
+	for _, w := range s.web {
+		names = append(names, w.Names()...)
+		if !ok || !slices.Contains(w.Names(), name) {
+			continue
+		}
+		if _, err := fs.Stat(w.Files, file); err != nil || !fs.ValidPath(file) {
+			return "", fmt.Errorf("{{asset %q}}: %s has no web/%s.", path, w.Plugin, file)
+		}
+		return w.URL() + file, nil
+	}
+
+	if !ok {
+		return "", fmt.Errorf("{{asset %q}} names a plugin's file by its name, then the file in its web/ directory, like {{asset \"mapping/icons/door.png\"}}.", path)
+	}
+	if len(names) == 0 {
+		return "", fmt.Errorf("{{asset %q}}: no plugin serves web files.", path)
+	}
+	slices.Sort(names)
+	return "", fmt.Errorf("{{asset %q}}: no plugin serves web files as %s/.%s Plugins with web files: %s.", path, name, command.DidYouMean(name, names), strings.Join(names, ", "))
 }
