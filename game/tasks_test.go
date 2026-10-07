@@ -34,11 +34,11 @@ func TestTaskRunsAfterItsDependencies(t *testing.T) {
 		local world = require("dragon.world")
 		return {
 			clear = function(args, out) out("clearing", #args) end,
-			plant = { depends = { "clear" }, run = function(args, out) out("planting") end },
+			plant = { depends = { "clear" }, execute = function(args, out) out("planting") end },
 			seed = {
 				desc = "Make the starting room.",
 				depends = { "clear", "plant" },
-				run = function(args, out)
+				execute = function(args, out)
 					world.create({ key = "start", properties = { name = args[1] } })
 					out("seeded", args[1], args[2])
 				end,
@@ -46,7 +46,7 @@ func TestTaskRunsAfterItsDependencies(t *testing.T) {
 		}
 	`))
 
-	lines, err := runTaskLines(t, g, "game:seed", "Hall", "7")
+	lines, err := runTaskLines(t, g, "seed", "Hall", "7")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,9 +54,9 @@ func TestTaskRunsAfterItsDependencies(t *testing.T) {
 		t.Errorf("printed %q, want %q", lines, want)
 	}
 
-	lines, err = runTaskLines(t, g, "game:clear")
+	lines, err = runTaskLines(t, g, "clear")
 	if err != nil || !slices.Equal(lines, []string{"clearing 0"}) {
-		t.Errorf("game:clear printed %q, %v", lines, err)
+		t.Errorf("clear printed %q, %v", lines, err)
 	}
 }
 
@@ -71,7 +71,7 @@ func TestTaskChangesAreSaved(t *testing.T) {
 		t.Fatal(err)
 	}
 	stop := runGame(t, g)
-	if _, err := runTaskLines(t, g, "game:seed"); err != nil {
+	if _, err := runTaskLines(t, g, "seed"); err != nil {
 		t.Fatal(err)
 	}
 	stop()
@@ -93,10 +93,10 @@ func TestTaskErrors(t *testing.T) {
 		}
 	`))
 
-	if _, err := runTaskLines(t, g, "game:sede"); err == nil || !strings.Contains(err.Error(), `there's no task called game:sede. Did you mean "game:seed"?`) {
+	if _, err := runTaskLines(t, g, "sede"); err == nil || !strings.Contains(err.Error(), `there's no task called sede. Did you mean "seed"?`) {
 		t.Errorf("unknown task: %v", err)
 	}
-	if _, err := runTaskLines(t, g, "game:fail"); err == nil || !strings.Contains(err.Error(), "task game:fail failed") || !strings.Contains(err.Error(), "the map is on fire") {
+	if _, err := runTaskLines(t, g, "fail"); err == nil || !strings.Contains(err.Error(), "task fail failed") || !strings.Contains(err.Error(), "the map is on fire") {
 		t.Errorf("failing task: %v", err)
 	}
 }
@@ -109,32 +109,57 @@ func TestTaskDefinitionErrors(t *testing.T) {
 	}{
 		{
 			"missing dependency",
-			`return { seed = { depends = { "clera" }, run = function() end }, clear = function() end }`,
-			`tasks.seed depends on game:clera, but there's no such task. Did you mean "game:clear"?`,
+			`return { seed = { depends = { "clera" }, execute = function() end }, clear = function() end }`,
+			`tasks.seed depends on clera, but there's no such task. Did you mean "clear"?`,
 		},
 		{
 			"cycle",
-			`return { a = { depends = { "b" }, run = function() end }, b = { depends = { "a" }, run = function() end } }`,
-			`tasks depend on each other in a circle: game:a → game:b → game:a.`,
+			`return { a = { depends = { "b" }, execute = function() end }, b = { depends = { "a" }, execute = function() end } }`,
+			`tasks depend on each other in a circle: a → b → a.`,
 		},
 		{
-			"namespaced name",
-			`return { ["game:seed"] = function() end }`,
-			`tasks["game:seed"]: the engine puts game: in front of the plugin's task names itself, so name it "seed".`,
+			"name with a colon",
+			`return { ["world:seed"] = function() end }`,
+			`tasks["world:seed"]: a task's name is one word; put it in a namespace with a group instead, like { namespace = "world", tasks = { seed = ... } }.`,
 		},
 		{
 			"no run",
 			`return { seed = { desc = "Seeds." } }`,
-			`tasks.seed needs run = function(args, out) ... end`,
+			`tasks.seed needs execute = function(args, out) ... end`,
+		},
+		{
+			"old run key",
+			`return { seed = { run = function() end } }`,
+			`tasks.seed: tasks call execute now: execute = function(args, out) ... end.`,
+		},
+		{
+			"reserved namespace",
+			`return { { namespace = "dragon", tasks = { x = function() end } } }`,
+			`tasks[1] uses the "dragon" namespace, which is reserved for the engine's built-in plugins.`,
+		},
+		{
+			"group without tasks",
+			`return { { namespace = "world" } }`,
+			`tasks[1] has a namespace but no tasks.`,
+		},
+		{
+			"list task without a name",
+			`return { { execute = function() end } }`,
+			`tasks[1] needs a name, like name = "seed", or a namespace and tasks if it's a group.`,
+		},
+		{
+			"same name twice",
+			`return { seed = function() end, { name = "seed", execute = function() end } }`,
+			`tasks[1] and tasks.seed are both the task seed.`,
 		},
 		{
 			"live",
-			`return { seed = { live = true, run = function() end } }`,
+			`return { seed = { live = true, execute = function() end } }`,
 			`live tasks run inside the running game through the admin API, which isn't built yet.`,
 		},
 		{
 			"depends as a string",
-			`return { seed = { depends = "clear", run = function() end } }`,
+			`return { seed = { depends = "clear", execute = function() end } }`,
 			`tasks.seed: depends must be a list of tasks. Write depends = { "clear" }.`,
 		},
 	}
@@ -153,7 +178,7 @@ func TestTasksAreListed(t *testing.T) {
 	tasks, err := Tasks(context.Background(), Options{
 		NewEngine: func() scripting.Engine { return lua.New() },
 		Plugins: append(sources(t, nil), plugin.Source{Origin: "game", Game: true, Files: taskFiles(`
-			return { seed = { desc = "Seeds.", run = function() end }, clear = function() end }
+			return { seed = { desc = "Seeds.", execute = function() end }, clear = function() end }
 		`)}),
 	})
 	if err != nil {
@@ -164,7 +189,7 @@ func TestTasksAreListed(t *testing.T) {
 	for _, task := range tasks {
 		names = append(names, task.Name)
 	}
-	if want := []string{"game:clear", "game:seed"}; !slices.Equal(names, want) {
+	if want := []string{"clear", "seed"}; !slices.Equal(names, want) {
 		t.Errorf("tasks = %q, want %q", names, want)
 	}
 }
@@ -173,7 +198,7 @@ func TestTasksAreListed(t *testing.T) {
 func TestTasksNeedTheCapability(t *testing.T) {
 	files := fstest.MapFS{
 		"init.lua":      file(`return { tasks = require("tasks") }`),
-		"lua/tasks.lua": file(`return { rebuild = function() end }`),
+		"lua/tasks.lua": file(`return { { namespace = "mapping", tasks = { rebuild = function() end } } }`),
 	}
 
 	_, err := newGameWithPlugins(t, nil, localPlugin("mapping", `capabilities = ["sql"]`, files))
@@ -191,5 +216,51 @@ capabilities = ["sql", "tasks"]`
 	runGame(t, g)
 	if _, err := runTaskLines(t, g, "mapping:rebuild"); err != nil {
 		t.Error(err)
+	}
+}
+
+// Groups put tasks in namespaces, as written, and nest.
+func TestTaskNamespaces(t *testing.T) {
+	g := startGame(t, taskFiles(`
+		return {
+			seed = function(args, out) out("seed") end,
+			{
+				namespace = "world",
+				tasks = {
+					reset = function(args, out) out("world:reset") end,
+					{
+						name = "fill",
+						desc = "Fill the world.",
+						depends = { "world:reset", "seed" },
+						execute = function(args, out) out("world:fill") end,
+					},
+					{
+						namespace = { "areas", "river" },
+						tasks = { { name = "flood", execute = function(args, out) out("world:areas:river:flood") end } },
+					},
+				},
+			},
+		}
+	`))
+
+	lines, err := runTaskLines(t, g, "world:fill")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"world:reset", "seed", "world:fill"}; !slices.Equal(lines, want) {
+		t.Errorf("printed %q, want %q", lines, want)
+	}
+	if lines, err := runTaskLines(t, g, "world:areas:river:flood"); err != nil || !slices.Equal(lines, []string{"world:areas:river:flood"}) {
+		t.Errorf("nested: %q, %v", lines, err)
+	}
+}
+
+// Two plugins' tasks can't share a name.
+func TestTaskNamesAcrossPlugins(t *testing.T) {
+	files := fstest.MapFS{"init.lua": file(`return { tasks = { seed = function() end } }`)}
+	_, err := newGameWithPlugins(t, taskFiles(`return { seed = function() end }`), localPlugin("mapping", `capabilities = ["tasks"]`, files))
+	want := `mapping and game both have a task called seed. Task names are as written, so rename one, or put it in a namespace of its plugin's own, like game:seed.`
+	if err == nil || !strings.Contains(err.Error(), want) {
+		t.Errorf("error = %v\nwant it to contain %q", err, want)
 	}
 }

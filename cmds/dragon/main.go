@@ -62,11 +62,15 @@ Usage:
                                                change an installed plugin's version
   dragon remove <plugin> [-dir <directory>]    uninstall a plugin
   dragon list [-dir <directory>]               list the installed plugins
-  dragon <plugin>:<task> [-dir <directory>] [args...]
+  dragon <task> [-dir <directory>] [args...]
                                                run a task, after the tasks it
                                                depends on
   dragon version                               print the engine version
 `
+
+// commands are dragon's own commands, which a task without a namespace
+// can't share a name with.
+var commands = []string{"new", "serve", "events", "plugin", "tasks", "test", "add", "update", "remove", "list", "version", "help"}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -101,12 +105,12 @@ func main() {
 	case "plugin":
 		err = runPlugin(os.Args[2:], os.Stdout)
 	default:
-		if strings.Contains(os.Args[1], ":") {
-			err = runTask(os.Args[1], os.Args[2:], os.Stdout)
-			break
+		if strings.HasPrefix(os.Args[1], "-") {
+			fmt.Fprintf(os.Stderr, "dragon: unknown command %q\n\n%s", os.Args[1], usage)
+			os.Exit(2)
 		}
-		fmt.Fprintf(os.Stderr, "dragon: unknown command %q\n\n%s", os.Args[1], usage)
-		os.Exit(2)
+		// Anything else is a task's name.
+		err = runTask(os.Args[1], os.Args[2:], os.Stdout)
 	}
 
 	if err != nil {

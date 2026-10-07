@@ -67,7 +67,7 @@ const tryTasks = `
 func TestSchemaChecksTypedObjects(t *testing.T) {
 	g := schemaGame(t, itemSchema, tryTasks)
 
-	lines, err := runTaskLines(t, g, "game:run")
+	lines, err := runTaskLines(t, g, "run")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +114,7 @@ func TestChangingTypesChecksProperties(t *testing.T) {
 		}
 	`)
 
-	lines, err := runTaskLines(t, g, "game:run")
+	lines, err := runTaskLines(t, g, "run")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +148,7 @@ func TestSchemaExtensions(t *testing.T) {
 	}
 	runGame(t, g)
 
-	lines, err := runTaskLines(t, g, "game:run")
+	lines, err := runTaskLines(t, g, "run")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +227,7 @@ func TestUndeclaredTypesAreUnchecked(t *testing.T) {
 		t.Fatal(err)
 	}
 	stop := runGame(t, g)
-	if _, err := runTaskLines(t, g, "game:run"); err != nil {
+	if _, err := runTaskLines(t, g, "run"); err != nil {
 		t.Fatal(err)
 	}
 	stop()
@@ -239,7 +239,7 @@ func TestUndeclaredTypesAreUnchecked(t *testing.T) {
 			out(table.concat(rock.types, ","), rock:get("colour"))
 		end } }`),
 	})
-	lines, err := runTaskLines(t, g, "game:run")
+	lines, err := runTaskLines(t, g, "run")
 	if err != nil {
 		t.Fatal(err)
 	}

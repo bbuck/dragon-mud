@@ -2,6 +2,7 @@ package game
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -12,6 +13,9 @@ import (
 	"bbuck.dev/dragon-mud/plugin"
 	"bbuck.dev/dragon-mud/scripting"
 )
+
+// ErrNoTask is returned by RunTask for a task no plugin has.
+var ErrNoTask = errors.New("there's no task")
 
 // taskEvent asks the loop to run a task and the tasks it depends on.
 type taskEvent struct {
@@ -30,8 +34,8 @@ func (s *scripts) addTasks(p *plugin.Plugin) error {
 	}
 	for _, def := range defs {
 		if other, ok := s.tasks[def.Name]; ok {
-			return fmt.Errorf("%s: %s and %s both have a task called %s, since both plugins are named %s. Rename one of the plugins in its %s.",
-				def.Path, other.Plugin, def.Plugin, def.Name, p.Namespace(), plugin.ManifestFile)
+			return fmt.Errorf("%s: %s and %s both have a task called %s. Task names are as written, so rename one, or put it in a namespace of its plugin's own, like %s:%s.",
+				def.Path, other.Plugin, def.Plugin, def.Name, p.Manifest.Name, def.Name)
 		}
 		s.tasks[def.Name] = def
 	}
@@ -144,9 +148,9 @@ func (g *Game) runTasks(e taskEvent) error {
 	if _, ok := g.tasks[e.name]; !ok {
 		names := slices.Sorted(maps.Keys(g.tasks))
 		if len(names) == 0 {
-			return fmt.Errorf("there's no task called %s, and no plugin the game loads has any tasks.", e.name)
+			return fmt.Errorf("%w called %s, and no plugin the game loads has any tasks.", ErrNoTask, e.name)
 		}
-		return fmt.Errorf("there's no task called %s.%s Run dragon tasks to list them.", e.name, command.DidYouMean(e.name, names))
+		return fmt.Errorf("%w called %s.%s Run dragon tasks to list them.", ErrNoTask, e.name, command.DidYouMean(e.name, names))
 	}
 
 	order, err := g.taskOrder(e.name)
@@ -179,7 +183,7 @@ func (g *Game) runTasks(e taskEvent) error {
 		if t.Name == e.name {
 			args = words
 		}
-		if _, err := t.Run.Call(e.ctx, args, out); err != nil {
+		if _, err := t.Execute.Call(e.ctx, args, out); err != nil {
 			return fmt.Errorf("task %s failed: %w", t.Name, err)
 		}
 	}

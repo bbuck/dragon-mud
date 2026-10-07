@@ -91,7 +91,8 @@ over telnet and the web and talk to each other.
       (`mapping.coords`). An object can have several types, and inherits
       its parents'; a typed object only takes its types' fields, which
       catches typos like `descrition` (lesson 6 below).
-- [x] Tasks (`dragon <plugin>:<task>`, `dragon tasks`), offline. Live tasks
+- [x] Tasks (`dragon <task>`, `dragon tasks`), named as written with
+      rake-style namespaces, offline. Live tasks
       wait for the admin API (Milestone 5).
 - [x] `dragon add/update/remove/list`, `dragon.lock`, vendoring. Installing
       doesn't fetch dependencies: they name APIs, not plugins.

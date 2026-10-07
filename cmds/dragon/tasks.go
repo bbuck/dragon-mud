@@ -2,18 +2,24 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"text/tabwriter"
 
+	"bbuck.dev/dragon-mud/command"
 	"bbuck.dev/dragon-mud/config"
 	"bbuck.dev/dragon-mud/game"
+	"bbuck.dev/dragon-mud/plugin"
 	"bbuck.dev/dragon-mud/scripting"
 	"bbuck.dev/dragon-mud/scripting/lua"
 	"bbuck.dev/dragon-mud/termlog"
@@ -46,27 +52,42 @@ func runTasks(args []string, out io.Writer) error {
 	}
 
 	if len(tasks) == 0 {
-		fmt.Fprintln(out, `No plugin the game loads has any tasks. A plugin adds them as tasks in its init.lua, like tasks = { seed = { desc = "...", run = function(args, out) ... end } }.`)
+		fmt.Fprintln(out, `No plugin the game loads has any tasks. A plugin adds them as tasks in its init.lua, like tasks = { seed = function(args, out) ... end }.`)
 		return nil
 	}
 
-	fmt.Fprintln(out, "Tasks:")
-	fmt.Fprintln(out)
-	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
+	// Tasks with no namespace first, then each namespace, alphabetically.
+	byNamespace := make(map[string][]plugin.TaskDef)
 	for _, t := range tasks {
-		desc := t.Desc
-		if len(t.Depends) > 0 {
-			if desc != "" {
-				desc += " "
-			}
-			desc += fmt.Sprintf("(runs %s first)", andList(t.Depends))
+		byNamespace[t.Namespace] = append(byNamespace[t.Namespace], t)
+	}
+	namespaces := slices.Sorted(maps.Keys(byNamespace))
+
+	fmt.Fprintln(out, "Tasks:")
+	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
+	for _, ns := range namespaces {
+		fmt.Fprintln(w)
+		if ns != "" {
+			fmt.Fprintf(w, "%s\n", ns)
 		}
-		fmt.Fprintf(w, "  %s\t%s\n", t.Name, desc)
+		for _, t := range byNamespace[ns] {
+			desc := t.Desc
+			if len(t.Depends) > 0 {
+				if desc != "" {
+					desc += " "
+				}
+				desc += fmt.Sprintf("(runs %s first)", andList(t.Depends))
+			}
+			if slices.Contains(commands, t.Name) {
+				desc += fmt.Sprintf(" (can't run: dragon %s is a dragon command; put the task in a namespace)", t.Name)
+			}
+			fmt.Fprintf(w, "  %s\t%s\n", t.Name, strings.TrimSpace(desc))
+		}
 	}
 	w.Flush()
 
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Run one with dragon <plugin>:<task>, followed by anything the task takes.")
+	fmt.Fprintln(out, "Run one with dragon <task>, followed by anything the task takes.")
 
 	return nil
 }
@@ -81,6 +102,10 @@ func runTask(name string, args []string, out io.Writer) error {
 		return err
 	}
 
+	if _, err := os.Stat(filepath.Join(*dir, config.FileName)); err != nil {
+		return fmt.Errorf("there's no command called %s.%s Tasks are run from a game directory, and %s has no %s. Run dragon help to see the commands.",
+			name, command.DidYouMean(name, commands), *dir, config.FileName)
+	}
 	cfg, err := config.Load(*dir)
 	if err != nil {
 		return err
@@ -102,6 +127,11 @@ func runTask(name string, args []string, out io.Writer) error {
 	go func() { ran <- g.Run(ctx) }()
 
 	err = g.RunTask(ctx, name, flags.Args(), func(line string) { fmt.Fprintln(out, line) })
+	if errors.Is(err, game.ErrNoTask) {
+		if hint := command.DidYouMean(name, commands); hint != "" {
+			err = fmt.Errorf("%w There's no command called %s either.%s", err, name, hint)
+		}
+	}
 	cancel()
 	if runErr := <-ran; err == nil {
 		err = runErr

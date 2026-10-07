@@ -197,7 +197,7 @@ func TestPluginShowsWhatItProvides(t *testing.T) {
 				declare = { ["items:dropped"] = { desc = "Something was dropped. Handlers react.", fields = { actor = "who", thing = "what" } } },
 				handlers = { ["dragon:said"] = function() end },
 			},
-			tasks = { restock = { desc = "Refill the shops.", run = function() end } },
+			tasks = { { namespace = "items", tasks = { restock = { desc = "Refill the shops.", execute = function() end } } } },
 		}`,
 		"game/plugins/items/lua/api.lua": `return {}`,
 	}

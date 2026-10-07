@@ -45,8 +45,9 @@ patterns, so they stay plain.)
 `dragon:` is reserved for the engine and its built-ins.
 
 Names the engine makes up for a plugin are namespaced automatically:
-tasks in `mapping` become `mapping:rebuild`, client events become
-`mapping:pan`, and so on.
+client events in `mapping` become `mapping:pan`, and fields it adds to
+another plugin's type become `mapping.coords`. Task names aren't made
+up; they're written in full, with namespaces the plugin chooses.
 
 ## Package layout
 
@@ -404,39 +405,56 @@ dragon list
 
 Tasks are what a plugin offers on the command line: seeding a world,
 rebuilding maps, importing areas. A plugin exports them as `tasks` from
-`init.lua`, each a function or a table:
+`init.lua`. **Names are used as written**, like events and modes: a task
+with no namespace is run by its name, and a plugin groups tasks under a
+namespace the way rake does. Groups nest.
 
 ```lua
 -- mapping/lua/tasks.lua
 local world = require("dragon.world")
 
 return {
-  clear = function(args, out) ... end,
-  rebuild = {
-    desc = "Redraw every map.",
-    depends = { "clear", "rooms:check" },
-    run = function(args, out)
-      ...
-      out("Drew", count, "maps.")
-    end,
+  seed = function(args, out) ... end,             -- dragon seed
+  {
+    namespace = "mapping",
+    tasks = {
+      clear = function(args, out) ... end,         -- dragon mapping:clear
+      {
+        name = "rebuild",                          -- dragon mapping:rebuild
+        desc = "Redraw every map.",
+        depends = { "mapping:clear", "rooms:check" },
+        execute = function(args, out)
+          ...
+          out("Drew", count, "maps.")
+        end,
+      },
+      { namespace = { "areas", "river" }, tasks = { ... } }, -- mapping:areas:river:...
+    },
   },
 }
 ```
 
-- **Invoked as `dragon <plugin>:<task>`**, listed with `dragon tasks`. The
-  engine puts the plugin's manifest name in front of each task's name, so
-  `rebuild` in `mapping` is `mapping:rebuild`, the game's own are
-  `game:<task>`, and a built-in's drop `dragon:` (`chat:<task>`). Two
-  plugins whose tasks would share a name is a startup error.
-- **`run(args, out)`**: `args` is a list of the words after the task's name
-  (`dragon mapping:rebuild riverside` gives `{ "riverside" }`), and
+- **A task** is a function, a table keyed by its name with `desc`,
+  `depends` and `execute`, or a table in the list part with its `name`
+  inside. **A group** is `{ namespace = ..., tasks = { ... } }`, where
+  `namespace` is a name or a list of names; its tasks' names start with
+  it, joined with colons.
+- **Invoked as `dragon <task>`** (`dragon seed`, `dragon mapping:rebuild`)
+  and listed with `dragon tasks`, which shows tasks with no namespace
+  first, then each namespace alphabetically. A task without a namespace
+  can't share a name with one of dragon's own commands (`dragon list`
+  lists plugins); `dragon tasks` points those out.
+- **Namespaces are the plugin's choice**: a game can write its own `chat`
+  tasks. `dragon` is reserved for built-ins. Two plugins with a task of
+  the same name is a startup error that suggests a namespace.
+- **`execute(args, out)`**: `args` is a list of the words after the task's
+  name (`dragon mapping:rebuild riverside` gives `{ "riverside" }`), and
   `out(...)` prints a line, its arguments joined by spaces. dragon's own
   flags (`-dir`) come before the task's words. A task that raises an error
   fails, and `dragon` exits with it.
-- **`depends`** runs prerequisites first, each once, in the order listed:
-  a bare name is the same plugin's task, and another plugin's carries its
-  namespace. Prerequisites get no `args`. A missing task or a circle is a
-  startup error.
+- **`depends`** runs prerequisites first, each once, in the order listed,
+  named in full as written. Prerequisites get no `args`. A missing task
+  or a circle is a startup error.
 - **Offline**: a task runs on the game loop of its own copy of the game,
   against the game's database, with every module scripts normally get, but
   no players and no transports. `dragon:booted` is sent first, as when the
