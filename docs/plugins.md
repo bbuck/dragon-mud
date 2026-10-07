@@ -663,11 +663,10 @@ client.hook("mapping-pin", { mounted(el) {}, removed(el) {} });
   listening. `onMessage` gets each feed message of a view, as the element
   added to the feed, after it's added: it's for reacting to the feed, like
   styling or annotating a message. View data never leaves the server, so a
-  template can leave things out. For data, a plugin sends exactly what it
-  wants with `session:push`, from its own handlers for the events
-  involved, and listens with `client.on`, rather than reading it out of
-  the feed's HTML. Open: whether reading the feed should be discouraged
-  outright.
+  template can leave things out. A plugin that wants data sends exactly
+  what it wants with `session:push`, from its own handlers for the events
+  involved, and listens with `client.on`: feed listeners get HTML, event
+  listeners get data.
 - Custom elements' `connectedCallback` and `disconnectedCallback` are the
   lifecycle hooks; `client.hook(name, ...)` gives the same to plain
   elements with `data-dragon-hook="name"`.
@@ -696,8 +695,9 @@ return {
   deadline. What one returns answers a `client.request`, with objects as
   their ids; a handler that fails is logged and answers with `null`.
 - `session:push(name, data)` sends an event to the player's client, for
-  `client.on`; name it with your plugin's name in front
-  (`mapping:path_found`). Telnet drops these.
+  `client.on`: the data as JSON, rendering no view, with objects as their
+  ids. Name it with your plugin's name in front (`mapping:path_found`).
+  Telnet drops these.
 - Only players in the game can send client events, and each connection is
   limited to 20 a second, in bursts of up to 40. The session always comes
   from the server, never from what the client sends.
