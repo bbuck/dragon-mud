@@ -112,7 +112,10 @@ over telnet and the web and talk to each other.
 - [ ] No automatic prefixes: client events (`mapping:pan`) and fields added
       to another plugin's type (`mapping.coords`) get their plugin's name
       put in front today. Names should be as written, like events, modes
-      and tasks, so anyone reading the code knows what to reference.
+      and tasks, so anyone reading the code knows what to reference: a
+      plugin extending a type writes the field's full name
+      (`["mapping.coords"]`), and two plugins adding the same field to a
+      type is a startup error naming both.
 
 ## Milestone 4: World
 
