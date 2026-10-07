@@ -176,6 +176,12 @@ over telnet and the web and talk to each other.
 
 ## Later
 
+- Plugin development outside a game: commands that work on a plugin by
+  itself, such as `dragon test` in a plugin's repository (a bare game of
+  the built-ins plus the plugin), `dragon plugin` and `dragon serve` for
+  trying it, and `dragon export plugin <name> <dir>` to turn a local
+  plugin into its own repository (copy it, `git init`, tag its version,
+  and optionally switch the game to `dragon add` it).
 - Kits (`--kit diku|mush|moo`) and `dragon eject`. The MOO kit finds verbs
   on the objects a line names; the MUSH kit has `$`-commands and exits
   matched by name.
