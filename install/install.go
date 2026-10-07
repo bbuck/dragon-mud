@@ -156,6 +156,71 @@ func Sync(ctx context.Context, opts Options) ([]Change, error) {
 	return changes, WriteLock(opts.Dir, Lock{Plugins: lockedOf(resolved)})
 }
 
+// Install makes the game's plugins/ directory hold exactly what
+// dragon.lock pins, without resolving anything: each plugin at its locked
+// tag, which must still name the locked commit and give the locked hash.
+// Plugins already installed intact are left alone, and directories the
+// lock doesn't list are removed. It returns what changed.
+func Install(ctx context.Context, dir string) ([]Change, error) {
+	lock, err := ReadLock(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	f := &fetcher{dir: dir, lock: Lock{}, tags: make(map[string][]tag), staged: make(map[string]staged)}
+	defer f.cleanup()
+
+	var changes []Change
+	for _, p := range lock.Plugins {
+		if f.intact(p) {
+			continue
+		}
+		r, err := f.fetch(ctx, p.Source, p.Version)
+		if err != nil {
+			return nil, err
+		}
+		switch {
+		case r.locked.Commit != p.Commit:
+			return nil, fmt.Errorf("%s's tag %s names commit %s now, but dragon.lock pinned %s: its author moved the tag. Run dragon update %s to accept what it names now, if you trust it.",
+				p.Source, p.Version, short(r.locked.Commit), short(p.Commit), p.Name)
+		case r.locked.Hash != p.Hash:
+			return nil, fmt.Errorf("%s %s doesn't match the hash dragon.lock pinned, though its commit does. Run dragon update %s to install it again.", p.Source, p.Version, p.Name)
+		}
+		after := p
+		changes = append(changes, Change{Name: p.Name, Source: p.Source, After: &after, Manifest: &r.manifest})
+	}
+
+	entries, err := os.ReadDir(filepath.Join(dir, Dir))
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
+	}
+	for _, e := range entries {
+		if !e.IsDir() || strings.HasPrefix(e.Name(), ".") {
+			continue
+		}
+		if _, _, ok := lock.Find(e.Name()); !ok {
+			changes = append(changes, Change{Name: e.Name(), Before: &Locked{Name: e.Name()}})
+		}
+	}
+
+	for _, c := range changes {
+		if c.After != nil {
+			if err := os.RemoveAll(filepath.Join(dir, Dir, c.Name)); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return changes, f.apply(changes)
+}
+
+func short(commit string) string {
+	if len(commit) > 12 {
+		return commit[:12]
+	}
+
+	return commit
+}
+
 // resolution is one source's resolved version.
 type resolution struct {
 	locked   Locked
@@ -456,7 +521,7 @@ func Verify(dir string, dependencies map[string]plugin.Constraint) (Lock, error)
 	for _, p := range lock.Plugins {
 		pluginDir := filepath.Join(dir, Dir, p.Name)
 		if !isDir(pluginDir) {
-			return Lock{}, fmt.Errorf("%s lists %s, but %s/%s is missing. Run dragon update to install it again.",
+			return Lock{}, fmt.Errorf("%s lists %s, but %s/%s is missing. Run dragon install to install what dragon.lock pins.",
 				LockFile, p.Name, Dir, p.Name)
 		}
 		hash, err := Hash(os.DirFS(pluginDir))
@@ -464,8 +529,8 @@ func Verify(dir string, dependencies map[string]plugin.Constraint) (Lock, error)
 			return Lock{}, err
 		}
 		if hash != p.Hash {
-			return Lock{}, fmt.Errorf("%s/%s has changed since dragon add installed %s %s. Installed plugins aren't edited in place: run dragon update %s to reinstall it, or move it to game/%s/%s to make it a local plugin you can change (and remove it from dragon.toml's [dependencies]).",
-				Dir, p.Name, p.Name, p.Version, p.Name, plugin.LocalDir, p.Name)
+			return Lock{}, fmt.Errorf("%s/%s has changed since dragon add installed %s %s. Installed plugins aren't edited in place: run dragon install to put it back as dragon.lock pins it, or move it to game/%s/%s to make it a local plugin you can change (and remove it from dragon.toml's [dependencies]).",
+				Dir, p.Name, p.Name, p.Version, plugin.LocalDir, p.Name)
 		}
 	}
 
@@ -478,7 +543,7 @@ func Verify(dir string, dependencies map[string]plugin.Constraint) (Lock, error)
 			continue
 		}
 		if _, _, ok := lock.Find(e.Name()); !ok {
-			return Lock{}, fmt.Errorf("%s/%s isn't in %s, so dragon add didn't install it. Install plugins with dragon add, or move it to game/%s/%s to make it a local plugin.",
+			return Lock{}, fmt.Errorf("%s/%s isn't in %s, so dragon add didn't install it. Install plugins with dragon add (dragon install removes ones the lock doesn't list), or move it to game/%s/%s to make it a local plugin.",
 				Dir, e.Name(), LockFile, plugin.LocalDir, e.Name())
 		}
 	}

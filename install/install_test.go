@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -300,5 +301,48 @@ func TestCloneURL(t *testing.T) {
 		if got := cloneURL(in); got != want {
 			t.Errorf("cloneURL(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// Install puts back exactly what the lock pins, and refuses a tag that
+// moved.
+func TestInstall(t *testing.T) {
+	rooms, mapping := world(t)
+	game := t.TempDir()
+	sync(t, Options{Dir: game, Dependencies: deps(t, mapping, "^0.1")})
+	before, _ := ReadLock(game)
+
+	os.RemoveAll(filepath.Join(game, Dir, "rooms"))
+	os.WriteFile(filepath.Join(game, Dir, "mapping", "extra.lua"), []byte("x"), 0o644)
+	os.MkdirAll(filepath.Join(game, Dir, "stray"), 0o755)
+
+	changes, err := Install(context.Background(), game)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(changes) != 3 {
+		t.Errorf("changes = %+v", changes)
+	}
+	after, err := Verify(game, deps(t, mapping, "^0.1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after.Plugins) != len(before.Plugins) || !reflect.DeepEqual(after.Plugins, before.Plugins) {
+		t.Errorf("the lock changed: %+v", after.Plugins)
+	}
+	if changes, err := Install(context.Background(), game); err != nil || len(changes) != 0 {
+		t.Errorf("a second install changed %+v, %v", changes, err)
+	}
+
+	// The author moves v1.1.0 to another commit.
+	cmd := exec.Command("sh", "-c", "echo moved > moved.txt && git add -A && git -c user.email=t@t -c user.name=t commit -qm moved && git tag -f v1.1.0")
+	cmd.Dir = rooms
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	os.RemoveAll(filepath.Join(game, Dir, "rooms"))
+	_, err = Install(context.Background(), game)
+	if err == nil || !strings.Contains(err.Error(), "'s tag v1.1.0 names commit") || !strings.Contains(err.Error(), "its author moved the tag") {
+		t.Errorf("moved tag: %v", err)
 	}
 }

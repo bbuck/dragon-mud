@@ -381,6 +381,7 @@ its own in `dragon.toml`, and a plugin lists the plugins it needs in its
 
 ```sh
 dragon add github.com/johns/rooms[@1.8]   # add to dragon.toml and install
+dragon install                            # exactly what dragon.lock pins
 dragon update [rooms[@2.0]]               # newest versions allowed, of all or one
 dragon remove rooms                       # remove from dragon.toml and uninstall
 dragon list
@@ -405,8 +406,14 @@ dragon list
   their manifest, without their git history, and committed with the game.
   They load after the built-ins and before the game's local plugins, each
   after the plugins providing the APIs it uses.
-- **`dragon.lock`** records each installed plugin's source, tag, commit, a
-  hash of its files, and what needs it (`dragon.toml`, or other plugins).
+- **`dragon.lock`** records each installed plugin's source, exact tag,
+  commit, a hash of its files, and what needs it (`dragon.toml`, or other
+  plugins).
+- **`dragon install`** installs exactly what `dragon.lock` pins, as after
+  cloning a game, resolving nothing and leaving `dragon.toml` alone: each
+  plugin at its locked tag, which must still name the locked commit and
+  give the locked hash, so an author moving a tag can't change what a game
+  installs. It removes anything in `plugins/` the lock doesn't list.
   The server won't start if `plugins/` doesn't match the lock, or the lock
   doesn't satisfy `dragon.toml`, with an error saying what to run. To
   change an installed plugin, move it to `game/plugins/`, where it's a

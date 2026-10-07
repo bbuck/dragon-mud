@@ -59,6 +59,8 @@ Usage:
                                                add a plugin to dragon.toml and
                                                install it from git, like
                                                github.com/johns/rooms@1.8
+  dragon install [-dir <directory>]            install exactly what dragon.lock
+                                               pins, resolving nothing
   dragon update [<plugin>[@version]] [-dir <directory>] [-y]
                                                update every plugin, or one, to
                                                the newest version allowed
@@ -72,7 +74,7 @@ Usage:
 
 // commands are dragon's own commands, which a task without a namespace
 // can't share a name with.
-var commands = []string{"new", "serve", "events", "plugin", "tasks", "test", "add", "update", "remove", "list", "version", "help"}
+var commands = []string{"new", "serve", "events", "plugin", "tasks", "test", "add", "install", "update", "remove", "list", "version", "help"}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -98,6 +100,8 @@ func main() {
 		err = runTest(os.Args[2:], os.Stdout)
 	case "add":
 		err = runAdd(os.Args[2:], os.Stdin, os.Stdout)
+	case "install":
+		err = runInstall(os.Args[2:], os.Stdout)
 	case "update":
 		err = runUpdate(os.Args[2:], os.Stdin, os.Stdout)
 	case "remove":

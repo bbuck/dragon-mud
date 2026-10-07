@@ -88,6 +88,48 @@ func runAdd(args []string, in io.Reader, out io.Writer) error {
 	return reportUnmet(dir, out)
 }
 
+// runInstall installs exactly what dragon.lock pins, as after cloning a
+// game, without resolving anything or changing dragon.toml.
+func runInstall(args []string, out io.Writer) error {
+	flags := flag.NewFlagSet("install", flag.ContinueOnError)
+	dir := flags.String("dir", ".", "the game directory")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	cfg, err := config.Load(*dir)
+	if err != nil {
+		return err
+	}
+	deps, err := cfg.Constraints()
+	if err != nil {
+		return err
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	changes, err := install.Install(ctx, *dir)
+	if err != nil {
+		return err
+	}
+	for _, c := range changes {
+		if c.After != nil {
+			fmt.Fprintf(out, "Installed %s %s in %s/%s.\n", c.Name, c.After.Version, install.Dir, c.Name)
+		} else {
+			fmt.Fprintf(out, "Removed %s/%s, which dragon.lock doesn't list.\n", install.Dir, c.Name)
+		}
+	}
+	if len(changes) == 0 {
+		fmt.Fprintln(out, "Every plugin dragon.lock pins is installed.")
+	}
+
+	if _, err := install.Verify(*dir, deps); err != nil {
+		return fmt.Errorf("installed what dragon.lock pins, but %w", err)
+	}
+
+	return nil
+}
+
 // runUpdate moves installed plugins to the newest versions their
 // constraints allow: one plugin, with a version to change its constraint
 // in dragon.toml, or every plugin.
