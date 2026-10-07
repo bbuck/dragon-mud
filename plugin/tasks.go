@@ -224,7 +224,7 @@ func (p *Plugin) task(where string, namespace []string, name string, entry map[s
 	}
 	if err := checkKeys(where, entry, taskKeys, map[string]string{
 		"run":  "tasks call execute now: execute = function(task) ... end.",
-		"live": "live tasks run inside the running game through the admin API, which isn't built yet. Remove live = true; the task runs offline, against the game's database.",
+		"live": "live tasks run inside the running game through the admin API, which isn't built yet. Remove live = true; the task runs in its own copy of the game, while the server isn't running.",
 	}); err != nil {
 		return err
 	}

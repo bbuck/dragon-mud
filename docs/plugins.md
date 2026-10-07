@@ -518,10 +518,12 @@ return {
 - **`depends`** runs prerequisites first, each once, in the order listed,
   named in full as written. Prerequisites get no `args`. A missing task
   or a circle is a startup error.
-- **Offline**: a task runs on the game loop of its own copy of the game,
-  against the game's database, with every module scripts normally get, but
-  no players and no transports. `dragon:booted` is sent first, as when the
-  server starts. A task has no deadline (Ctrl-C stops it), and what the
+- **A task runs in its own copy of the game**, while the server isn't
+  running: `dragon` loads the plugins and opens the game's database, with
+  every module scripts normally get, but starts no transports and has no
+  players. `dragon:booted` is sent first, as when the server starts, so
+  the world is set up the way the server would set it up (like rake tasks
+  that load the Rails environment). A task has no deadline (Ctrl-C stops it), and what the
   tasks of one run change is saved together when they finish, even when a
   task fails, so write tasks that can run again safely (create the hall
   only if `world.keyed("hall")` is nil).

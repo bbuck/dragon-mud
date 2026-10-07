@@ -92,8 +92,9 @@ over telnet and the web and talk to each other.
       its parents'; a typed object only takes its types' fields, which
       catches typos like `descrition` (lesson 6 below).
 - [x] Tasks (`dragon <task>`, `dragon tasks`), named as written with
-      rake-style namespaces, offline. Live tasks
-      wait for the admin API (Milestone 5).
+      rake-style namespaces, each run in its own copy of the game. Live
+      tasks, run inside the running server, wait for the admin API
+      (Milestone 5).
 - [x] `dragon add/update/remove/list`, `dragon.lock`, vendoring.
       `[dependencies]` in `dragon.toml` and `plugin.toml` list sources and
       constraints, resolved together into `dragon.lock`.

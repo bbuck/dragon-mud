@@ -11,7 +11,8 @@ import (
 )
 
 // serverLockFile marks a game whose server is running, holding its process
-// id, so offline tasks don't change the database underneath it.
+// id, so tasks run from the command line don't change the database
+// underneath it.
 const serverLockFile = "data/server.lock"
 
 // lockServer records that this process serves the game in dir, and returns
