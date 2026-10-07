@@ -237,3 +237,44 @@ func TestPluginShowsWhatItProvides(t *testing.T) {
 		t.Errorf("misspelled plugin: %v", err)
 	}
 }
+
+// dragon gen plugin makes a local plugin whose test passes.
+func TestGenPlugin(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "mygame")
+	if err := scaffold.New(dir, scaffold.Data{Name: "My Game"}); err != nil {
+		t.Fatal(err)
+	}
+
+	var out strings.Builder
+	for _, name := range []string{"rooms", "grid-maps"} {
+		if err := runGen([]string{"plugin", name, "-dir", dir}, &out); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, file := range []string{"plugin.toml", "init.lua", "lua/commands.lua", "lua/handlers.lua", "tests/rooms_test.lua"} {
+		if _, err := os.Stat(filepath.Join(dir, "game/plugins/rooms", file)); err != nil {
+			t.Errorf("missing %s: %v", file, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, "game/plugins/grid-maps/tests/grid_maps_test.lua")); err != nil {
+		t.Error(err)
+	}
+
+	out.Reset()
+	if err := runTest([]string{"-dir", dir}, &out); err != nil {
+		t.Fatalf("%v\n%s", err, out.String())
+	}
+	if !strings.Contains(out.String(), "5 passed, 0 failed") {
+		t.Errorf("got\n%s", out.String())
+	}
+
+	if err := runGen([]string{"plugin", "rooms", "-dir", dir}, &out); err == nil || !strings.Contains(err.Error(), "already exists") {
+		t.Errorf("generating twice: %v", err)
+	}
+	if err := runGen([]string{"plugin", "Rooms!", "-dir", dir}, &out); err == nil || !strings.Contains(err.Error(), "isn't a valid plugin name") {
+		t.Errorf("bad name: %v", err)
+	}
+	if err := runGen([]string{"plugin", "rooms", "-dir", t.TempDir()}, &out); err == nil || !strings.Contains(err.Error(), "isn't a game directory") {
+		t.Errorf("not a game: %v", err)
+	}
+}

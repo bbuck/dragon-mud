@@ -67,7 +67,8 @@ over telnet and the web and talk to each other.
 
 ## Milestone 3: Plugins for real
 
-- [x] Local plugins in `game/plugins/<name>/`.
+- [x] Local plugins in `game/plugins/<name>/`, made with `dragon gen
+      plugin <name>`.
 - [x] `require` for a plugin's own modules.
 - [x] Manifests are `plugin.toml`, read without running the plugin; the
       game's settings are `dragon.toml`.

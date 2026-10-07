@@ -48,6 +48,8 @@ const usage = `dragon creates and runs DragonMUD games.
 Usage:
   dragon new <directory> [-name "Game Name"]   create a new game
   dragon serve [-dir <directory>]              run the game in a directory
+  dragon gen plugin <name> [-dir <directory>]  make a local plugin in
+                                               game/plugins/<name>
   dragon events [<name>] [-dir <directory>]    list events, or show one's fields
                                                and the order its handlers run in
   dragon plugin [<name>] [-dir <directory>]    list plugins, or show everything
@@ -74,7 +76,7 @@ Usage:
 
 // commands are dragon's own commands, which a task without a namespace
 // can't share a name with.
-var commands = []string{"new", "serve", "events", "plugin", "tasks", "test", "add", "install", "update", "remove", "list", "version", "help"}
+var commands = []string{"new", "gen", "serve", "events", "plugin", "tasks", "test", "add", "install", "update", "remove", "list", "version", "help"}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -86,6 +88,8 @@ func main() {
 	switch os.Args[1] {
 	case "new":
 		err = runNew(os.Args[2:])
+	case "gen":
+		err = runGen(os.Args[2:], os.Stdout)
 	case "serve":
 		err = runServe(os.Args[2:])
 	case "events":

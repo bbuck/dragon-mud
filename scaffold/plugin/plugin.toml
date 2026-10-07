@@ -1,0 +1,23 @@
+# The {{.Name}} plugin's manifest. dragon reads it without running any of
+# the plugin's Lua.
+name = "{{.Name}}"
+version = "0.1.0"
+
+# System features the plugin uses, beyond the game itself: tasks,
+# web_client, client_events, and so on. Run dragon plugin {{.Name}} to see
+# what it provides.
+# capabilities = ["tasks"]
+
+# APIs the plugin provides, which other plugins use with require("@name").
+# Name an API for whoever owns its contract, and say which module has it
+# in init.lua with api = "api".
+# [provides]
+# "yourname:{{.Name}}" = "0.1"
+
+# APIs the plugin uses, whoever provides them.
+# [uses]
+# "dragon:chat" = "^0.1"
+
+# Plugins to install alongside this one, if it's shared with dragon add.
+# [dependencies]
+# "github.com/johns/rooms" = "^1.8"

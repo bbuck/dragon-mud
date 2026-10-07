@@ -91,7 +91,9 @@ plugin and always wins: its wiring, overrides and templates take precedence
 over every installed plugin. Only the game has `events.wiring`, which
 reorders or disables other plugins' event handlers.
 
-**Local plugins** live in `game/plugins/<name>/`. They're the game's own
+**Local plugins** live in `game/plugins/<name>/`; `dragon gen plugin
+<name>` makes one, with a manifest, an `init.lua` with a command and
+handlers, and a passing test. They're the game's own
 code, split out the way a game would split out combat or crafting: edited
 in place, committed with the game, never in `dragon.lock`. They load after
 built-in and installed plugins and before the game itself, in directory

@@ -43,24 +43,26 @@ func TestNewRefusesExistingDirectory(t *testing.T) {
 	}
 }
 
-// Generated games indent with tabs.
+// Generated games and plugins indent with tabs.
 func TestTemplateIndentsWithTabs(t *testing.T) {
-	err := fs.WalkDir(files, ".", func(name string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return err
-		}
-		data, err := fs.ReadFile(files, name)
-		if err != nil {
-			return err
-		}
-		for i, line := range strings.Split(string(data), "\n") {
-			if strings.HasPrefix(line, " ") {
-				t.Errorf("%s:%d is indented with spaces: %q", name, i+1, line)
+	for _, fsys := range []fs.FS{files, pluginFiles} {
+		err := fs.WalkDir(fsys, ".", func(name string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return err
 			}
+			data, err := fs.ReadFile(fsys, name)
+			if err != nil {
+				return err
+			}
+			for i, line := range strings.Split(string(data), "\n") {
+				if strings.HasPrefix(line, " ") {
+					t.Errorf("%s:%d is indented with spaces: %q", name, i+1, line)
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
 		}
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
 }

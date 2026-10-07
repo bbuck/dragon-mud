@@ -38,6 +38,18 @@ const BuiltinPrefix = "dragon:"
 
 var nameRx = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
 
+// ValidName returns an error unless name can name a plugin.
+func ValidName(name string) error {
+	switch {
+	case !nameRx.MatchString(name):
+		return fmt.Errorf("%q isn't a valid plugin name. Use lowercase letters, digits, - and _, starting with a letter, like \"rooms\".", name)
+	case name == GameID:
+		return fmt.Errorf("%q is the game's own plugin. Name the plugin for what it does, like \"rooms\".", name)
+	}
+
+	return nil
+}
+
 // apiRx is an API's name: a plugin name, optionally after the namespace
 // of whoever owns the API's contract, as in "dragon:rooms".
 var apiRx = regexp.MustCompile(`^([a-z][a-z0-9_-]*:)?[a-z][a-z0-9_-]*$`)
