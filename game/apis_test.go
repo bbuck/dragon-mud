@@ -97,7 +97,7 @@ func TestGameImportsChat(t *testing.T) {
 // A plugin imports what it depends on, even from a plugin that loads after
 // it: the provider's init.lua runs first.
 func TestPluginImportsADependency(t *testing.T) {
-	mapping := localPlugin("mapping", "[depends]\nrooms = \"^1.2\"", fstest.MapFS{
+	mapping := localPlugin("mapping", "[uses]\nrooms = \"^1.2\"", fstest.MapFS{
 		"init.lua": file(`return { commands = require("commands") }`),
 		"lua/commands.lua": file(`
 			local rooms = require("@rooms")
@@ -118,7 +118,7 @@ func TestPluginImportsADependency(t *testing.T) {
 
 // An optional dependency no plugin provides imports as nil.
 func TestOptionalDependencyMayBeMissing(t *testing.T) {
-	sky := localPlugin("sky", "[depends]\nweather = { version = \"^1.0\", optional = true }", fstest.MapFS{
+	sky := localPlugin("sky", "[uses]\nweather = { version = \"^1.0\", optional = true }", fstest.MapFS{
 		"init.lua": file(`return { commands = require("commands") }`),
 		"lua/commands.lua": file(`
 			local weather = require("@weather")
@@ -199,25 +199,25 @@ func TestAPIErrors(t *testing.T) {
 			"undeclared dependency",
 			nil,
 			[]plugin.Source{rooms("1.3"), importer("", "johns:rooms")},
-			"require(\"@johns:rooms\"): mapping doesn't depend on the johns:rooms API. Add it to mapping's plugin.toml:\n\n[depends]\n\"johns:rooms\" = \"^1.3\"",
+			"require(\"@johns:rooms\"): mapping doesn't list the johns:rooms API in [uses]. Add it to mapping's plugin.toml:\n\n[uses]\n\"johns:rooms\" = \"^1.3\"",
 		},
 		{
 			"no provider",
 			nil,
-			[]plugin.Source{importer("[depends]\nrooms = \"^1.0\"", "rooms")},
-			`game/plugins/mapping: mapping depends on the rooms API (^1.0), but no plugin the game loads provides it. Add a plugin that does, or make the dependency optional in plugin.toml: rooms = { version = "^1.0", optional = true }.`,
+			[]plugin.Source{importer("[uses]\nrooms = \"^1.0\"", "rooms")},
+			`game/plugins/mapping: mapping uses the rooms API (^1.0), but no plugin the game loads provides it. Add a plugin that does, or make it optional in plugin.toml's [uses]: rooms = { version = "^1.0", optional = true }.`,
 		},
 		{
 			"wrong version",
 			nil,
-			[]plugin.Source{rooms("1.1"), importer("[depends]\n\"johns:rooms\" = \"^1.2\"", "johns:rooms")},
-			`game/plugins/mapping: mapping depends on the johns:rooms API ^1.2, but grid-rooms provides johns:rooms 1.1. Use a version of grid-rooms that provides a matching one, or change mapping's [depends] to "johns:rooms" = "^1.1" if it works with 1.1.`,
+			[]plugin.Source{rooms("1.1"), importer("[uses]\n\"johns:rooms\" = \"^1.2\"", "johns:rooms")},
+			`game/plugins/mapping: mapping uses the johns:rooms API ^1.2, but grid-rooms provides johns:rooms 1.1. Use a version of grid-rooms that provides a matching one, or change mapping's [uses] to "johns:rooms" = "^1.1" if it works with 1.1.`,
 		},
 		{
 			"below 1.0 a minor breaks",
 			nil,
-			[]plugin.Source{rooms("0.3"), importer("[depends]\n\"johns:rooms\" = \"^0.2\"", "johns:rooms")},
-			`mapping depends on the johns:rooms API ^0.2, but grid-rooms provides johns:rooms 0.3.`,
+			[]plugin.Source{rooms("0.3"), importer("[uses]\n\"johns:rooms\" = \"^0.2\"", "johns:rooms")},
+			`mapping uses the johns:rooms API ^0.2, but grid-rooms provides johns:rooms 0.3.`,
 		},
 		{
 			"two providers",
@@ -240,8 +240,8 @@ func TestAPIErrors(t *testing.T) {
 		{
 			"dependency without its namespace",
 			nil,
-			[]plugin.Source{importer("[depends]\nchat = \"^0.1\"", "chat")},
-			`mapping depends on the chat API (^0.1), but no plugin the game loads provides it. Did you mean "dragon:chat"?`,
+			[]plugin.Source{importer("[uses]\nchat = \"^0.1\"", "chat")},
+			`mapping uses the chat API (^0.1), but no plugin the game loads provides it. Did you mean "dragon:chat"?`,
 		},
 		{
 			"dragon: is reserved",
@@ -259,8 +259,8 @@ func TestAPIErrors(t *testing.T) {
 			"loop",
 			nil,
 			[]plugin.Source{
-				localPlugin("left", "[provides]\nleft = \"1.0\"\n[depends]\nright = \"1.0\"", fstest.MapFS{"init.lua": file(`local r = require("@right") return { api = "api" }`), "lua/api.lua": file(`return {}`)}),
-				localPlugin("right", "[provides]\nright = \"1.0\"\n[depends]\nleft = \"1.0\"", fstest.MapFS{"init.lua": file(`local l = require("@left") return { api = "api" }`), "lua/api.lua": file(`return {}`)}),
+				localPlugin("left", "[provides]\nleft = \"1.0\"\n[uses]\nright = \"1.0\"", fstest.MapFS{"init.lua": file(`local r = require("@right") return { api = "api" }`), "lua/api.lua": file(`return {}`)}),
+				localPlugin("right", "[provides]\nright = \"1.0\"\n[uses]\nleft = \"1.0\"", fstest.MapFS{"init.lua": file(`local l = require("@left") return { api = "api" }`), "lua/api.lua": file(`return {}`)}),
 			},
 			`plugins import each other's APIs as they load, in a loop: left → right → left. Import the API inside the function that uses it, not at the top of the file, so it loads when it's called.`,
 		},
@@ -315,14 +315,14 @@ func TestAPIErrors(t *testing.T) {
 		{
 			"bad constraint",
 			nil,
-			[]plugin.Source{localPlugin("mapping", "[depends]\nrooms = \">= 1.2\"", nil)},
-			`plugin.toml: depends.rooms: ">= 1.2" isn't a version constraint. Use "^1.2" for 1.2 up to 2.0, "~1.2" for 1.2 up to 1.3, or "=1.2.3" for exactly 1.2.3.`,
+			[]plugin.Source{localPlugin("mapping", "[uses]\nrooms = \">= 1.2\"", nil)},
+			`plugin.toml: uses.rooms: ">= 1.2" isn't a version constraint. Use "^1.2" for 1.2 up to 2.0, "~1.2" for 1.2 up to 1.3, or "=1.2.3" for exactly 1.2.3.`,
 		},
 		{
 			"unknown dependency setting",
 			nil,
-			[]plugin.Source{localPlugin("mapping", "[depends]\nrooms = { version = \"^1.2\", optinal = true }", nil)},
-			`plugin.toml: depends.rooms: unknown setting "optinal". Did you mean "optional"? A dependency has version and optional.`,
+			[]plugin.Source{localPlugin("mapping", "[uses]\nrooms = { version = \"^1.2\", optinal = true }", nil)},
+			`plugin.toml: uses.rooms: unknown setting "optinal". Did you mean "optional"? An API in [uses] has version and optional.`,
 		},
 	}
 

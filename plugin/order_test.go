@@ -13,11 +13,11 @@ func source(name, manifest string) Source {
 
 func TestOrder(t *testing.T) {
 	sources := []Source{
-		source("combat", "[depends]\n\"johns:skills\" = \"^1.0\"\n\"johns:dice\" = \"^1.0\""),
+		source("combat", "[uses]\n\"johns:skills\" = \"^1.0\"\n\"johns:dice\" = \"^1.0\""),
 		source("dice", "[provides]\n\"johns:dice\" = \"1.0\""),
 		source("mapping", ""),
-		source("skills", "[provides]\n\"johns:skills\" = \"1.0\"\n[depends]\n\"johns:dice\" = \"^1.0\""),
-		source("weather", "[depends]\n\"skywatch:clouds\" = { version = \"^1.0\", optional = true }"),
+		source("skills", "[provides]\n\"johns:skills\" = \"1.0\"\n[uses]\n\"johns:dice\" = \"^1.0\""),
+		source("weather", "[uses]\n\"skywatch:clouds\" = { version = \"^1.0\", optional = true }"),
 	}
 
 	sorted := Order(sources)

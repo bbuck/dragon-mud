@@ -57,7 +57,7 @@ names.
 
 ```
 mapping/
-  plugin.toml       manifest: name, version, provides, depends,
+  plugin.toml       manifest: name, version, provides, uses,
                     capabilities, dependencies
   init.lua          everything the plugin provides, from its modules
   lua/              modules, loaded with require
@@ -96,7 +96,7 @@ code, split out the way a game would split out combat or crafting: edited
 in place, committed with the game, never in `dragon.lock`. They load after
 built-in and installed plugins and before the game itself, in directory
 name order, except that a plugin loads after the plugins providing the
-APIs it depends on. Moving one to its own repository
+APIs it uses. Moving one to its own repository
 and installing it with `dragon add` is how a game shares it. Plugin names
 must be unique across every plugin a game loads.
 
@@ -235,7 +235,8 @@ return {
 
 ## APIs and "provides"
 
-Plugins depend on **APIs**, not on particular plugins.
+Plugins use **APIs**, not particular plugins. A plugin lists the APIs it
+uses in `[uses]`, and the APIs it provides in `[provides]`.
 
 ```toml
 # grid-rooms/plugin.toml
@@ -251,7 +252,7 @@ version = "0.4.0"
 name = "mapping"
 version = "0.2.0"
 
-[depends]
+[uses]
 "dragon:rooms" = "^1.2"
 "skywatch:weather" = { version = "^1.0", optional = true }
 ```
@@ -280,7 +281,7 @@ is allowed, for a game's own local plugins that nothing else will load.
 - One provider per API per game: two loaded plugins providing the same API
   is an error at startup. (Later, the game config may pick.)
 - The game checks every manifest before running any plugin's Lua: each
-  dependency must have a provider whose version matches, unless it's
+  API in `[uses]` must have a provider whose version matches, unless it's
   optional.
 - Code asks for the API by its name, never by the plugin providing it:
   `require("@dragon:rooms")` in Lua, and the same name in JavaScript's
@@ -312,10 +313,10 @@ just that module into another Lua state, such as the one builders'
 entity scripts run in (design.md §10), without running the rest of the
 plugin.
 
-- A plugin imports only what its `[depends]` lists, or its own APIs. The
+- A plugin imports only what its `[uses]` lists, or its own APIs. The
   game's own plugin has no manifest and imports any API a loaded plugin
   provides, since the game chose what loads.
-- An optional dependency no plugin provides imports as `nil`:
+- An optional API no plugin provides imports as `nil`:
   `local weather = require("@skywatch:weather")`, then
   `if weather then ... end`.
 - Plugins load in order, but importing an API whose plugin hasn't loaded
@@ -403,7 +404,7 @@ dragon list
 - **Installed plugins are vendored** into `plugins/<name>/`, named by
   their manifest, without their git history, and committed with the game.
   They load after the built-ins and before the game's local plugins, each
-  after the plugins providing the APIs it depends on.
+  after the plugins providing the APIs it uses.
 - **`dragon.lock`** records each installed plugin's source, tag, commit, a
   hash of its files, and what needs it (`dragon.toml`, or other plugins).
   The server won't start if `plugins/` doesn't match the lock, or the lock
@@ -415,9 +416,9 @@ dragon list
   `dragon update` asks only when a new version wants capabilities the
   installed one didn't. `dragon remove` refuses a plugin that's only
   installed because another needs it.
-- **`[dependencies]` and `[depends]` are different things.**
-  `[dependencies]` says which plugins to install; `[depends]` says which
-  APIs a plugin uses, whoever provides them. A plugin can depend on the
+- **`[dependencies]` and `[uses]` are different things.**
+  `[dependencies]` says which plugins to install; `[uses]` says which
+  APIs a plugin uses, whoever provides them. A plugin can use the
   `dragon:rooms` API and leave the game to choose which plugin provides
   it.
 - Two installed plugins with the same name, or one named like a local

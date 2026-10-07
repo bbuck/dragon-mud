@@ -144,7 +144,7 @@ func TestPluginSourcesLoadsInstalledPlugins(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	write("plugins/aardvark/plugin.toml", "name = \"aardvark\"\n[depends]\n\"zoo:keeper\" = \"^1.0\"\n")
+	write("plugins/aardvark/plugin.toml", "name = \"aardvark\"\n[uses]\n\"zoo:keeper\" = \"^1.0\"\n")
 	write("plugins/zookeeper/plugin.toml", "name = \"zookeeper\"\n[provides]\n\"zoo:keeper\" = \"1.0\"\n")
 	write("game/plugins/combat/plugin.toml", "name = \"combat\"\n")
 

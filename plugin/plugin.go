@@ -51,8 +51,8 @@ type Manifest struct {
 	// which are independent of the plugin's own.
 	Provides map[string]Version `toml:"-"`
 
-	// Depends lists the APIs the plugin uses, and which versions.
-	Depends map[string]Dependency `toml:"-"`
+	// Uses lists the APIs the plugin uses, and which versions.
+	Uses map[string]Use `toml:"-"`
 
 	// Dependencies are the plugins this one needs installed, by where
 	// they come from, each with the versions it accepts, as in the game's
@@ -127,12 +127,12 @@ func quoteList(items []string) string {
 	return strings.Join(quoted, ", ")
 }
 
-// Dependency is an API a plugin uses: rooms = "^1.2", or
+// Use is an API a plugin uses: rooms = "^1.2", or
 // weather = { version = "^1.0", optional = true }.
-type Dependency struct {
+type Use struct {
 	Version Constraint
 
-	// Optional dependencies may be missing, and then require gives nil.
+	// Optional APIs may be missing, and then require gives nil.
 	Optional bool
 }
 
@@ -177,7 +177,7 @@ type Plugin struct {
 
 // Imports finds the plugin that provides api for from, already loaded, as
 // require("@api") in from's scripts asks for it. It returns nil if api is
-// an optional dependency no plugin provides.
+// an optional API in [uses] no plugin provides.
 type Imports func(from *Plugin, api string) (*Plugin, error)
 
 // ManifestFile is the plugin's manifest. It's data, read without running
@@ -539,7 +539,7 @@ func ReadManifest(fsys fs.FS) (Manifest, error) {
 		Name         string            `toml:"name"`
 		Version      string            `toml:"version"`
 		Provides     map[string]string `toml:"provides"`
-		Depends      map[string]any    `toml:"depends"`
+		Uses         map[string]any    `toml:"uses"`
 		Capabilities []any             `toml:"capabilities"`
 		Dependencies map[string]string `toml:"dependencies"`
 	}
@@ -547,10 +547,13 @@ func ReadManifest(fsys fs.FS) (Manifest, error) {
 	if err != nil {
 		return Manifest{}, fmt.Errorf("%s: %w", ManifestFile, err)
 	}
-	// A dependency's own settings are checked by readDepends.
-	undecoded := slices.DeleteFunc(meta.Undecoded(), func(k toml.Key) bool { return len(k) > 2 && k[0] == "depends" })
+	// An API's own settings in [uses] are checked by readUses.
+	undecoded := slices.DeleteFunc(meta.Undecoded(), func(k toml.Key) bool { return len(k) > 2 && k[0] == "uses" })
 	if len(undecoded) > 0 {
 		key := undecoded[0].String()
+		if undecoded[0][0] == "depends" {
+			return Manifest{}, fmt.Errorf("%s: [depends] is called [uses] now: it lists the APIs the plugin uses, while [dependencies] lists the plugins to install. Rename it.", ManifestFile)
+		}
 		return Manifest{}, fmt.Errorf("%s: unknown setting %q.%s A manifest has %s.", ManifestFile, key, command.DidYouMean(key, manifestKeys), andList(manifestKeys))
 	}
 	m := Manifest{Name: raw.Name, Version: raw.Version}
@@ -567,7 +570,7 @@ func ReadManifest(fsys fs.FS) (Manifest, error) {
 	if m.Provides, err = readProvides(raw.Provides); err != nil {
 		return Manifest{}, fmt.Errorf("%s: %w", ManifestFile, err)
 	}
-	if m.Depends, err = readDepends(raw.Depends); err != nil {
+	if m.Uses, err = readUses(raw.Uses); err != nil {
 		return Manifest{}, fmt.Errorf("%s: %w", ManifestFile, err)
 	}
 	if m.Capabilities, err = readCapabilities(raw.Capabilities); err != nil {
@@ -585,7 +588,7 @@ func ReadManifest(fsys fs.FS) (Manifest, error) {
 	return m, nil
 }
 
-var manifestKeys = []string{"name", "version", "provides", "depends", "capabilities", "dependencies"}
+var manifestKeys = []string{"name", "version", "provides", "uses", "capabilities", "dependencies"}
 
 // readCapabilities checks capabilities: a list of known capability names,
 // each once.
@@ -625,24 +628,24 @@ func readProvides(raw map[string]string) (map[string]Version, error) {
 	return provides, nil
 }
 
-// readDepends checks [depends]: each API with a version constraint, or a
+// readUses checks [uses]: each API with a version constraint, or a
 // table of version and optional.
-func readDepends(raw map[string]any) (map[string]Dependency, error) {
+func readUses(raw map[string]any) (map[string]Use, error) {
 	const shape = `"johns:rooms" = "^1.2", or "johns:rooms" = { version = "^1.2", optional = true }`
 
-	depends := make(map[string]Dependency, len(raw))
+	uses := make(map[string]Use, len(raw))
 	for api, value := range raw {
-		where := "depends." + api
+		where := "uses." + api
 		if !apiRx.MatchString(api) {
-			return nil, fmt.Errorf("depends: %q isn't a valid API name. Use lowercase letters, digits, - and _, starting with a letter, after a namespace for whoever owns the API, like %s.", api, shape)
+			return nil, fmt.Errorf("uses: %q isn't a valid API name. Use lowercase letters, digits, - and _, starting with a letter, after a namespace for whoever owns the API, like %s.", api, shape)
 		}
 
-		var dep Dependency
+		var dep Use
 		text, ok := value.(string)
 		if table, isTable := value.(map[string]any); isTable {
 			for key := range table {
 				if key != "version" && key != "optional" {
-					return nil, fmt.Errorf("%s: unknown setting %q.%s A dependency has version and optional.", where, key, command.DidYouMean(key, []string{"version", "optional"}))
+					return nil, fmt.Errorf("%s: unknown setting %q.%s An API in [uses] has version and optional.", where, key, command.DidYouMean(key, []string{"version", "optional"}))
 				}
 			}
 			if text, ok = table["version"].(string); !ok {
@@ -661,10 +664,10 @@ func readDepends(raw map[string]any) (map[string]Dependency, error) {
 		if dep.Version, err = ParseConstraint(text); err != nil {
 			return nil, fmt.Errorf("%s: %v", where, err)
 		}
-		depends[api] = dep
+		uses[api] = dep
 	}
 
-	return depends, nil
+	return uses, nil
 }
 
 func isAre(items []string) string {

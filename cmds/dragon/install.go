@@ -355,14 +355,14 @@ func reportUnmet(dir string, out io.Writer) error {
 	var problems []string
 	for _, id := range slices.Sorted(maps.Keys(manifests)) {
 		m := manifests[id]
-		for _, api := range slices.Sorted(maps.Keys(m.Depends)) {
-			dep := m.Depends[api]
+		for _, api := range slices.Sorted(maps.Keys(m.Uses)) {
+			dep := m.Uses[api]
 			p, ok := providers[api]
 			switch {
 			case !ok && !dep.Optional:
-				problems = append(problems, fmt.Sprintf("%s depends on the %s API (%s), but no plugin the game loads provides it.", id, api, dep.Version))
+				problems = append(problems, fmt.Sprintf("%s uses the %s API (%s), but no plugin the game loads provides it.", id, api, dep.Version))
 			case ok && !dep.Version.Allows(p.version):
-				problems = append(problems, fmt.Sprintf("%s depends on the %s API %s, but %s provides %s.", id, api, dep.Version, p.id, p.version))
+				problems = append(problems, fmt.Sprintf("%s uses the %s API %s, but %s provides %s.", id, api, dep.Version, p.id, p.version))
 			}
 		}
 	}

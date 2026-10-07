@@ -75,7 +75,7 @@ over telnet and the web and talk to each other.
       modules in `lua/`, so file names are the plugin's own business.
 - [x] "Event" names both kinds, hooks and notifications: `dragon.events`,
       `events.declare`, `events.handlers`, `dragon events`.
-- [x] Manifest `[provides]` and `[depends]`: API versions and Cargo-style
+- [x] Manifest `[provides]` and `[uses]`: API versions and Cargo-style
       constraints, checked at startup, one provider per API.
 - [x] Manifest capabilities, checked where a system feature is used
       (tasks first). The world-state check in bindings comes with entity
@@ -220,7 +220,7 @@ plus guides for the common paths.
   MUD.
 - **Game directory:** layout, `dragon.toml`, the game as a plugin, overrides.
 - **Lua API reference:** every module and function.
-- **Manifest reference:** fields, provides, depends, capabilities.
+- **Manifest reference:** fields, provides, uses, capabilities, dependencies.
 - **Views:** sections, telnet and HTML templates, layout helpers,
   color codes.
 - **Events and wiring:** hooks and notifications, declarations, ordering,

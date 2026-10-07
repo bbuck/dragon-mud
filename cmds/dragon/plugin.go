@@ -121,13 +121,13 @@ func showPlugin(out io.Writer, info *game.Inspection, p *plugin.Plugin) error {
 	for _, api := range slices.Sorted(maps.Keys(p.Manifest.Provides)) {
 		fmt.Fprintf(out, "  Provides the %s API %s, as require(\"@%s\") (%s/%s.lua).\n", api, p.Manifest.Provides[api], api, plugin.ModulesDir, strings.ReplaceAll(apis[api], ".", "/"))
 	}
-	for _, api := range slices.Sorted(maps.Keys(p.Manifest.Depends)) {
-		dep := p.Manifest.Depends[api]
+	for _, api := range slices.Sorted(maps.Keys(p.Manifest.Uses)) {
+		dep := p.Manifest.Uses[api]
 		optional := ""
 		if dep.Optional {
 			optional = ", optionally"
 		}
-		fmt.Fprintf(out, "  Depends on the %s API %s%s.\n", api, dep.Version, optional)
+		fmt.Fprintf(out, "  Uses the %s API %s%s.\n", api, dep.Version, optional)
 	}
 	switch {
 	case p.ID == plugin.GameID:

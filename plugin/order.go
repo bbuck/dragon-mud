@@ -35,7 +35,7 @@ func Order(sources []Source) []Source {
 			return
 		}
 		state[i] = 1
-		for _, api := range slices.Sorted(maps.Keys(manifests[i].Depends)) {
+		for _, api := range slices.Sorted(maps.Keys(manifests[i].Uses)) {
 			if j, ok := providers[api]; ok && j != i {
 				visit(j)
 			}
