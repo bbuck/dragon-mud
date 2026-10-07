@@ -1116,8 +1116,9 @@ else can be added without changing the engine or the modules.
   with types only takes the properties they declare (plugins.md,
   "Schemas"). Moving only changes
   containment: no messages, no hooks. Properties are read and written with
-  methods (`o:get(name)`, `o:get_own(name)`, `o:set(name, value)`,
-  `o:delete(name)`), never as fields, so property names can't collide with
+  methods (`o:get(name)`, `o:get_own(name)`, `o:try_get(name)`,
+  `o:get_or(name, default)`, `o:get_or_set(name, default)`,
+  `o:set(name, value)`, `o:delete(name)`), never as fields, so property names can't collide with
   the API; ergonomic wrappers are a plugin's job. A property named after a
   field (`location`, `parent`, ...) is an error that says how to use the
   field instead. `get` returns a copy: change a table and `set` it back.

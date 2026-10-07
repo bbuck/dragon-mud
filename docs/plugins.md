@@ -219,7 +219,13 @@ return {
   suggestion (`"descrition" isn't a field of items:item. Did you mean
   "description"?`), and so is `o:get`, so a misspelled read fails too. A
   value of the wrong kind is an error naming the field. `o:get` of a field
-  no object in the chain has gives its default. Adding a type, removing
+  no object in the chain has gives its default.
+- **Reading from any object** without knowing its types uses the safe
+  reads: `o:try_get(name)` gives nil for a name its types don't declare;
+  `o:get_or(name, default)` gives `default` too when there's no value;
+  and `o:get_or_set(name, default)` sets `default` and gives it when
+  there's no value (checked like `o:set`, since it writes). A field's
+  declared default is its value, so it wins over `default`. Adding a type, removing
   one or changing an object's parent checks the object's own properties
   against the types it would have.
 - **An object with no types takes any property**, as before types

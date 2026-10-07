@@ -247,3 +247,49 @@ func TestUndeclaredTypesAreUnchecked(t *testing.T) {
 		t.Errorf("printed %q", lines)
 	}
 }
+
+func TestSafeReads(t *testing.T) {
+	g := schemaGame(t, itemSchema, `
+		local world = require("dragon.world")
+		return {
+			run = function(args, out)
+				local bag = world.create({ types = { "items:item" } })
+				local loose = world.create({})
+				out(tostring(bag:try_get("colour")), tostring(loose:try_get("colour")))
+				out(bag:get_or("colour", "grey"), loose:get_or("colour", "grey"))
+				-- A field's default is its value, so it wins.
+				out(bag:get_or("weight", 9))
+				out(bag:get_or("description", "plain"))
+				out(loose:get_or_set("colour", "red"), loose:get("colour"), loose:get_or_set("colour", "blue"))
+				out(bag:get_or_set("description", "A sack."), bag:get("description"))
+				local ok, err = pcall(function() bag:get_or_set("colour", "red") end)
+				out(tostring(ok), err)
+			end,
+		}
+	`)
+
+	lines, err := runTaskLines(t, g, "run")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"nil nil",
+		"grey grey",
+		"1",
+		"plain",
+		"red red red",
+		"A sack. A sack.",
+		`false`,
+	}
+	if len(lines) != len(want) {
+		t.Fatalf("printed %q", lines)
+	}
+	for i := range want {
+		if !strings.HasPrefix(lines[i], want[i]) {
+			t.Errorf("line %d = %q, want %q", i+1, lines[i], want[i])
+		}
+	}
+	if !strings.Contains(lines[6], `"colour" isn't a field of items:item.`) {
+		t.Errorf("get_or_set of an undeclared field: %q", lines[6])
+	}
+}

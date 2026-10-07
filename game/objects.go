@@ -24,7 +24,12 @@ import (
 //	o.types                    its schema types, then its parents'
 //
 //	o:get(name)                property value, inherited from parents, or
-//	                           its field's default
+//	                           its field's default; on a typed object, a
+//	                           name its types don't declare is an error
+//	o:try_get(name)            the same, but nil for an undeclared name
+//	o:get_or(name, default)    try_get, or default when there's no value
+//	o:get_or_set(name, default) get, or set default and give it when
+//	                           there's no value
 //	o:is_a(other)              true if o is other or inherits from it
 //	o:is_player()              true if an account owns o as a character
 //	o:get_own(name)            property value only if o has its own
@@ -98,6 +103,9 @@ func (g *Game) objectType() *scripting.Type {
 		Methods: map[string]scripting.Method{
 			"get":         g.objectGet(true),
 			"get_own":     g.objectGet(false),
+			"try_get":     g.objectTryGet,
+			"get_or":      g.objectGetOr,
+			"get_or_set":  g.mutating(g.objectGetOrSet),
 			"is_a":        g.objectIsA,
 			"is_player":   g.objectIsPlayer,
 			"set":         g.mutating(g.objectSet),
@@ -435,22 +443,114 @@ func (g *Game) objectGet(inherit bool) scripting.Method {
 		if err := structuralName(name); err != nil {
 			return nil, err
 		}
-		f, checked, err := g.checkField(o, name)
-		if err != nil {
-			return nil, err
+		if !inherit {
+			if _, _, err := g.checkField(o, name); err != nil {
+				return nil, err
+			}
+			value, _ := o.GetOwn(name)
+			return g.toScript(value), nil
 		}
 
-		get := o.GetOwn
-		if inherit {
-			get = o.Get
-		}
-		value, ok := get(name)
-		if !ok && inherit && checked && f.HasDefault {
-			value = f.Default
-		}
-
-		return g.toScript(value), nil
+		value, _, err := g.readProperty(o, name, true)
+		return value, err
 	}
+}
+
+// readProperty reads o's property name for scripts: its value, inherited
+// from o's parents, or its field's default. found is false when there's
+// neither, or the value is nil. strict makes a name none of a typed
+// object's types declare an error; otherwise it reads as not found.
+func (g *Game) readProperty(o *world.Object, name string, strict bool) (value any, found bool, err error) {
+	if err := structuralName(name); err != nil {
+		return nil, false, err
+	}
+	f, checked, err := g.checkField(o, name)
+	if err != nil {
+		if strict {
+			return nil, false, err
+		}
+		return nil, false, nil
+	}
+
+	v, ok := o.Get(name)
+	if !ok && checked && f.HasDefault {
+		v, ok = f.Default, true
+	}
+
+	return g.toScript(v), ok && v != nil, nil
+}
+
+// objectTryGet reads a property like get, but gives nil for a name none of
+// a typed object's types declare, for code that reads from any object.
+func (g *Game) objectTryGet(key any, args scripting.Args) (any, error) {
+	o, err := g.object(key)
+	if err != nil {
+		return nil, err
+	}
+	name, err := args.String(0)
+	if err != nil {
+		return nil, err
+	}
+	value, _, err := g.readProperty(o, name, false)
+
+	return value, err
+}
+
+// objectGetOr reads a property like try_get, giving default when there's
+// no value: o:get_or(name, default). A field's own default is a value, so
+// it wins.
+func (g *Game) objectGetOr(key any, args scripting.Args) (any, error) {
+	o, err := g.object(key)
+	if err != nil {
+		return nil, err
+	}
+	name, err := args.String(0)
+	if err != nil {
+		return nil, err
+	}
+	value, found, err := g.readProperty(o, name, false)
+	if err != nil || found {
+		return value, err
+	}
+	if args.Len() < 2 {
+		return nil, errors.New("argument #2: expected the value to give when there's none, as in o:get_or(name, default)")
+	}
+
+	return args[1], nil
+}
+
+// objectGetOrSet reads a property like get, and when there's no value,
+// sets default on o and gives it: o:get_or_set(name, default). Setting is
+// checked like set.
+func (g *Game) objectGetOrSet(key any, args scripting.Args) (any, error) {
+	o, err := g.object(key)
+	if err != nil {
+		return nil, err
+	}
+	name, err := args.String(0)
+	if err != nil {
+		return nil, err
+	}
+	value, found, err := g.readProperty(o, name, true)
+	if err != nil || found {
+		return value, err
+	}
+	if args.Len() < 2 || args[1] == nil {
+		return nil, errors.New("argument #2: expected the value to set when there's none, as in o:get_or_set(name, default)")
+	}
+
+	stored, err := g.fromScript(args[1])
+	if err != nil {
+		return nil, fmt.Errorf("argument #2: %w", err)
+	}
+	if err := g.checkProperty(o, name, stored); err != nil {
+		return nil, err
+	}
+	if err := o.Set(name, stored); err != nil {
+		return nil, err
+	}
+
+	return args[1], nil
 }
 
 func (g *Game) objectSet(key any, args scripting.Args) (any, error) {
