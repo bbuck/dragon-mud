@@ -25,12 +25,12 @@ const itemSchema = `
 			["items:item"] = {
 				desc = "Something that can be carried.",
 				fields = {
-					description = { "what players see when they look at it", type = "text" },
-					weight = { "how heavy it is, in pounds", type = "number", default = 1 },
+					description = { desc = "what players see when they look at it", type = "text" },
+					weight = { desc = "how heavy it is, in pounds", type = "number", default = 1 },
 				},
 			},
 			["items:container"] = {
-				fields = { capacity = { "how much it holds", type = "integer", default = 10 } },
+				fields = { capacity = { desc = "how much it holds", type = "integer", default = 10 } },
 			},
 		},
 	}
@@ -129,7 +129,7 @@ func TestChangingTypesChecksProperties(t *testing.T) {
 // A plugin adds fields to another plugin's type, named for itself.
 func TestSchemaExtensions(t *testing.T) {
 	mapping := localPlugin("mapping", "", fstest.MapFS{
-		"init.lua": file(`return { schema = { extend = { room = { fields = { coords = { "where it is on the map", type = "table" } } } } } }`),
+		"init.lua": file(`return { schema = { extend = { room = { fields = { coords = { desc = "where it is on the map", type = "table" } } } } } }`),
 	})
 	g, err := newGameWithPlugins(t, fstest.MapFS{
 		"init.lua": file(`return {
@@ -165,12 +165,12 @@ func TestSchemaDefinitionErrors(t *testing.T) {
 	}{
 		{
 			"unknown kind",
-			`return { types = { item = { fields = { weight = { "how heavy", type = "nubmer" } } } } }`,
+			`return { types = { item = { fields = { weight = { desc = "how heavy", type = "nubmer" } } } } }`,
 			`schema.types.item: field weight: type must be one of any, string, text, number, integer, boolean, object, list and table, not nubmer. Did you mean "number"?`,
 		},
 		{
 			"default of the wrong kind",
-			`return { types = { item = { fields = { weight = { "how heavy", type = "number", default = "lots" } } } } }`,
+			`return { types = { item = { fields = { weight = { desc = "how heavy", type = "number", default = "lots" } } } } }`,
 			`schema.types.item: field weight: its default is a string, but the field is a number.`,
 		},
 		{
@@ -181,7 +181,7 @@ func TestSchemaDefinitionErrors(t *testing.T) {
 		{
 			"no description",
 			`return { types = { item = { fields = { weight = { type = "number" } } } } }`,
-			`schema.types.item: field weight must start with its description`,
+			`schema.types.item: field weight needs desc, saying what it holds`,
 		},
 		{
 			"reserved namespace",

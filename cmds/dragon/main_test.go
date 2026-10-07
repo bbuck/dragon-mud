@@ -193,7 +193,7 @@ func TestPluginShowsWhatItProvides(t *testing.T) {
 		"game/plugins/items/init.lua": `return {
 			api = "api",
 			commands = { drop = { desc = "Put something down.", forms = { { "drop <thing:object:held>", function() end } } } },
-			schema = { types = { ["items:item"] = { desc = "Something to carry.", fields = { weight = { "how heavy", type = "number", default = 1 } } } } },
+			schema = { types = { ["items:item"] = { desc = "Something to carry.", fields = { weight = { desc = "how heavy", type = "number", default = 1 } } } } },
 			events = {
 				declare = { ["items:dropped"] = { desc = "Something was dropped. Handlers react.", fields = { actor = "who", thing = "what" } } },
 				handlers = { ["dragon:said"] = function() end },

@@ -105,7 +105,7 @@ func TestWiringDisablesBasicsArrival(t *testing.T) {
 func TestWiringRedirectsAHandler(t *testing.T) {
 	g := startGame(t, fstest.MapFS{
 		"lua/events.lua": {Data: []byte(`
-			return { placed = { fields = { actor = "who was placed", reconnected = { "unused", optional = true } } } }
+			return { placed = { fields = { actor = "who was placed", reconnected = { desc = "unused", optional = true } } } }
 		`)},
 		"lua/wiring.lua": {Data: []byte(`
 			return { ["dragon:player_connected"] = { redirect = { ["dragon:presence"] = "placed" } } }
@@ -342,7 +342,7 @@ func TestEventsAreChecked(t *testing.T) {
 			return {
 				greeted = {
 					desc = "Someone was greeted.",
-					fields = { actor = "who greeted", target = { "who they greeted", optional = true } },
+					fields = { actor = "who greeted", target = { desc = "who they greeted", optional = true } },
 				},
 			}
 		`)},
@@ -391,16 +391,21 @@ func TestDeclarationErrors(t *testing.T) {
 		{
 			"field without a description",
 			`return { greeted = { fields = { actor = true } } }`,
-			`game: events.declare.greeted: field actor must be a description, like actor = "who did it", or a table like { "who did it", optional = true }, not a boolean.`,
+			`game: events.declare.greeted: field actor must be a description, like actor = "who did it", or a table like { desc = "who did it", optional = true }, not a boolean.`,
 		},
 		{
 			"optional field without a description",
 			`return { greeted = { fields = { target = { optional = true } } } }`,
-			`game: events.declare.greeted: field target must start with its description, like { "where from", optional = true }.`,
+			`game: events.declare.greeted: field target needs desc, saying what it holds, like { desc = "where from", optional = true }.`,
+		},
+		{
+			"description first",
+			`return { greeted = { fields = { target = { "who", optional = true } } } }`,
+			`game: events.declare.greeted: field target names its description: write { desc = "who", ... }.`,
 		},
 		{
 			"misspelled optional",
-			`return { greeted = { fields = { target = { "who", optinal = true } } } }`,
+			`return { greeted = { fields = { target = { desc = "who", optinal = true } } } }`,
 			`game: events.declare.greeted: field target has an unknown field "optinal". Did you mean "optional"?`,
 		},
 		{

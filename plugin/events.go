@@ -17,7 +17,7 @@ var fieldNameRx = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 // fieldKeys the named fields of a field written as a table.
 var (
 	eventKeys = []string{"desc", "fields", "extra"}
-	fieldKeys = []string{"optional"}
+	fieldKeys = []string{"desc", "optional"}
 )
 
 // Declarations loads what the plugin exports as events.declare, sorted by
@@ -29,7 +29,7 @@ var (
 //	    desc = "A map was drawn for a player.",
 //	    fields = {
 //	      actor = "who it was drawn for",
-//	      area = { "the area drawn, if not the whole map", optional = true },
+//	      area = { desc = "the area drawn, if not the whole map", optional = true },
 //	    },
 //	  },
 //	}
@@ -81,7 +81,7 @@ func (p *Plugin) Declarations() ([]event.Decl, error) {
 }
 
 // eventFields reads a declaration's fields: each a description, or a table
-// with the description first and optional = true.
+// with desc and optional = true.
 func eventFields(where string, raw any) ([]event.Field, error) {
 	if raw == nil {
 		return nil, nil
@@ -107,14 +107,15 @@ func eventFields(where string, raw any) ([]event.Field, error) {
 		case string:
 			f.Desc = v
 		case map[string]any:
-			desc, ok := v["1"].(string)
-			if !ok {
-				return nil, fmt.Errorf("%s must start with its description, like { \"where from\", optional = true }.", at)
+			if first, ok := v["1"].(string); ok {
+				return nil, fmt.Errorf("%s names its description: write { desc = %q, ... }.", at, first)
 			}
-			rest := maps.Clone(v)
-			delete(rest, "1")
-			if err := checkKeys(at, rest, fieldKeys, nil); err != nil {
+			if err := checkKeys(at, v, fieldKeys, nil); err != nil {
 				return nil, err
+			}
+			desc, ok := v["desc"].(string)
+			if !ok {
+				return nil, fmt.Errorf("%s needs desc, saying what it holds, like { desc = \"where from\", optional = true }.", at)
 			}
 			optional, isBool := v["optional"].(bool)
 			if _, set := v["optional"]; set && !isBool {
@@ -122,7 +123,7 @@ func eventFields(where string, raw any) ([]event.Field, error) {
 			}
 			f.Desc, f.Optional = desc, optional
 		default:
-			return nil, fmt.Errorf("%s must be a description, like %s = \"who did it\", or a table like { \"who did it\", optional = true }, not a %s.",
+			return nil, fmt.Errorf("%s must be a description, like %s = \"who did it\", or a table like { desc = \"who did it\", optional = true }, not a %s.",
 				at, name, scripting.TypeName(table[name]))
 		}
 		if strings.TrimSpace(f.Desc) == "" {

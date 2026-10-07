@@ -24,7 +24,7 @@ var (
 	schemaKeys      = []string{"types", "extend"}
 	typeKeys        = []string{"desc", "fields"}
 	extendKeys      = []string{"fields"}
-	schemaFieldKeys = []string{"type", "default"}
+	schemaFieldKeys = []string{"desc", "type", "default"}
 )
 
 // Schema loads the types the plugin exports as schema.types and the fields
@@ -35,14 +35,14 @@ var (
 //	    ["items:item"] = {
 //	      desc = "Something that can be carried.",
 //	      fields = {
-//	        description = { "what players see when they look at it", type = "text" },
-//	        weight = { "how heavy it is, in pounds", type = "number", default = 1 },
+//	        description = { desc = "what players see when they look at it", type = "text" },
+//	        weight = { desc = "how heavy it is, in pounds", type = "number", default = 1 },
 //	        notes = "anything builders want to remember",
 //	      },
 //	    },
 //	  },
 //	  extend = {
-//	    ["rooms:room"] = { fields = { coords = { "where it is on the map", type = "table" } } },
+//	    ["rooms:room"] = { fields = { coords = { desc = "where it is on the map", type = "table" } } },
 //	  },
 //	}
 func (p *Plugin) Schema(convert func(any) (any, error)) ([]schema.Type, []schema.Extension, error) {
@@ -116,11 +116,11 @@ func (p *Plugin) Schema(convert func(any) (any, error)) ([]schema.Type, []schema
 }
 
 // schemaFields reads fields: each a description, or a table with the
-// description first and type and default. prefix goes in front of each
+// desc, type and default. prefix goes in front of each
 // field's name, for fields added to another plugin's type. convert turns a
 // default from a script value into a property value.
 func (p *Plugin) schemaFields(where string, raw any, prefix string, convert func(any) (any, error)) ([]schema.Field, error) {
-	table, err := asTable(where+".fields", raw, `fields = { weight = { "how heavy it is", type = "number" } }`)
+	table, err := asTable(where+".fields", raw, `fields = { weight = { desc = "how heavy it is", type = "number" } }`)
 	if err != nil || table == nil {
 		return nil, err
 	}
@@ -142,14 +142,15 @@ func (p *Plugin) schemaFields(where string, raw any, prefix string, convert func
 		case string:
 			f.Desc = v
 		case map[string]any:
-			desc, ok := v["1"].(string)
-			if !ok {
-				return nil, fmt.Errorf("%s must start with its description, like { \"how heavy it is\", type = \"number\" }.", at)
+			if first, ok := v["1"].(string); ok {
+				return nil, fmt.Errorf("%s names its description: write { desc = %q, ... }.", at, first)
 			}
-			rest := maps.Clone(v)
-			delete(rest, "1")
-			if err := checkKeys(at, rest, schemaFieldKeys, nil); err != nil {
+			if err := checkKeys(at, v, schemaFieldKeys, nil); err != nil {
 				return nil, err
+			}
+			desc, ok := v["desc"].(string)
+			if !ok {
+				return nil, fmt.Errorf("%s needs desc, saying what it holds, like { desc = \"how heavy it is\", type = \"number\" }.", at)
 			}
 			f.Desc = desc
 

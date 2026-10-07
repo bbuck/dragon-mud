@@ -89,7 +89,7 @@ one more part of the event declaration that already lists its fields
 ```lua
 -- rooms/lua/events.lua, exported as events.declare
 ["rooms:entered"] = {
-  fields = { actor = "who arrived", room = "where", from = { "where from", optional = true } },
+  fields = { actor = "who arrived", room = "where", from = { desc = "where from", optional = true } },
   audience = { "room.contents", "actor" },
 },
 ["combat:attacked"] = {
@@ -507,8 +507,8 @@ return {
 **The plugin that sends an event declares it** in `events.declare`: what
 it's for, and the fields its payload has. The engine declares its own
 (`dragon:booted`, `dragon:player_connected`, ..., and `section:*`). A
-field is a description, or a table with the description first when it can
-be left out:
+field is a description, or a table with `desc` and `optional = true` when
+it can be left out:
 
 ```lua
 -- chat/lua/events.lua, exported as events.declare
@@ -518,7 +518,7 @@ return {
     fields = {
       actor = "who's speaking",
       message = "what they'll say",
-      target = { "who they're speaking to, when they name someone", optional = true },
+      target = { desc = "who they're speaking to, when they name someone", optional = true },
     },
   },
 }

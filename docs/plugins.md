@@ -185,23 +185,23 @@ return {
     ["items:item"] = {
       desc = "Something that can be carried.",
       fields = {
-        description = { "what players see when they look at it", type = "text" },
-        weight = { "how heavy it is, in pounds", type = "number", default = 1 },
+        description = { desc = "what players see when they look at it", type = "text" },
+        weight = { desc = "how heavy it is, in pounds", type = "number", default = 1 },
         notes = "anything builders want to remember",
       },
     },
     ["items:container"] = {
-      fields = { capacity = { "how much it holds", type = "integer", default = 10 } },
+      fields = { capacity = { desc = "how much it holds", type = "integer", default = 10 } },
     },
   },
   extend = {
-    ["rooms:room"] = { fields = { light = { "how bright it is", type = "integer" } } },
+    ["rooms:room"] = { fields = { light = { desc = "how bright it is", type = "integer" } } },
   },
 }
 ```
 
-- **A field** is a description, or a table with the description first and
-  a `type` and `default`. Types are `any` (the default), `string`,
+- **A field** is a description, or a table with `desc` and a `type` and
+  `default`. Types are `any` (the default), `string`,
   `text`, `number`, `integer`, `boolean`, `object`, `list` and `table`,
   and every one also takes nil. Every type also has the fields the
   engine reads: `name` and `article` (design.md §5).

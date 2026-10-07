@@ -8,7 +8,7 @@ return {
     fields = {
       actor = "who's speaking",
       message = "what they'll say",
-      target = { "who they're speaking to, when they name someone", optional = true },
+      target = { desc = "who they're speaking to, when they name someone", optional = true },
     },
   },
 
@@ -17,7 +17,7 @@ return {
     fields = {
       actor = "who spoke",
       message = "what they said",
-      target = { "who they spoke to, when they named someone", optional = true },
+      target = { desc = "who they spoke to, when they named someone", optional = true },
     },
   },
 
