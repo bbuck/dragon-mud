@@ -110,6 +110,9 @@ func runTask(name string, args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
+	if pid, ok := runningServer(*dir); ok {
+		return fmt.Errorf("dragon serve is running this game, as process %d, and a task run from the command line changes the database underneath it: the server wouldn't see the changes, and could save over them. Stop the server, then run %s.", pid, name)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

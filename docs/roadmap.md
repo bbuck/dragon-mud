@@ -109,6 +109,11 @@ over telnet and the web and talk to each other.
       lists every plugin. Generating reference docs from the same data is
       still to come.
 
+- [ ] No automatic prefixes: client events (`mapping:pan`) and fields added
+      to another plugin's type (`mapping.coords`) get their plugin's name
+      put in front today. Names should be as written, like events, modes
+      and tasks, so anyone reading the code knows what to reference.
+
 ## Milestone 4: World
 
 - [ ] Entity scripts (design.md §2): stored on objects, edited in-game and

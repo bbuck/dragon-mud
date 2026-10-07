@@ -185,6 +185,12 @@ func runServe(args []string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	unlock, err := lockServer(*dir)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
 	g, closeGame, err := openGame(ctx, *dir, cfg, log, func(objects int) { d.greet(cfg.Name, objects) })
 	if err != nil {
 		return err

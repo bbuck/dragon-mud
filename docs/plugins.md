@@ -490,9 +490,12 @@ return {
   against the game's database, with every module scripts normally get, but
   no players and no transports. `dragon:booted` is sent first, as when the
   server starts. A task has no deadline (Ctrl-C stops it), and what the
-  tasks of one run change is saved together when they finish. Don't run a
-  task that changes the world while the server is running: the server
-  wouldn't see the changes, and could save over them.
+  tasks of one run change is saved together when they finish.
+- **Not while the server runs.** `dragon serve` writes `data/server.lock`
+  with its process id, and removes it when it stops. A task refuses to run
+  while that process is alive, since the server wouldn't see the task's
+  changes and could save over them; a second `dragon serve` refuses too. A
+  lock left by a server that crashed is ignored.
 - Exporting tasks needs the `tasks` capability (see Capabilities).
 - To come: `live = true`, running inside the running game through the
   admin API (Milestone 5), the admin UI's Tasks page and the console, and
