@@ -346,7 +346,7 @@ func showTypes(out io.Writer, info *game.Inspection, p *plugin.Plugin) error {
 				if f.Plugin != p.ID {
 					desc += " (added by " + f.Plugin + ")"
 				}
-				fmt.Fprintf(w, "    %s\t%s\t%s\n", f.Name, f.Kind, desc)
+				fmt.Fprintf(w, "    %s\t%s\t%s\n", f.Name, f.TypeName(), desc)
 			}
 		}
 		w.Flush()
@@ -357,7 +357,7 @@ func showTypes(out io.Writer, info *game.Inspection, p *plugin.Plugin) error {
 			t, _ := info.Schema.Type(name)
 			for _, f := range t.Added {
 				if f.Plugin == p.ID {
-					fmt.Fprintf(w, "  %s\t%s\t%s\t%s\n", name, f.Name, f.Kind, f.Desc)
+					fmt.Fprintf(w, "  %s\t%s\t%s\t%s\n", name, f.Name, f.TypeName(), f.Desc)
 				}
 			}
 		}

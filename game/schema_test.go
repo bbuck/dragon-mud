@@ -129,7 +129,7 @@ func TestChangingTypesChecksProperties(t *testing.T) {
 // A plugin adds fields to another plugin's type, named for itself.
 func TestSchemaExtensions(t *testing.T) {
 	mapping := localPlugin("mapping", "", fstest.MapFS{
-		"init.lua": file(`return { schema = { extend = { room = { fields = { coords = { desc = "where it is on the map", type = "table" } } } } } }`),
+		"init.lua": file(`return { schema = { extend = { room = { fields = { coords = { desc = "where it is on the map", type = "map" } } } } } }`),
 	})
 	g, err := newGameWithPlugins(t, fstest.MapFS{
 		"init.lua": file(`return {
@@ -166,12 +166,12 @@ func TestSchemaDefinitionErrors(t *testing.T) {
 		{
 			"unknown kind",
 			`return { types = { item = { fields = { weight = { desc = "how heavy", type = "nubmer" } } } } }`,
-			`schema.types.item: field weight: type must be one of any, string, text, number, integer, boolean, object, list and table, not nubmer. Did you mean "number"?`,
+			`schema.types.item: field weight: type must be one of any, string, text, number, integer, boolean, object, list and map, not nubmer. Did you mean "number"?`,
 		},
 		{
 			"default of the wrong kind",
 			`return { types = { item = { fields = { weight = { desc = "how heavy", type = "number", default = "lots" } } } } }`,
-			`schema.types.item: field weight: its default is a string, but the field is a number.`,
+			`schema.types.item: field weight: its default doesn't fit the field, which holds a number.`,
 		},
 		{
 			"engine field",
@@ -192,6 +192,26 @@ func TestSchemaDefinitionErrors(t *testing.T) {
 			"extending its own type",
 			`return { types = { item = {} }, extend = { item = { fields = { weight = "how heavy" } } } }`,
 			`adds fields to item, which the same plugin declares. Add them to its fields instead.`,
+		},
+		{
+			"old table type",
+			`return { types = { item = { fields = { bits = { desc = "bits", type = "table" } } } } }`,
+			`schema.types.item: field bits: type "table" is called map now, for values keyed by name. Write type = "map".`,
+		},
+		{
+			"of without a list or map",
+			`return { types = { item = { fields = { weight = { desc = "how heavy", type = "number", of = "string" } } } } }`,
+			`schema.types.item: field weight: of says what a list's items or a map's values are, so it needs type = "list" or type = "map".`,
+		},
+		{
+			"unknown of",
+			`return { types = { item = { fields = { tags = { desc = "tags", type = "list", of = "strng" } } } } }`,
+			`schema.types.item: field tags: of: type must be one of`,
+		},
+		{
+			"default that doesn't fit",
+			`return { types = { item = { fields = { tags = { desc = "tags", type = "list", of = "string", default = { "a", 2 } } } } } }`,
+			`schema.types.item: field tags: its default doesn't fit the field, which holds a list of strings.`,
 		},
 		{
 			"unknown key",
@@ -291,5 +311,60 @@ func TestSafeReads(t *testing.T) {
 	}
 	if !strings.Contains(lines[6], `"colour" isn't a field of items:item.`) {
 		t.Errorf("get_or_set of an undeclared field: %q", lines[6])
+	}
+}
+
+func TestTypedListsAndMaps(t *testing.T) {
+	g := schemaGame(t, `
+		return {
+			types = {
+				room = {
+					fields = {
+						tags = { desc = "words builders search by", type = "list", of = "string" },
+						exits = { desc = "where each way leads", type = "map", of = "object" },
+						grid = { desc = "rows of tiles", type = "list", of = { type = "list", of = "integer" } },
+					},
+				},
+			},
+		}
+	`, `
+		local world = require("dragon.world")
+		return {
+			run = function(args, out)
+				local hall = world.create({ types = { "room" } })
+				local cellar = world.create({})
+				local function try(fn)
+					local ok, err = pcall(fn)
+					out(ok and "ok" or tostring(err))
+				end
+				try(function() hall:set("tags", { "dusty", "dark" }) end)
+				try(function() hall:set("tags", { "dusty", 3 }) end)
+				try(function() hall:set("exits", { down = cellar }) end)
+				try(function() hall:set("exits", { down = "cellar" }) end)
+				try(function() hall:set("grid", { { 1, 2 }, { 3 } }) end)
+				try(function() hall:set("grid", { { 1 }, { "x" } }) end)
+			end,
+		}
+	`)
+
+	lines, err := runTaskLines(t, g, "run")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"ok",
+		"room's tags is a list of strings, so tags[2] can't be the number 3.",
+		"ok",
+		`room's exits is a map of objects, so exits.down can't be the string "cellar".`,
+		"ok",
+		`room's grid is a list of lists of integers, so grid[2][1] can't be the string "x".`,
+	}
+	if len(lines) != len(want) {
+		t.Fatalf("printed %q", lines)
+	}
+	for i := range want {
+		if !strings.Contains(lines[i], want[i]) {
+			t.Errorf("line %d = %q, want it to contain %q", i+1, lines[i], want[i])
+		}
 	}
 }

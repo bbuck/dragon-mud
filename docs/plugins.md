@@ -201,10 +201,23 @@ return {
 ```
 
 - **A field** is a description, or a table with `desc` and a `type` and
-  `default`. Types are `any` (the default), `string`,
-  `text`, `number`, `integer`, `boolean`, `object`, `list` and `table`,
-  and every one also takes nil. Every type also has the fields the
-  engine reads: `name` and `article` (design.md §5).
+  `default`. Types are `any` (the default, which takes any value),
+  `string`, `text`, `number`, `integer`, `boolean`, `object`, `list` and
+  `map` (values keyed by name), and every one also takes nil. Every type
+  also has the fields the engine reads: `name` and `article`
+  (design.md §5).
+- **`of` types a list's items or a map's values**: a type name, or a
+  table for lists of lists and the like. Map keys are always strings.
+  Without `of`, items and values aren't checked.
+
+  ```lua
+  tags = { desc = "words builders search by", type = "list", of = "string" },
+  exits = { desc = "where each way leads", type = "map", of = "object" },
+  grid = { desc = "rows of tiles", type = "list", of = { type = "list", of = "integer" } },
+  ```
+
+  A wrong item is an error naming where it is: `room's exits is a map of
+  objects, so exits.down can't be the string "cellar".`
 - **Names are as written**, like events: plugins namespace their types
   (`items:item`), and `dragon:` is for built-ins. Two plugins declaring
   one type is a startup error.

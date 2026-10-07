@@ -34,11 +34,11 @@ const (
 	Boolean Kind = "boolean" // true or false
 	Object  Kind = "object"  // another object
 	List    Kind = "list"    // a list of values
-	Table   Kind = "table"   // a table keyed by name
+	Map     Kind = "map"     // values keyed by name
 )
 
 // Kinds lists every kind, in the order docs give them.
-var Kinds = []Kind{Any, String, Text, Number, Integer, Boolean, Object, List, Table}
+var Kinds = []Kind{Any, String, Text, Number, Integer, Boolean, Object, List, Map}
 
 // Field is a property objects of a type have.
 type Field struct {
@@ -48,6 +48,10 @@ type Field struct {
 	Name string
 	Desc string
 	Kind Kind
+
+	// Of, for a list or map, is what its items or values must be; nil
+	// leaves them unchecked. Only its Kind and Of matter.
+	Of *Field
 
 	// Default is what reading the property gives when no object in the
 	// chain has it. HasDefault tells a nil default from none.
@@ -59,9 +63,47 @@ type Field struct {
 	Plugin string
 }
 
-// Allows reports whether v is a value the field may hold. Values are as
-// world.Normalize leaves them.
+// Allows reports whether v is a value the field may hold, items and
+// values included. Values are as world.Normalize leaves them.
 func (f Field) Allows(v any) bool {
+	_, _, ok := f.mismatch(v, f.Name)
+
+	return ok
+}
+
+// mismatch finds the first value in v, which is at path, that the field
+// doesn't allow: v itself, or for a list or map with Of, one of its items
+// or values. It returns that value and its path, or ok when everything
+// matches.
+func (f Field) mismatch(v any, path string) (where string, bad any, ok bool) {
+	if !f.allowsKind(v) {
+		return path, v, false
+	}
+	if f.Of == nil || v == nil {
+		return "", nil, true
+	}
+
+	switch items := v.(type) {
+	case []any:
+		for i, item := range items {
+			if where, bad, ok := f.Of.mismatch(item, fmt.Sprintf("%s[%d]", path, i+1)); !ok {
+				return where, bad, false
+			}
+		}
+	case map[string]any:
+		for _, key := range slices.Sorted(maps.Keys(items)) {
+			if where, bad, ok := f.Of.mismatch(items[key], path+"."+key); !ok {
+				return where, bad, false
+			}
+		}
+	}
+
+	return "", nil, true
+}
+
+// allowsKind reports whether v is of the field's kind, not looking inside
+// lists and maps.
+func (f Field) allowsKind(v any) bool {
 	if v == nil {
 		return true
 	}
@@ -93,18 +135,51 @@ func (f Field) Allows(v any) bool {
 	case List:
 		_, ok := v.([]any)
 		return ok
-	case Table:
-		switch t := v.(type) {
+	case Map:
+		switch m := v.(type) {
 		case map[string]any:
 			return true
 		case []any:
 			// An empty table is an empty list to the engine.
-			return len(t) == 0
+			return len(m) == 0
 		}
 		return false
 	default:
 		return true
 	}
+}
+
+// Describe says what the field holds, for messages: "a number", or "a
+// list of strings".
+func (f Field) Describe() string {
+	return article(f.Kind) + strings.TrimPrefix(f.TypeName(), string(f.Kind))
+}
+
+// TypeName is the field's type as listings show it: "number", or "list
+// of strings".
+func (f Field) TypeName() string {
+	if f.Of == nil {
+		return string(f.Kind)
+	}
+
+	return string(f.Kind) + " of " + f.Of.plural()
+}
+
+func (f Field) plural() string {
+	var noun string
+	switch f.Kind {
+	case Any:
+		noun = "anything"
+	case Text:
+		noun = "text"
+	default:
+		noun = string(f.Kind) + "s"
+	}
+	if f.Of != nil {
+		noun += " of " + f.Of.plural()
+	}
+
+	return noun
 }
 
 // Type is a kind of object a plugin declares, such as items:item.
@@ -296,22 +371,35 @@ func (r *Registry) Check(types []string, name string, value any) error {
 	}
 
 	if f, ok := engineField(name); ok {
-		if !f.Allows(value) {
-			return fmt.Errorf("%s is %s field, so it can't hold %s.", name, article(f.Kind), describe(value))
-		}
-		return nil
+		return mismatchError(name, f, value)
 	}
 	for _, typeName := range types {
 		t, ok := r.types[typeName]
 		if !ok {
 			continue
 		}
-		if f, ok := t.field(name); ok && !f.Allows(value) {
-			return fmt.Errorf("%s's %s is %s field, so it can't hold %s.", typeName, name, article(f.Kind), describe(value))
+		if f, ok := t.field(name); ok {
+			if err := mismatchError(typeName+"'s "+name, f, value); err != nil {
+				return err
+			}
 		}
 	}
 
 	return nil
+}
+
+// mismatchError describes the first value in value that f, called what in
+// messages, doesn't allow, or returns nil when it allows them all.
+func mismatchError(what string, f Field, value any) error {
+	where, bad, ok := f.mismatch(value, f.Name)
+	switch {
+	case ok:
+		return nil
+	case where == f.Name:
+		return fmt.Errorf("%s is %s field, so it can't hold %s.", what, f.Describe(), describe(bad))
+	}
+
+	return fmt.Errorf("%s is %s, so %s can't be %s.", what, f.Describe(), where, describe(bad))
 }
 
 func (t *Type) field(name string) (Field, bool) {
