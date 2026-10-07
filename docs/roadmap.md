@@ -181,6 +181,10 @@ over telnet and the web and talk to each other.
   API can be read without opening `lua/api.lua`.
 - Dice notation: modifiers, keep highest, drop lowest; dice objects.
 - Fairness features: rate limits, cooldowns.
+- Transactions scripts opt into, like `store.transaction(function() ...
+  end)`: if the function fails, nothing it changed is saved. Today a
+  failed task still saves what it changed, so tasks are written to run
+  again safely.
 - Engine upgrades: deprecations, `dragon upgrade`.
 - Go extensions and `xdragon build`.
 - A second scripting language behind `scripting`, and a conformance suite
