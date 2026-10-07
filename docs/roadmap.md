@@ -160,6 +160,10 @@ over telnet and the web and talk to each other.
       version. Book-style layouts are games' own.
 - [ ] Layouts as plugins; `dragon layout:diff`.
 - [ ] Reconnect with resume.
+- [ ] Tell open browsers when a reload changed plugins' web files (push
+      `dragon:client_updated`), so they reload for the new import map,
+      which a page can't swap once loaded. With resume, the client can
+      reload itself without logging the player out.
 - [ ] `world:export` / `world:import` (JSONL).
 
 ## Milestone 5: Building

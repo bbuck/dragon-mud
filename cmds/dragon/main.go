@@ -210,7 +210,7 @@ func runServe(args []string) error {
 	tasks = append(tasks, func() error { return d.keepWatch(ctx, activity, idleAfter) })
 	if gameDir := filepath.Join(*dir, "game"); isDir(gameDir) {
 		tasks = append(tasks, func() error {
-			return watch.Poll(ctx, os.DirFS(gameDir), []string{"*.lua", "*.tmpl", plugin.ManifestFile}, reloadInterval, func() {
+			return watch.Poll(ctx, os.DirFS(gameDir), []string{"*.lua", "*.tmpl", plugin.ManifestFile, plugin.WebDir + "/"}, reloadInterval, func() {
 				log.Info("scripts changed; reloading", termlog.PrefixKey, "watch")
 				d.reloaded()
 				g.Reload()

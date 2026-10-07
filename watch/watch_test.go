@@ -58,3 +58,22 @@ func TestPoll(t *testing.T) {
 	}
 	expect(true)
 }
+
+func TestMatches(t *testing.T) {
+	tests := []struct {
+		pattern, name string
+		want          bool
+	}{
+		{"*.lua", "lua/commands.lua", true},
+		{"*.lua", "web/main.mjs", false},
+		{"web/", "web/main.mjs", true},
+		{"web/", "plugins/mapping/web/icons/door.png", true},
+		{"web/", "lua/web.lua", false},
+		{"web/", "web", false},
+	}
+	for _, tt := range tests {
+		if got := matches(tt.pattern, tt.name); got != tt.want {
+			t.Errorf("matches(%q, %q) = %v, want %v", tt.pattern, tt.name, got, tt.want)
+		}
+	}
+}

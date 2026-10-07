@@ -630,8 +630,10 @@ the loaded plugins:
   `import "dragon:rooms/map.mjs"` reaches whichever plugin provides
   `dragon:rooms`.
 - The hash in the path is of the files' contents, so browsers cache them
-  for good and a change gets a new URL. A page loaded before a reload
-  still gets the current files, uncached.
+  for good and a change gets a new URL. Changing a file in `web/` reloads
+  the game like changing its Lua, and pages loaded after that get the new
+  URLs. A page loaded before a reload keeps its import map, and gets the
+  current files uncached.
 - **`{{asset "mapping/icons/door.png"}}`** in a template writes a web
   file's URL, for what the import map can't reach, like `<img src>`: the
   first part names the plugin as the import map does, by its name or an
